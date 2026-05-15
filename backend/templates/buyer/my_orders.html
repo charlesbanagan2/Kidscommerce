@@ -1,0 +1,806 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Enhanced Header -->
+  <div class="orders-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <h2>My Orders</h2>
+      <a href="{{ url_for('track_order_search') }}" class="btn btn-primary">
+        <i class="fas fa-truck me-2"></i>Track Order
+      </a>
+    </div>
+  </div>
+
+  <!-- Bootstrap Tabs -->
+  <ul class="nav nav-tabs" id="ordersTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='to_pay' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-to-pay" type="button" role="tab">
+        <i class="fas fa-wallet me-1"></i>To Pay
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='to_ship' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-to-ship" type="button" role="tab">
+        <i class="fas fa-box me-1"></i>To Ship
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='to_receive' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-to-receive" type="button" role="tab">
+        <i class="fas fa-truck-fast me-1"></i>To Receive
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='completed' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-completed" type="button" role="tab">
+        <i class="fas fa-check-circle me-1"></i>Completed
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='returns' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-returns" type="button" role="tab">
+        <i class="fas fa-undo me-1"></i>Returns
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab=='cancelled' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-cancelled" type="button" role="tab">
+        <i class="fas fa-ban me-1"></i>Cancelled
+      </button>
+    </li>
+  </ul>
+
+    <div class="tab-content orders-tab-content">
+      <!-- To Pay (All Pending Orders) -->
+      <div class="tab-pane fade {% if active_tab=='to_pay' %}show active{% endif %}" id="tab-to-pay" role="tabpanel" aria-labelledby="tab-to-pay">
+        {% if to_pay %}
+          {% for order in to_pay %}
+            <div class="orders-info-banner orders-info-cod mb-3">
+              <i class="fas fa-info-circle"></i>
+              <span>
+                {% if order.payment_method and order.payment_method.lower() == 'cod' %}
+                  Cash on Delivery. No payment action needed. Waiting for seller to process your order.
+                {% else %}
+                  Order placed successfully. Waiting for seller to process your order.
+                {% endif %}
+              </span>
+            </div>
+            {% include 'partials/_order_card.html' %}
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-wallet fa-3x text-muted mb-3"></i>
+            <h4>No Orders to Pay</h4>
+            <p class="text-muted">You don't have any pending orders right now.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- To Ship -->
+      <div class="tab-pane fade {% if active_tab=='to_ship' %}show active{% endif %}" id="tab-to-ship" role="tabpanel" aria-labelledby="tab-to-ship">
+        {% if to_ship %}
+          {% for order in to_ship %}
+            {% set context_tab = 'to_ship' %}
+            <div class="orders-info-banner orders-info-cod mb-3">
+              <i class="fas fa-info-circle"></i>
+              <span>Cash on Delivery. No payment action needed. Waiting for seller to process your order.</span>
+            </div>
+            {% include 'partials/_order_card.html' %}
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-box fa-3x text-muted mb-3"></i>
+            <h4>No Orders Being Prepared</h4>
+            <p class="text-muted">Your orders will appear here once sellers start preparing them.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- To Receive / Out for Delivery -->
+      <div class="tab-pane fade {% if active_tab=='to_receive' %}show active{% endif %}" id="tab-to-receive" role="tabpanel" aria-labelledby="tab-to-receive">
+        {% if to_receive %}
+          {% for order in to_receive %}
+            {% set context_tab = 'to_receive' %}
+            {% if order.status in ['to_ship','in_transit'] %}
+              <div class="orders-info-banner orders-info-delivery">
+                <i class="fas fa-truck"></i>
+                <span>Your order is on the way. Track it for real-time updates.</span>
+              </div>
+            {% elif order.status == 'delivered' %}
+              <div class="orders-info-banner orders-info-delivery mb-3">
+                <i class="fas fa-check-circle"></i>
+                <span>Your order has been delivered. Confirm receipt to complete.</span>
+              </div>
+            {% endif %}
+            {% include 'partials/_order_card.html' %}
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-truck-fast fa-3x text-muted mb-3"></i>
+            <h4>No Orders in Transit</h4>
+            <p class="text-muted">You don't have any orders out for delivery yet.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Completed -->
+      <div class="tab-pane fade {% if active_tab=='completed' %}show active{% endif %}" id="tab-completed" role="tabpanel" aria-labelledby="tab-completed">
+        {% if completed %}
+          {% for order in completed %}
+            {% set context_tab = 'completed' %}
+            {% include 'partials/_order_card.html' %}
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+            <h4>No Completed Orders</h4>
+            <p class="text-muted">Your completed orders will appear here once delivery is confirmed.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Return / Refund -->
+      <div class="tab-pane fade {% if active_tab=='returns' %}show active{% endif %}" id="tab-returns" role="tabpanel" aria-labelledby="tab-returns">
+        {% if returns %}
+          {% for rr in returns %}
+            <div class="card orders-return-card mb-3">
+              <div class="card-body">
+                <div class="d-flex align-items-center">
+                  {% if rr.order_item and rr.order_item.product and rr.order_item.product.image_filename %}
+                    <img src="{{ url_for('static', filename='uploads/' + rr.order_item.product.image_filename) }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;" alt="{{ rr.order_item.product.name }}">
+                  {% else %}
+                    <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                      <i class="fas fa-image text-muted"></i>
+                    </div>
+                  {% endif %}
+                  <div class="flex-grow-1">
+                    <h6 class="mb-1">{{ rr.order_item.product.name if rr.order_item and rr.order_item.product else 'Product' }}</h6>
+                    <div class="small text-muted">Order #: {{ rr.order_id }} • Reason: {{ rr.reason if rr.reason != 'Others' else (rr.reason_other or 'N/A') }}</div>
+                  </div>
+                  {% set rstatus = rr.status %}
+                  {% set badge = 'secondary' %}
+                  {% if rstatus in ['submitted','seller_reviewing','waiting_rider_pickup','rider_picked_up','rider_to_seller','item_received_by_seller','refund_processing'] %}{% set badge = 'warning' %}{% endif %}
+                  {% if rstatus in ['completed'] %}{% set badge = 'success' %}{% endif %}
+                  {% if rstatus in ['rejected','cancelled'] %}{% set badge = 'danger' %}{% endif %}
+                  {% set friendly = (
+                    'Submitted – Waiting for Approval' if rstatus in ['submitted','seller_reviewing'] else
+                    'Refunded' if rstatus in ['waiting_rider_pickup','refund_processing','completed'] else
+                    'Parcel Picked Up' if rstatus == 'rider_picked_up' else
+                    'On the Way to Seller' if rstatus == 'rider_to_seller' else
+                    'Returned to Seller – Completed' if rstatus in ['item_received_by_seller'] else
+                    'Not Delivered' if rstatus in ['return_failed'] else
+                    rstatus.replace('_',' ')|title
+                  ) %}
+                  <span class="badge bg-{{ badge }} me-3">{{ friendly }}</span>
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('buyer_return_detail', return_id=rr.id) }}">View Details</a>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-undo fa-3x text-muted mb-3"></i>
+            <h4>No Returns or Refunds</h4>
+            <p class="text-muted">If you need to return or refund an item, visit your completed orders.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Cancelled -->
+      <div class="tab-pane fade {% if active_tab=='cancelled' %}show active{% endif %}" id="tab-cancelled" role="tabpanel" aria-labelledby="tab-cancelled">
+        {% if cancelled %}
+          {% for order in cancelled %}
+            {% set context_tab = 'cancelled' %}
+            {% include 'partials/_order_card.html' %}
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5">
+            <i class="fas fa-ban fa-3x text-muted mb-3"></i>
+            <h4>No Cancelled Orders</h4>
+            <p class="text-muted">Cancelled orders will appear here for your reference.</p>
+            <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+              Continue to Shopping
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+</div>
+
+<!-- Rate Product Modal (global) -->
+<div class="modal fade" id="rateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form id="rateForm" class="modal-content" method="POST" action="/submit-review/0" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-star text-warning me-2"></i>Rate Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 text-center">
+          <div id="rateStars" class="d-flex justify-content-center gap-2">
+            {% for i in range(1,6) %}
+            <input type="radio" class="btn-check" name="rating" id="rate{{ i }}" value="{{ i }}" autocomplete="off">
+            <label class="rate-star" for="rate{{ i }}"><i class="fas fa-star"></i></label>
+            {% endfor %}
+          </div>
+          <div class="small text-muted mt-1">Tap a star to rate</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Review (optional)</label>
+          <textarea name="content" class="form-control" rows="3" placeholder="Share your experience (optional)"></textarea>
+        </div>
+<div class="mb-2">
+          <label class="form-label">Upload photos/videos (optional)</label>
+          {% include 'partials/_media_uploader_assets.html' %}
+          <div class="js-mu" data-name="media[]" data-max="6" data-accept="image/*,.jpg,.jpeg,.png,video/mp4,video/quicktime,.mp4,.mov">
+            <div class="mu-grid">
+              <div class="mu-add"><div class="mu-plus">+ Add Photo/Video</div></div>
+            </div>
+            <div class="mu-hint mt-1">JPG, PNG, MP4, MOV • up to 6 files</div>
+            <div class="mu-error mt-1"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Submit Review</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Global Cancel Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="POST" id="cancelForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Cancel Order</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">Select your reason(s):</p>
+        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered by mistake" id="r1"><label class="form-check-label" for="r1">Ordered by mistake</label></div>
+        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="cancel_reasons" value="Change of mind" id="r2"><label class="form-check-label" for="r2">Change of mind</label></div>
+        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="cancel_reasons" value="Found a cheaper alternative" id="r3"><label class="form-check-label" for="r3">Found a cheaper alternative</label></div>
+        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered the wrong item" id="r4"><label class="form-check-label" for="r4">Ordered the wrong item</label></div>
+        <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="cancel_reasons" value="Seller has not processed my order" id="r5"><label class="form-check-label" for="r5">Seller has not processed my order</label></div>
+        <div class="mt-2">
+          <label class="form-label">Other reason</label>
+          <input type="text" class="form-control" name="cancel_other" placeholder="Type your reason (optional)">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep Order</button>
+        <button type="submit" class="btn btn-danger">Submit Cancellation</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Default styling - no theme overrides */
+</style>
+<style>
+  /* Minimalist Order Page Design */
+  
+  /* Rating Stars */
+  .rate-star {
+    cursor: pointer;
+    font-size: 1.6rem;
+    color: #e5e7eb;
+    transition: color 0.15s ease-in-out;
+    padding: 0.25rem;
+  }
+  
+  .rate-star:hover {
+    color: #fbbf24;
+  }
+  
+  .rate-star.active {
+    color: #fa6b02 !important;
+  }
+  
+  #rateStars input[type="radio"] {
+    display: none;
+  }
+  
+  /* Page Header - Clean and Simple */
+  .orders-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 20px 0;
+    margin: -24px -15px 30px -15px;
+  }
+  
+  .orders-header h2 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 24px;
+    color: #1f2937;
+  }
+  
+  .orders-header .btn-primary {
+    background: #3b82f6;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  
+  .orders-header .btn-primary:hover {
+    background: #2563eb;
+  }
+  
+  /* Tabs - Minimalist Design */
+  .nav-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 20px;
+  }
+  
+  .nav-tabs .nav-link {
+    border: none;
+    color: #6b7280;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 0;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+  }
+  
+  .nav-tabs .nav-link:hover {
+    color: #374151;
+    background: transparent;
+  }
+  
+  .nav-tabs .nav-link.active {
+    color: #3b82f6;
+    background: transparent;
+    border-bottom: 2px solid #3b82f6;
+  }
+  
+  /* Info Banners - With Background Colors */
+  .orders-info-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .orders-info-cod {
+    background: #dbeafe !important;
+    border-left: 4px solid #3b82f6 !important;
+    color: #1e40af !important;
+  }
+  
+  .orders-info-cod i {
+    font-size: 16px;
+    color: #3b82f6 !important;
+  }
+  
+  .orders-info-delivery {
+    background: #dcfce7 !important;
+    border-left: 4px solid #22c55e !important;
+    color: #166534 !important;
+  }
+  
+  .orders-info-delivery i {
+    font-size: 16px;
+    color: #22c55e !important;
+  }
+  
+  /* Additional specific rules */
+  div.orders-info-banner.orders-info-cod {
+    background-color: #dbeafe !important;
+    border-left: 4px solid #3b82f6 !important;
+  }
+  
+  div.orders-info-banner.orders-info-delivery {
+    background-color: #dcfce7 !important;
+    border-left: 4px solid #22c55e !important;
+  }
+  
+  /* Order Cards - Clean Design */
+  .card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: none;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+  }
+  
+  .card:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #374151;
+  }
+  
+  .card-body {
+    padding: 16px;
+  }
+  
+  /* Empty States - Minimal */
+  .text-center.py-5 {
+    padding: 40px 20px !important;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin: 20px 0;
+  }
+  
+  .text-center.py-5 i {
+    font-size: 48px;
+    color: #d1d5db;
+    margin-bottom: 16px;
+  }
+  
+  .text-center.py-5 h4 {
+    color: #374151;
+    font-weight: 600;
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  
+  .text-center.py-5 p {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .text-center.py-5 .btn-outline-primary {
+    background: transparent;
+    border: 1px solid var(--footer-color, #d1d5db);
+    color: var(--footer-color, #6b7280);
+    padding: 8px 36px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    min-width: 180px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .text-center.py-5 .btn-outline-primary:hover {
+    background: var(--primary-color, #3b82f6);
+    border-color: var(--primary-color, #3b82f6);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+  }
+  
+  .text-center.py-5 .btn-outline-primary i {
+    font-size: 14px;
+    margin-right: 8px;
+    position: relative;
+    top: -1px;
+  }
+  
+  /* Return and Cancelled Cards */
+  .orders-return-card,
+  .orders-cancelled-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: none;
+    margin-bottom: 16px;
+    transition: all 0.2s ease;
+  }
+  
+  .orders-return-card:hover,
+  .orders-cancelled-card:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .orders-header {
+      padding: 16px 0;
+      margin: -15px -15px 20px -15px;
+    }
+    
+    .orders-header h2 {
+      font-size: 20px;
+    }
+    
+    .nav-tabs .nav-link {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    
+    .orders-info-banner {
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+  }
+</style>
+
+<script>
+  // Wire modal action to set form action dynamically
+  const cancelModal = document.getElementById('cancelModal');
+  if (cancelModal) {
+    cancelModal.addEventListener('show.bs.modal', function (event) {
+      const trigger = event.relatedTarget;
+      const orderId = trigger?.getAttribute('data-order-id');
+      const form = cancelModal.querySelector('#cancelForm');
+      if (orderId && form) {
+        form.action = `/cancel-order/${orderId}`;
+      }
+      // Clear previous selections
+      form.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+      form.querySelector('input[name=cancel_other]').value = '';
+    });
+    
+    // Validate form before submission
+    const cancelForm = cancelModal.querySelector('#cancelForm');
+    if (cancelForm) {
+      cancelForm.addEventListener('submit', function (e) {
+        const reasons = cancelForm.querySelectorAll('input[name="cancel_reasons"]:checked');
+        const otherReason = cancelForm.querySelector('input[name="cancel_other"]').value.trim();
+        
+        if (!reasons.length && !otherReason) {
+          e.preventDefault();
+          showCancelError('⚠️ Please select at least one reason or provide an “Other reason” to cancel the order.');
+          return false;
+        }
+        
+        // Submit the form normally
+        return true;
+      });
+    }
+  }
+
+  // Handle Order Received without page refresh
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('form[action*="buyer_confirm_received"] button');
+    if (!btn) return;
+    e.preventDefault();
+    const form = btn.form;
+    const orderId = form.action.match(/\/(\d+)$/)?.[1];
+    if (!orderId) return;
+
+    // Disable button and show loading
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Confirming...';
+
+    try {
+      const res = await fetch(form.action, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (!res.ok) throw new Error('Failed to confirm receipt.');
+
+      // Find the order card
+      const orderCard = form.closest('.card');
+      if (!orderCard) throw new Error('Order card not found.');
+
+      // Clone the card for Completed tab
+      const completedCard = orderCard.cloneNode(true);
+
+      // Update badge to Completed
+      const badge = completedCard.querySelector('.badge');
+      if (badge) {
+        badge.className = 'badge bg-success';
+        badge.textContent = 'Completed';
+      }
+
+      // Remove Order Received button and add Completed timestamp
+      const actionsDiv = completedCard.querySelector('.col-md-6.text-end .mt-3');
+      if (actionsDiv) {
+        actionsDiv.innerHTML = '<small class="text-muted">Completed on ' + new Date().toLocaleString() + '</small>';
+      }
+
+      // Move to Completed tab
+      const completedTab = document.querySelector('#tab-completed');
+      const completedEmpty = completedTab?.querySelector('.orders-empty-state');
+      if (completedTab) {
+        if (completedEmpty) completedEmpty.style.display = 'none';
+        completedTab.appendChild(completedCard);
+      }
+
+      // Remove from To Receive tab
+      const toReceiveTab = document.querySelector('#tab-to-receive');
+      if (toReceiveTab && toReceiveTab.contains(orderCard)) {
+        orderCard.remove();
+        // Show empty state if no more orders
+        const remainingCards = toReceiveTab.querySelectorAll('.card:not(.orders-return-card):not(.orders-cancelled-card)');
+        if (!remainingCards.length) {
+          const emptyState = toReceiveTab.querySelector('.orders-empty-state');
+          if (emptyState) emptyState.style.display = 'flex';
+        }
+      }
+
+      // Switch to Completed tab
+      const completedTabBtn = document.querySelector('button[data-bs-target="#tab-completed"]');
+      if (completedTabBtn) {
+        const tab = new bootstrap.Tab(completedTabBtn);
+        tab.show();
+      }
+
+    } catch (err) {
+      console.error('Order Received error:', err);
+      // Use inline error instead of alert if possible
+      const errorEl = btn.closest('.card')?.querySelector('.order-error') || (() => {
+        const el = document.createElement('div');
+        el.className = 'alert alert-danger mt-2 order-error';
+        el.style.fontSize = '0.875rem';
+        btn.closest('.card')?.append(el);
+        return el;
+      })();
+      if (errorEl) {
+        errorEl.textContent = 'Something went wrong. Please try again.';
+        errorEl.style.display = 'block';
+      } else {
+        alert('Something went wrong. Please try again.');
+      }
+      // Restore button
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  });
+
+  // Cancel order form validation with better UX
+  const cancelForm = document.getElementById('cancelForm');
+  if (cancelForm) {
+    // Helper to show inline error
+    function showCancelError(message) {
+      let errorEl = cancelForm.querySelector('.cancel-error');
+      if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'alert alert-danger mt-2 mb-0 cancel-error';
+        errorEl.style.fontSize = '0.875rem';
+        cancelForm.querySelector('.modal-body').appendChild(errorEl);
+      }
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+      // Auto-scroll to error if needed
+      errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function clearCancelError() {
+      const errorEl = cancelForm.querySelector('.cancel-error');
+      if (errorEl) errorEl.remove();
+    }
+
+    // Clear errors when user interacts
+    cancelForm.querySelectorAll('input[name="cancel_reasons"], input[name="cancel_other"]').forEach(input => {
+      input.addEventListener('change', clearCancelError);
+      input.addEventListener('input', clearCancelError);
+    });
+
+    cancelForm.addEventListener('submit', function (e) {
+      clearCancelError();
+      const checked = cancelForm.querySelectorAll('input[name="cancel_reasons"]:checked');
+      const otherText = cancelForm.querySelector('input[name="cancel_other"]').value.trim();
+      if (checked.length === 0 && !otherText) {
+        e.preventDefault();
+        showCancelError('⚠️ Please select at least one reason or provide an “Other reason” to cancel the order.');
+        return false;
+      }
+    });
+  }
+
+  // Rate Product modal wiring
+  const rateModal = document.getElementById('rateModal');
+  const rateForm = document.getElementById('rateForm');
+  if (rateModal && rateForm){
+    rateModal.addEventListener('show.bs.modal', function(event){
+      const btn = event.relatedTarget;
+      const pid = btn?.getAttribute('data-product-id');
+      const name = btn?.getAttribute('data-product-name') || 'Rate Product';
+      if (pid) rateForm.action = `/submit-review/${pid}`;
+      rateForm.querySelectorAll('input[name="rating"]').forEach(r => r.checked = false);
+      rateForm.querySelector('textarea[name="content"]').value = '';
+      const file = document.getElementById('rateMediaInput');
+      if (file) file.value = '';
+      const prev = document.getElementById('rateMediaPreview');
+      if (prev) prev.innerHTML = '';
+      const title = rateModal.querySelector('.modal-title');
+      if (title) title.innerHTML = `<i class="fas fa-star text-warning me-2"></i>${name}`;
+      document.querySelectorAll('#rateStars .rate-star').forEach(s=>s.classList.remove('active'));
+    });
+
+    // Star hover/click effects
+    const labels = document.querySelectorAll('#rateStars .rate-star');
+    const inputs = Array.from(document.querySelectorAll('#rateStars input[type=radio]'));
+    labels.forEach((lab, idx)=>{
+      lab.addEventListener('mouseenter', ()=>{
+        labels.forEach((l,i)=>l.classList.toggle('active', i<=idx));
+      });
+      lab.addEventListener('mouseleave', ()=>{
+        const checkedIdx = inputs.findIndex(i=>i.checked);
+        labels.forEach((l,i)=>l.classList.toggle('active', checkedIdx>=0 && i<=checkedIdx));
+      });
+      lab.addEventListener('click', ()=>{
+        if (inputs[idx]) inputs[idx].checked = true;
+        labels.forEach((l,i)=>l.classList.toggle('active', i<=idx));
+      });
+    });
+
+    // Media picker for rate modal
+    const rateInput = document.getElementById('rateMediaInput');
+    const ratePrev = document.getElementById('rateMediaPreview');
+    if (rateInput && ratePrev){
+      let files = [];
+      function render(){
+        ratePrev.innerHTML = '';
+        files.forEach((f, idx)=>{
+          const wrap = document.createElement('div'); wrap.className = 'media-thumb';
+          const isVideo = f.type.startsWith('video/');
+          const el = document.createElement(isVideo ? 'video' : 'img');
+          el.src = URL.createObjectURL(f); if (isVideo) el.controls = true; wrap.appendChild(el);
+          const rm = document.createElement('button'); rm.type='button'; rm.className='remove'; rm.textContent='×';
+          rm.addEventListener('click', ()=>{ files.splice(idx,1); const dt=new DataTransfer(); files.forEach(x=>dt.items.add(x)); rateInput.files=dt.files; render(); });
+          wrap.appendChild(rm); ratePrev.appendChild(wrap);
+        });
+      }
+      rateInput.addEventListener('change', (e)=>{
+        const next = Array.from(e.target.files||[]).filter(f => (f.type.startsWith('image/')||f.type.startsWith('video/')) && (!f.type.startsWith('video/') || f.size <= 50*1024*1024));
+        files = files.concat(next);
+        const dt = new DataTransfer(); files.forEach(x=>dt.items.add(x)); rateInput.files = dt.files; render();
+      });
+    }
+
+    // Rate form validation for oversized videos
+    const rateForm = document.getElementById('rateForm');
+    if (rateForm) {
+        rateForm.addEventListener('submit', function(e) {
+            // Check media uploader for oversized videos
+            const mediaUploader = document.querySelector('#rateModal .js-mu');
+            if (mediaUploader && mediaUploader._muInstance) {
+                const mu = mediaUploader._muInstance;
+                if (mu.hasOversizedVideos()) {
+                    e.preventDefault();
+                    const oversizedNames = mu.getOversizedVideoNames().join(', ');
+                    alert(`Please remove oversized video files before submitting: ${oversizedNames}\n\nMaximum video size is 50MB. Please compress your videos or select smaller files.`);
+                    return false;
+                }
+            }
+            
+            // Also check the legacy media picker if it exists
+            const rateInput = document.getElementById('rateMediaInput');
+            if (rateInput) {
+                const files = Array.from(rateInput.files || []);
+                const oversizedVideos = files.filter(f => f.type.startsWith('video/') && f.size > 50*1024*1024);
+                if (oversizedVideos.length > 0) {
+                    e.preventDefault();
+                    const oversizedNames = oversizedVideos.map(f => f.name).join(', ');
+                    alert(`Please remove oversized video files before submitting: ${oversizedNames}\n\nMaximum video size is 50MB. Please compress your videos or select smaller files.`);
+                    return false;
+                }
+            }
+        });
+    }
+  }
+</script>
+{% endblock %}

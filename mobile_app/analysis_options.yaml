@@ -1,0 +1,32 @@
+linter:
+  rules:
+    - camel_case_types
+    - camel_case_extensions
+    - library_names
+    - file_names
+    - empty_constructor_bodies
+    - always_declare_return_types
+    - avoid_empty_else
+    - avoid_print
+    - avoid_returning_this
+    - avoid_slow_async_io
+    - cancel_subscriptions
+    - close_sinks
+    - comment_references
+    - control_flow_in_finally
+    - empty_statements
+    - hash_and_equals
+    - no_adjacent_strings_in_list
+    - no_duplicate_case_values
+    - prefer_void_to_null
+    - throw_in_finally
+    - unnecessary_statements
+    - unrelated_type_equality_checks
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_const_literals_to_create_immutables
+
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error

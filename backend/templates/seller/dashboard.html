@@ -1,0 +1,563 @@
+{% extends "base.html" %}
+{% block title %}Seller Dashboard - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<style>
+/* ═══════════════════════════════════════════════════
+   SELLER DASHBOARD – Modern Professional UI
+═══════════════════════════════════════════════════ */
+
+/* ── Admin Sidebar Styles ── */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0,0,0,0.06);
+}
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff; font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250,107,2,0.12);
+    border-radius: 999px; padding: 0.25rem 0.5rem; font-size: 0.75rem;
+}
+.admin-sidebar .list-group-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    border: none; padding: 0.85rem 1.15rem; font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem; text-align: center; color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    color: #ffffff !important; font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 10px 24px rgba(3,25,41,0.06);
+}
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas { color: #ffffff !important; }
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6,42,84,0.04); color: #0b2b45;
+    transform: translateY(-1px); box-shadow: 0 10px 24px rgba(3,25,41,0.08);
+}
+.admin-sidebar .list-group-item:hover i.fas { color: #0b63a8; transform: scale(1.05); }
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px; opacity: 1; overflow: hidden;
+}
+.admin-sidebar-card.is-collapsed .admin-sidebar { max-height: 0; opacity: 0; }
+@media (min-width: 992px) {
+    .admin-sidebar-card.is-collapsed .admin-sidebar { display: block; }
+    .admin-sidebar-toggle { display: none !important; }
+}
+.dropdown-menu { z-index: 1050 !important; }
+.navbar-nav .dropdown-menu { z-index: 1050 !important; }
+.container-fluid.py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+
+/* ── Page Header ── */
+.dash-page-header {
+    background: linear-gradient(135deg, #0b63a8 0%, #0369a1 60%, #0284c7 100%);
+    border-radius: 1rem;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 8px 24px rgba(11,99,168,0.18);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.dash-page-header::before {
+    content: ''; position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: rgba(255,255,255,0.06); border-radius: 50%;
+}
+.dash-page-header::after {
+    content: ''; position: absolute;
+    bottom: -30px; left: 40%;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.04); border-radius: 50%;
+}
+.dash-page-header h2 {
+    font-size: 1.6rem; font-weight: 700; margin: 0;
+    display: flex; align-items: center; gap: 0.6rem;
+}
+.dash-page-header p { opacity: 0.88; margin: 0.25rem 0 0; font-size: 0.95rem; }
+
+/* ── Header Buttons ── */
+.seller-add-btn {
+    background: linear-gradient(90deg, #fa6b02, #ff8a2b) !important;
+    border: none !important; color: #ffffff !important;
+    box-shadow: 0 8px 28px rgba(250,107,2,0.22);
+    padding: 0.55rem 1.2rem; font-weight: 700; border-radius: 8px;
+    transition: transform .08s ease, box-shadow .12s ease, filter .12s ease;
+    display: inline-flex; align-items: center; gap: .6rem;
+    text-decoration: none !important; font-size: 0.88rem;
+}
+.seller-add-btn:hover, .seller-add-btn:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(250,107,2,0.28);
+    filter: brightness(1.03); color: #ffffff !important;
+}
+.btn-report-outline {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.35) !important;
+    color: #fff !important; font-size: 0.85rem; font-weight: 600;
+    border-radius: 8px; padding: 0.5rem 1.1rem;
+    backdrop-filter: blur(4px);
+    transition: background 0.15s, transform 0.08s;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn-report-outline:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); color:#fff !important; }
+
+/* ── KPI Cards ── */
+.kpi-card {
+    border: none; border-radius: 1rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    overflow: hidden;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(0,0,0,0.13); }
+.kpi-card .card-body { padding: 1.3rem 1.4rem; }
+.kpi-card h3 { font-size: 1.45rem; font-weight: 800; margin-bottom: 0.2rem; }
+.kpi-card p  { opacity: 0.9; font-size: 0.8rem; margin: 0; line-height: 1.4; }
+.kpi-card .kpi-icon-wrap {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+}
+.kpi-sales-card    { background: linear-gradient(135deg, #06b6d4 0%, #0369a1 100%) !important; color:#fff; }
+.kpi-orders-card   { background: linear-gradient(135deg, #ffb37a 0%, #fa6b02 100%) !important; color:#fff; }
+.kpi-products-card { background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%) !important; color:#fff; }
+.kpi-items-card    { background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%) !important; color:#fff; }
+.kpi-aov-card      { background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important; color:#fff; }
+.kpi-card a.text-white { color: #fff !important; text-decoration: none; }
+.kpi-card a.text-white:hover { text-decoration: underline; opacity: 0.9; }
+.kpi-link {
+    display: inline-block; margin-top: 0.35rem;
+    font-size: 0.75rem; font-weight: 600;
+    color: rgba(255,255,255,0.85); text-decoration: underline;
+}
+.kpi-link:hover { color: #fff; }
+
+/* ── Section Cards ── */
+.section-card {
+    background: #fff;
+    border-radius: 1rem;
+    border: 1px solid rgba(15,23,42,0.07);
+    box-shadow: 0 4px 16px rgba(15,23,42,0.05);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+.section-card-header {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid rgba(15,23,42,0.07);
+    background: linear-gradient(to right, rgba(11,99,168,0.03), transparent);
+    display: flex; align-items: center; justify-content: space-between;
+}
+.section-card-header h5 {
+    font-size: 1rem; font-weight: 700; margin: 0;
+    color: #0f172a; display: flex; align-items: center; gap: 0.5rem;
+}
+.section-card-header h5 i { color: #0b63a8; }
+.section-card-body { padding: 1.25rem 1.4rem; }
+
+/* ── Order Status Pills ── */
+.status-grid { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+.status-pill {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid rgba(15,23,42,0.08);
+    border-radius: 10px; padding: 0.6rem 1rem;
+    text-decoration: none; color: #334155;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+    font-size: 0.85rem;
+}
+.status-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    background: #fff; color: #0f172a;
+}
+.status-pill .pill-count { font-size: 1rem; font-weight: 800; color: #0f172a; }
+.status-pill .badge { font-size: 0.72rem; font-weight: 700; padding: 0.3rem 0.6rem; border-radius: 6px; }
+
+/* ── Product Cards ── */
+.product-card {
+    background: #fff;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(15,23,42,0.07);
+    box-shadow: 0 2px 10px rgba(15,23,42,0.05);
+    overflow: hidden;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    height: 100%;
+}
+.product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15,23,42,0.1); }
+.product-card .product-img-wrap {
+    position: relative; overflow: hidden;
+    height: 160px; background: #f1f5f9;
+}
+.product-card .product-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.product-card:hover .product-img-wrap img { transform: scale(1.04); }
+.product-img-placeholder {
+    width: 100%; height: 160px;
+    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+    display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 2rem;
+}
+.product-card-body { padding: 1rem; }
+.product-card-body h6 {
+    font-size: 0.88rem; font-weight: 700; color: #0f172a;
+    margin-bottom: 0.25rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.product-price { font-size: 1rem; font-weight: 800; color: #0b63a8; margin-bottom: 0.35rem; }
+.product-stock-badge {
+    display: inline-block; font-size: 0.73rem; font-weight: 600;
+    background: rgba(15,23,42,0.06); color: #475569;
+    border-radius: 6px; padding: 0.15rem 0.5rem; margin-bottom: 0.65rem;
+}
+.btn-edit-product {
+    background: linear-gradient(90deg, #0b63a8, #0369a1);
+    color: #fff !important; border: none;
+    font-size: 0.78rem; font-weight: 600;
+    border-radius: 7px; padding: 0.35rem 0.8rem;
+    transition: filter 0.12s, transform 0.08s;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;
+}
+.btn-edit-product:hover { filter: brightness(1.08); transform: translateY(-1px); color:#fff !important; }
+.btn-delete-product {
+    background: #fff1f2; border: 1px solid #fecdd3;
+    color: #e11d48 !important; font-size: 0.78rem; font-weight: 600;
+    border-radius: 7px; padding: 0.35rem 0.8rem;
+    transition: background 0.12s, transform 0.08s;
+}
+.btn-delete-product:hover { background: #ffe4e6; transform: translateY(-1px); }
+
+/* ── Empty product state ── */
+.empty-products { text-align: center; padding: 3rem 2rem; color: #64748b; }
+.empty-products .empty-ring {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg,#e0f2fe,#bfdbfe);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem; font-size: 1.8rem; color: #0b63a8;
+}
+.empty-products h5 { font-weight: 700; color: #0f172a; margin-bottom: 0.4rem; }
+.empty-products p  { font-size: 0.88rem; margin-bottom: 1rem; }
+.btn-add-first {
+    background: linear-gradient(90deg,#fa6b02,#ff8a2b) !important;
+    border: none !important; color: #fff !important;
+    font-weight: 700; border-radius: 8px;
+    padding: 0.55rem 1.25rem; font-size: 0.88rem;
+    box-shadow: 0 6px 18px rgba(250,107,2,0.2);
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.products-section-tag {
+    font-size: 0.75rem; font-weight: 700;
+    background: rgba(11,99,168,0.08); color: #0b63a8;
+    border-radius: 999px; padding: 0.2rem 0.7rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 991.98px) { .col-md-3.col-lg-2 { margin-bottom: 1.5rem; } }
+@media (max-width: 768px) {
+    .dash-page-header { padding: 1.1rem 1.25rem; }
+    .dash-page-header h2 { font-size: 1.25rem; }
+}
+@media (max-width: 576px) {
+    .seller-add-btn span { display: none; }
+    .seller-add-btn { padding: 0.5rem 0.75rem; }
+    .kpi-card h3 { font-size: 1.15rem; }
+    .status-pill { padding: 0.5rem 0.75rem; font-size: 0.8rem; }
+    .section-card-body { padding: 1rem; }
+}
+</style>
+
+<div class="container-fluid py-4" style="overflow-x:hidden;">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar-column">
+            {% set active_page = 'dashboard' %}
+            {% include 'seller/_sidebar.html' %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 main-content-column">
+
+            <!-- Page Header -->
+            <div class="dash-page-header">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                    <div>
+                        <h2><i class="fas fa-tachometer-alt"></i> Seller Dashboard</h2>
+                        <p>Track your sales performance, orders, and business metrics</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a href="{{ url_for('seller_sales_report') }}" class="btn-report-outline">
+                            <i class="fas fa-chart-line"></i> Sales Report
+                        </a>
+                        <a href="{{ url_for('add_product') }}"
+                           class="seller-add-btn"
+                           title="Add a new product"
+                           role="button"
+                           aria-label="Add New Product">
+                            <i class="fas fa-plus"></i>
+                            <span>Add New Product</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="row g-3 mb-4">
+                <!-- Total Sales -->
+                <div class="col-6 col-md-4 col-lg">
+                    <div class="card kpi-card kpi-sales-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h3>
+                                        <a class="text-white" href="{{ url_for('seller_sales_report', date_range='30days') }}">
+                                            ₱<span id="kpi-total-sales">{{ "%.2f"|format(total_sales) }}</span>
+                                        </a>
+                                    </h3>
+                                    <p>Total Sales</p>
+                                    <a class="kpi-link" href="{{ url_for('seller_sales_report') }}">Open report →</a>
+                                </div>
+                                <div class="kpi-icon-wrap"><i class="fas fa-money-bill-wave"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Orders -->
+                <div class="col-6 col-md-4 col-lg">
+                    <div class="card kpi-card kpi-orders-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h3>
+                                        <a class="text-white" href="{{ url_for('seller_orders', status='all') }}">
+                                            <span id="kpi-total-orders">{{ total_orders }}</span>
+                                        </a>
+                                    </h3>
+                                    <p>Total Orders</p>
+                                    <a class="kpi-link" href="{{ url_for('seller_orders') }}">Manage →</a>
+                                </div>
+                                <div class="kpi-icon-wrap"><i class="fas fa-shopping-cart"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Listed -->
+                <div class="col-6 col-md-4 col-lg">
+                    <div class="card kpi-card kpi-products-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h3>{{ total_products }}</h3>
+                                    <p>Products Listed</p>
+                                    <a class="kpi-link" href="{{ url_for('seller_products') }}">View all →</a>
+                                </div>
+                                <div class="kpi-icon-wrap"><i class="fas fa-box"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items Sold -->
+                <div class="col-6 col-md-4 col-lg">
+                    <div class="card kpi-card kpi-items-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h3>
+                                        <a class="text-white" href="{{ url_for('seller_sales_report', date_range='30days') }}">
+                                            {{ dash_items_sold or 0 }}
+                                        </a>
+                                    </h3>
+                                    <p>Items Sold (30d)</p>
+                                </div>
+                                <div class="kpi-icon-wrap"><i class="fas fa-cubes"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Avg Order Value -->
+                <div class="col-6 col-md-4 col-lg">
+                    <div class="card kpi-card kpi-aov-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h3>₱{{ '%.2f'|format(dash_aov or 0.0) }}</h3>
+                                    <p>Avg. Order Value (30d)</p>
+                                </div>
+                                <div class="kpi-icon-wrap"><i class="fas fa-receipt"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Status Panel -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <h5><i class="fas fa-layer-group"></i> Order Status Overview</h5>
+                </div>
+                <div class="section-card-body">
+                    <div class="status-grid">
+                        <a class="status-pill" href="{{ url_for('seller_orders', status='pending') }}">
+                            <span class="badge bg-secondary">Pending</span>
+                            <span class="pill-count" id="st-pending">{{ status_counts.pending if status_counts else 0 }}</span>
+                        </a>
+                        <a class="status-pill" href="{{ url_for('seller_orders', status='ready_for_pickup') }}">
+                            <span class="badge bg-info">Ready for Pickup</span>
+                            <span class="pill-count" id="st-ready">{{ status_counts.ready_for_pickup if status_counts else 0 }}</span>
+                        </a>
+                        <a class="status-pill" href="{{ url_for('seller_orders', status='delivered') }}">
+                            <span class="badge bg-success">Delivered</span>
+                            <span class="pill-count" id="st-delivered">{{ status_counts.delivered if status_counts else 0 }}</span>
+                        </a>
+                        <a class="status-pill" href="{{ url_for('seller_orders', status='completed') }}">
+                            <span class="badge bg-primary">Completed</span>
+                            <span class="pill-count" id="st-completed">{{ status_counts.completed if status_counts else 0 }}</span>
+                        </a>
+                        <a class="status-pill" href="{{ url_for('seller_orders', status='canceled') }}">
+                            <span class="badge bg-danger">Cancelled</span>
+                            <span class="pill-count" id="st-canceled">{{ status_counts.canceled if status_counts else 0 }}</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Products -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <h5><i class="fas fa-boxes"></i> Recent Products</h5>
+                    <span class="products-section-tag">{{ products|length if products else 0 }} listed</span>
+                </div>
+                <div class="section-card-body">
+                    {% if products %}
+                        <div class="row g-3">
+                            {% for product in products %}
+                            <div class="col-12 col-sm-6 col-lg-4">
+                                <div class="product-card">
+                                    <div class="product-img-wrap">
+                                        {% if product.image_filename %}
+                                            <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" alt="{{ product.name }}">
+                                        {% else %}
+                                            <div class="product-img-placeholder">
+                                                <i class="fas fa-image"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="product-card-body">
+                                        <h6>{{ product.name }}</h6>
+                                        <div class="product-price">₱{{ "%.2f"|format(product.price) }}</div>
+                                        <span class="product-stock-badge">
+                                            <i class="fas fa-cubes me-1"></i>Stock:&nbsp;
+                                            <span id="stock-{{ product.id }}" data-product-id="{{ product.id }}">{{ product.stock }}</span>
+                                        </span>
+                                        <div class="d-flex gap-2 mt-1">
+                                            <a class="btn-edit-product flex-fill justify-content-center"
+                                               href="{{ url_for('seller_edit_product', product_id=product.id) }}">
+                                                <i class="fas fa-pen"></i> Edit
+                                            </a>
+                                            <form action="{{ url_for('seller_delete_product', product_id=product.id) }}"
+                                                  method="post" class="d-inline flex-fill"
+                                                  onsubmit="return confirm('Delete this product? This is a soft delete.');">
+                                                <button type="submit"
+                                                        class="btn btn-delete-product w-100 d-flex align-items-center justify-content-center gap-1">
+                                                    <i class="fas fa-trash-alt"></i> Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-products">
+                            <div class="empty-ring"><i class="fas fa-box-open"></i></div>
+                            <h5>No Products Yet</h5>
+                            <p>Start by adding your first product to the store.</p>
+                            <a href="{{ url_for('add_product') }}" class="btn btn-add-first">
+                                <i class="fas fa-plus"></i> Add Your First Product
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div><!-- /main-content-column -->
+    </div><!-- /row -->
+</div>
+
+{% block scripts %}
+<script>
+const socket = window.__appSocket || (window.__appSocket = io());
+
+socket.on('seller_stats_update', function(data) {
+    try {
+        if (!data) return;
+        if (typeof data.delivered_revenue !== 'undefined') {
+            const el = document.getElementById('kpi-total-sales');
+            if (el) el.textContent = Number(data.delivered_revenue).toFixed(2);
+        }
+        if (typeof data.total_orders !== 'undefined') {
+            const el = document.getElementById('kpi-total-orders');
+            if (el) el.textContent = data.total_orders;
+        }
+        if (data.status_counts) {
+            const m = data.status_counts;
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            set('st-pending',   m.pending || 0);
+            set('st-ready',     m.ready_for_pickup || 0);
+            set('st-delivered', m.delivered || 0);
+            set('st-completed', m.completed || 0);
+            set('st-canceled',  m.canceled || 0);
+        }
+    } catch(e) { console.error(e); }
+});
+
+socket.on('product_stock_update', function(payload) {
+    try {
+        const pid   = payload && payload.product_id;
+        const stock = payload && payload.stock;
+        if (!pid) return;
+        const el = document.getElementById('stock-' + pid);
+        if (el && typeof stock !== 'undefined') el.textContent = stock;
+    } catch(e) { console.error(e); }
+});
+
+const sellerSidebarCard   = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,1132 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - Kids & Baby Store{% endblock %}
+    {% block content %}
+    <!-- Product Details -->
+    <div class="product-page-shell container py-3">
+
+
+    <!-- Store header (brand fully visible) -->
+  <div class="card shadow-sm mb-2">
+      <div class="card-body pd-store-header d-flex align-items-center gap-3 flex-wrap">
+        {% set seller = product.seller %}
+        {% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+        {% set store_name = (app0.store_name if app0 and app0.store_name else seller.first_name ~ ' ' ~ seller.last_name) %}
+        {% set store_logo = (app0.store_logo if app0 and app0.store_logo else None) %}
+        {% if store_logo %}
+          {% if store_logo.startswith('/') %}
+            {% set store_logo_url = store_logo %}
+          {% else %}
+            {% set store_logo_url = url_for('static', filename=store_logo) %}
+          {% endif %}
+          <img src="{{ store_logo_url }}" alt="{{ store_name }} logo" class="store-logo-circle">
+        {% else %}
+          <div class="store-logo-circle bg-light d-flex align-items-center justify-content-center"><i class="fas fa-store text-muted"></i></div>
+        {% endif %}
+        <div class="flex-grow-1 min-w-0">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h6 class="pd-store-title mb-0 text-truncate" title="{{ store_name }}">{{ store_name }}</h6>
+            <a href="{{ url_for('store_page', seller_id=product.seller_id) }}" class="btn btn-outline-primary btn-xs btn-sm"><i class="fas fa-store me-1"></i>Visit Store</a>
+            <a href="{{ url_for('chat_window', seller_id=product.seller_id) }}?product_id={{ product.id }}" class="btn btn-primary btn-xs btn-sm"><i class="fas fa-comments me-1"></i>Chat with Seller</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breadcrumbs -->
+    <nav class="small mb-2" aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('shop', category=product.category_id) }}">{{ product.category.name if product.category else 'Products' }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ product.name[:40] }}{% if product.name|length > 40 %}…{% endif %}</li>
+      </ol>
+    </nav>
+
+    <div class="row g-4 product-layout">
+        <!-- LEFT: media gallery -->
+        <div class="col-lg-7 col-xl-8">
+            <div class="product-gallery d-flex">
+                <div class="thumbs d-none d-md-flex flex-column me-3" id="pgThumbs">
+                    {% for m in media_items %}
+                    <button type="button" class="thumb-btn {% if loop.index0 == 0 %}active{% endif %}" data-index="{{ loop.index0 }}">
+                        {% if m.type == 'image' %}
+                          <img src="{{ m.path }}" alt="thumb {{ loop.index }}">
+                        {% elif m.type == 'video' %}
+                          <div class="video-thumb"><i class="fas fa-play"></i></div>
+                        {% else %}
+                          <div class="placeholder-thumb"><i class="fas fa-image"></i></div>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="viewer flex-grow-1" id="pgViewer">
+                    {% set first = media_items[0] if media_items else {'type':'placeholder'} %}
+                    {% if first.type == 'image' %}
+                      <img id="pgMain" src="{{ first.path }}" class="img-fluid rounded shadow w-100" alt="{{ product.name }}">
+                    {% elif first.type == 'video' %}
+                      <video id="pgMainVideo" src="{{ first.path }}" class="w-100 rounded shadow" controls playsinline></video>
+                    {% else %}
+                      <div class="bg-light rounded shadow d-flex align-items-center justify-content-center" style="height: 420px;">
+                        <i class="fas fa-image fa-5x text-muted"></i>
+                      </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="card mt-4 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-2">Description</h5>
+                    <p class="text-muted mb-0">{{ product.description }}</p>
+                </div>
+            </div>
+
+            <!-- Ratings & Reviews anchor (content is below) -->
+            <div class="mt-4" id="reviews"></div>
+        </div>
+
+        <!-- RIGHT: summary card -->
+        <div class="col-lg-5 col-xl-4">
+            <div class="summary-card card shadow-sm position-relative sticky-lg-top" style="top: 18px; z-index: 10;">
+                <a href="{{ url_for('add_to_wishlist', product_id=product.id) }}" class="btn btn-light position-absolute end-0 mt-2 me-2 rounded-circle" title="Add to Wishlist" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;">
+                    <i class="fas fa-heart text-danger"></i>
+                </a>
+                <div class="card-body">
+                    <h1 class="product-title fw-bold mb-2">{{ product.name }}</h1>
+                    <div class="mb-2">
+                        <span class="badge bg-primary">{{ product.category.name }}</span>
+                        {% if product.featured %}<span class="badge bg-warning">Featured</span>{% endif %}
+                    </div>
+                    <div class="product-share-row d-flex align-items-center gap-2 mb-3">
+                        <span class="text-muted small">Share:</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-light rounded-circle shadow-none product-share-btn"><i class="fab fa-facebook-f"></i></button>
+                            <button type="button" class="btn btn-sm btn-light rounded-circle shadow-none product-share-btn"><i class="fab fa-pinterest-p"></i></button>
+                            <button type="button" class="btn btn-sm btn-light rounded-circle shadow-none product-share-btn"><i class="fab fa-x-twitter"></i></button>
+                            <button type="button" class="btn btn-sm btn-light rounded-circle shadow-none product-share-btn"><i class="fas fa-envelope"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <span class="h3 fw-bold text-primary product-price">₱{{ "%.2f"|format(product.price) }}</span>
+                    </div>
+                    <div class="mb-3 small">
+                        <span class="me-2">Stock:</span>
+                        {% if product.stock > 0 %}
+                          <span class="badge bg-success">In stock</span>
+                          <span class="text-muted ms-1">({{ product.stock }} available)</span>
+                        {% else %}
+                          <span class="badge bg-danger">Out of Stock</span>
+                          <span class="text-muted ms-1">All items have been purchased</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Out of Stock Label on Product Image -->
+                    {% if product.stock <= 0 %}
+                    <div class="product-image-sold-out">
+                        <span>Out of Stock</span>
+                    </div>
+                    {% endif %}
+
+{% if session.user_role == 'admin' %}
+                        <div class="alert alert-secondary mb-3"><i class="fas fa-eye me-2"></i>Admin accounts are view-only. Shopping actions are disabled.</div>
+                    {% elif session.user_id %}
+                        {% if product.stock > 0 %}
+                        <div class="purchase-row d-flex align-items-center flex-wrap gap-3 mb-3">
+                            <div class="input-group input-group-sm qty-group" style="width: 160px;">
+                                <button class="btn btn-outline-secondary" id="qtyMinus" type="button">-</button>
+                                <input id="qtyInput" type="number" class="form-control text-center" min="1" max="{{ product.stock }}" value="1">
+                                <button class="btn btn-outline-secondary" id="qtyPlus" type="button">+</button>
+                            </div>
+                            <a id="addToCartBtn" href="{{ url_for('add_to_cart', product_id=product.id) }}" data-product-id="{{ product.id }}" class="btn btn-success flex-fill">
+                                <i class="fas fa-cart-plus me-2"></i><span class="btn-text">Add to Cart</span>
+                            </a>
+                            <a id="buyNowBtn" href="{{ url_for('buy_now', product_id=product.id) }}" class="btn btn-warning flex-fill">
+                                <i class="fas fa-bolt me-2"></i>Buy Now
+                            </a>
+                        </div>
+                        {% else %}
+                        <div class="sold-out-minimal">
+                            <div class="sold-out-label">
+                                <span>Out of Stock</span>
+                            </div>
+                            <p class="sold-out-text">All items have been purchased. Check back later for restocking.</p>
+                            <div class="sold-out-actions">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="continueShopping()">
+                                    <i class="fas fa-arrow-left me-2"></i>Continue Shopping
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info mb-3"><i class="fas fa-info-circle me-2"></i><a href="{{ url_for('login') }}" class="text-decoration-none">Login</a> to add or buy this item.</div>
+                    {% endif %}
+
+                    <div class="border-top pt-3 mt-3">
+                        <h6>Product Information</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li><strong>Category:</strong> {{ product.category.name }}</li>
+                            <li><strong>SKU:</strong> KB-{{ "%06d"|format(product.id) }}</li>
+                            <li><strong>Added:</strong> {{ product.created_at.strftime('%B %d, %Y') }}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ratings & Reviews (modern compact) -->
+    <section class="ratings" aria-labelledby="ratings-title">
+      <div class="ratings__header">
+        <h4 id="ratings-title" class="mb-0">Ratings &amp; Reviews</h4>
+        <div class="ratings__sort">
+          <label for="sort-select" class="me-1 small text-muted">Rating:</label>
+          <select id="sort-select" class="form-select form-select-sm" style="min-width: 160px;" onchange="location.href='?sort_reviews='+this.value">
+            <option value="all" {{ 'selected' if (not sort_reviews) or (sort_reviews in ['all','latest','']) }}>All ratings</option>
+            <option value="5" {{ 'selected' if sort_reviews=='5' }}>5 stars</option>
+            <option value="4" {{ 'selected' if sort_reviews=='4' }}>4 stars</option>
+            <option value="3" {{ 'selected' if sort_reviews=='3' }}>3 stars</option>
+            <option value="2" {{ 'selected' if sort_reviews=='2' }}>2 stars</option>
+            <option value="1" {{ 'selected' if sort_reviews=='1' }}>1 star</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ratings__layout">
+        <!-- Summary -->
+        <div class="ratings-summary">
+          <div class="ratings-summary__score">
+            <span class="ratings-summary__value">{{ '%.1f'|format(avg_rating) }}</span>
+            <div class="ratings-summary__stars">
+              {% set rounded = avg_rating|round(0, 'floor') %}
+              {% for i in range(rounded|int) %}<i class="fas fa-star"></i>{% endfor %}
+              {% for i in range(5 - (rounded|int)) %}<i class="far fa-star"></i>{% endfor %}
+            </div>
+            <p class="ratings-summary__count">Based on {{ review_count }} review{{ '' if review_count==1 else 's' }}</p>
+            {% if can_review %}
+            <button class="btn btn-primary btn-sm mt-1" data-bs-toggle="modal" data-bs-target="#reviewModal"><i class="fas fa-pen me-1"></i>Write a Review</button>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Reviews list -->
+        <div class="ratings-list">
+          {% if reviews %}
+            {% set selected_star = sort_reviews if sort_reviews in ['1','2','3','4','5'] else None %}
+            {% if selected_star %}
+              {% set rlist = reviews | selectattr('rating', 'equalto', selected_star|int) | list %}
+            {% else %}
+              {% set rlist = reviews %}
+            {% endif %}
+
+            {% if rlist %}
+              {% for review in rlist %}
+              {% set uname = (review.user.first_name if (review.user is defined and review.user and review.user.first_name) else 'User') %}
+              {% set masked = uname[:3] ~ '***' %}
+              {% set initial = uname[:1]|upper %}
+              {% set variation = (review.variation if review.variation is defined else (review.variant if review.variant is defined else (review.variation_details if review.variation_details is defined else None))) %}
+              <article class="review-card">
+                <header class="review-card__header">
+                  <div class="review-card__avatar" aria-hidden="true">
+                    <img src="{{ get_user_avatar_url(review.user.id, review.user.role) if review.user else url_for('static', filename='user_avatar.png') }}" alt="{{ uname }}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                  </div>
+                  <div class="review-card__head-meta">
+                    <div class="review-card__row">
+                      <span class="review-card__username">{{ masked }}</span>
+                      <span class="review-card__sep" aria-hidden="true">•</span>
+                      <span class="review-card__stars" aria-label="{{ review.rating }} out of 5 stars">
+                        {% for i in range(review.rating) %}<i class="fas fa-star"></i>{% endfor %}
+                        {% for i in range(5 - review.rating) %}<i class="far fa-star"></i>{% endfor %}
+                      </span>
+                      <span class="review-card__date">{{ review.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    {% if variation %}
+                    <div class="review-card__variant">Variation: {{ variation }}</div>
+                    {% endif %}
+                    {% if review.verified_purchase %}<span class="review-card__badge">Verified Buyer</span>{% endif %}
+                  </div>
+                </header>
+
+                {% if review.content %}
+                <p class="review-card__text">{{ review.content }}</p>
+                {% endif %}
+
+                {% if review.media or review.image_filename %}
+                <div class="review-media-row" role="group" aria-label="Customer media">
+                  {% if review.media %}
+                    {% for m in review.media %}
+                      {% if m.type == 'image' %}
+                        <a class="media-thumb" href="{{ m.path }}" target="_blank" rel="noopener">
+                          <img src="{{ m.path }}" alt="Review image">
+                        </a>
+                      {% elif m.type == 'video' %}
+                        <a class="media-thumb is-video" href="{{ m.path }}" target="_blank" rel="noopener">
+                          <video src="{{ m.path }}" preload="metadata" muted playsinline></video>
+                          <span class="media-thumb__play"><i class="fas fa-play"></i></span>
+                          {% if m.duration is defined and m.duration %}
+                          <span class="media-thumb__duration">{{ m.duration }}</span>
+                          {% endif %}
+                        </a>
+                      {% endif %}
+                    {% endfor %}
+                  {% elif review.image_filename %}
+                    <a class="media-thumb" href="{{ url_for('static', filename='uploads/reviews/' ~ review.image_filename) }}" target="_blank" rel="noopener">
+                      <img src="{{ url_for('static', filename='uploads/reviews/' ~ review.image_filename) }}" alt="Review image">
+                    </a>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                {% set rec = related_products[0] if (related_products is defined and related_products and related_products|length > 0) else None %}
+                {% if rec %}
+                <a class="review-reco" href="{{ url_for('product_detail', product_id=rec.id) }}">
+                  {% if rec.image_filename %}
+                  <img class="review-reco__img" src="{{ url_for('static', filename='uploads/' + rec.image_filename) }}" alt="{{ rec.name }}">
+                  {% else %}
+                  <div class="review-reco__img review-reco__img--placeholder"><i class="fas fa-image"></i></div>
+                  {% endif %}
+                  <div class="review-reco__meta">
+                    <div class="review-reco__name" title="{{ rec.name }}">{{ rec.name }}</div>
+                    <div class="review-reco__price">₱{{ "%.2f"|format(rec.price) }}</div>
+                  </div>
+                </a>
+                {% endif %}
+              </article>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted mb-0">No reviews match this rating.</p>
+            {% endif %}
+          {% else %}
+            <p class="text-muted mb-0">No reviews yet. Be the first to review this product!</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+        <!-- Review Modal (hidden until button click) -->
+        <div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="{{ url_for('submit_review', product_id=product.id) }}" enctype="multipart/form-data">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="reviewModalLabel">Write a Review</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold mb-1">Your Rating:</label>
+                                <div id="starRating" class="d-flex gap-1">
+                                    {% for i in range(1, 6) %}
+                                    <input type="radio" class="btn-check" name="rating" id="rating{{ i }}" value="{{ i }}" autocomplete="off">
+                                    <label class="star-label" for="rating{{ i }}">
+                                        <i class="fas fa-star"></i>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="review_content" class="form-label fw-semibold">Your Review (optional):</label>
+                                <textarea class="form-control" id="review_content" name="content" rows="4" placeholder="Share your experience..." maxlength="800"></textarea>
+                            </div>
+<div class="mb-3">
+                                <label class="form-label fw-semibold">Upload Photos/Videos (optional)</label>
+                                {% include 'partials/_media_uploader_assets.html' %}
+                                <div class="js-mu" data-name="media[]" data-max="6" data-accept="image/*,.jpg,.jpeg,.png,video/mp4,video/quicktime,.mp4,.mov">
+                                  <div class="mu-grid">
+                                    <div class="mu-add"><div class="mu-plus">+ Add Photo/Video</div></div>
+                                  </div>
+                                  <div class="mu-hint mt-1">JPG, PNG, MP4, MOV • up to 6 files</div>
+                                  <div class="mu-error mt-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i>Submit Review
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reviews are rendered inside the modern ratings section above -->
+    </div>
+
+    <!-- Related Products (modern grid cards) -->
+    {% if related_products %}
+    <div class="product-grid mt-5">
+      <h4 class="fw-bold mb-3">Related Products</h4>
+      <div class="pgrid">
+        {% for related in related_products %}
+        <div class="p-card">
+          <a href="{{ url_for('product_detail', product_id=related.id) }}" class="p-card__inner-link" aria-label="View {{ related.name }}">
+            {% if related.image_filename %}
+              <div class="p-card__media">
+                <img src="{{ url_for('static', filename='uploads/' + related.image_filename) }}" alt="{{ related.name }}">
+              </div>
+            {% else %}
+              <div class="p-card__media">
+                <div class="p-card__ph"><i class="fas fa-image"></i></div>
+              </div>
+            {% endif %}
+
+            <div class="p-card__body">
+              <div class="small text-muted mb-1 brand-pill">
+                <i class="fas fa-store me-1"></i>
+                <span>{% set seller = related.seller %}
+                {% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+                {{ (app0.store_name if app0 and app0.store_name else seller.first_name) }}</span>
+              </div>
+              <div class="p-card__title" title="{{ related.name }}">{{ related.name }}</div>
+              <div class="p-card__price-row">
+                <span class="p-card__price">₱{{ '%.2f'|format(related.price) }}</span>
+              </div>
+              <ul class="list-unstyled mb-2 mt-2">
+                <li class="small text-muted"><i class="fas fa-tags me-1"></i>{{ related.category.name if related.category else 'General' }}</li>
+              </ul>
+            </div>
+
+           <div class="p-card__footer">
+              {% set in_stock = (related.stock if related is defined and related.stock is not none else 0) %}
+              {% if in_stock > 0 %}
+                <span class="badge bg-success-subtle text-success border-success p-card__stock">In stock</span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger border-danger p-card__stock">Out of Stock</span>
+              {% endif %}
+
+              {% if related.total_sold and related.total_sold > 0 %}
+                <div class="small text-muted">Total Sold: <strong>{{ related.total_sold }}</strong></div>
+              {% endif %}
+            </div>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Recently viewed -->
+    <div class="product-grid mt-4" id="recentlyViewed">
+      <h4 class="fw-bold mb-3">Recently viewed</h4>
+      <div class="pgrid" id="rvGrid"></div>
+    </div>
+
+<!-- Star Rating Interactive CSS & JS -->
+<style>
+/***** Product detail enhancements *****/
+.product-page-shell{max-width:1200px;margin:0 auto;}
+.product-layout{align-items:flex-start;}
+.summary-card .btn{white-space:nowrap;}
+@media (max-width: 991.98px){ .sticky-lg-top{ position:static; } }
+.product-title{ font-size: clamp(1.6rem, 1.9vw + 1rem, 2.2rem); line-height: 1.25; }
+.qty-group .form-control{ max-width: 70px; }
+.btn-icon{ width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+.card .stretched-link::after{ position:absolute; inset:0; content:""; }
+.product-price{ color:#ff6a00 !important; }
+.product-share-row .product-share-btn{ width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; border:1px solid #e5e7eb; }
+.product-share-row .product-share-btn i{ font-size:0.8rem; }
+#addToCartBtn{ background:#ff6a00; border-color:#ff6a00; border-radius:999px; font-weight:600; }
+#addToCartBtn:hover{ background:#e95d00; border-color:#e95d00; }
+#buyNowBtn{ border-radius:999px; font-weight:600; }
+
+/* Add small space on the right side so the summary card is not flush with edge */
+@media (min-width: 992px){
+  .summary-card{ margin-right: 10px; }
+}
+
+/* Minimalist Out of Stock Styling */
+.sold-out-minimal {
+  text-align: center;
+  padding: 2rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  margin: 1rem 0;
+}
+
+.sold-out-label {
+  display: inline-block;
+  background: #6b7280;
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+}
+
+.sold-out-text {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.5;
+}
+
+.sold-out-actions .btn {
+  border-radius: 6px;
+  font-weight: 400;
+}
+
+/* Out of Stock Label Directly on Product Image */
+.product-image-sold-out {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.product-image-sold-out span {
+  display: block;
+}
+
+/* Gallery */
+
+/* Product grid cards */
+.pgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px; }
+.p-card{ position:relative; display:flex; flex-direction:column; border:1px solid #e5e7eb; border-radius:12px; background:#fff; overflow:hidden; box-shadow:0 6px 16px rgba(15,23,42,0.05); }
+.p-card__share{ position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:50%; border:1px solid #e5e7eb; background:#fff; display:flex; align-items:center; justify-content:center; color:#6b7280; z-index:2; }
+.p-card__media{ display:block; aspect-ratio:4/3; background:#f8fafc; overflow:hidden; }
+.p-card__media img{ width:100%; height:100%; object-fit:cover; transition: transform .25s ease; display:block; }
+.p-card__ph{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9ca3af; }
+.p-card:hover .p-card__media img{ transform: scale(1.04); }
+.p-card__body{ padding:10px 12px; display:flex; flex-direction:column; gap:.25rem; }
+.p-card__title{ font-weight:600; color:#111827; text-decoration:none; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.4em; }
+.p-card__price-row{ display:flex; align-items:center; justify-content:flex-start; gap:.5rem; }
+.p-card__price{ color:#ff6a00; font-weight:700; text-decoration:none; }
+.p-card__features{ list-style:none; padding:0; margin:.25rem 0 0; display:flex; flex-wrap:wrap; gap:.5rem 1rem; color:#6b7280; font-size:.85rem; }
+.p-card__features i{ color:#9ca3af; margin-right:.35rem; }
+.p-card__footer{ margin-top:auto; padding:10px 12px 12px; display:flex; align-items:center; justify-content:space-between; gap:.5rem; border-top:1px solid #f1f3f6; }
+.p-card__stock{ font-size:.75rem; }
+@media (max-width:575.98px){ .pgrid{ grid-template-columns:repeat(2, 1fr); } }
+.product-gallery{ gap: 18px; align-items:flex-start; position: relative; }
+.product-gallery .thumbs{ max-height: 420px; overflow-y:auto; overflow-x:hidden; }
+.thumb-btn{
+  width: 72px;
+  height: 72px;
+  border:2px solid #f3f4f6;
+  border-radius:10px;
+  padding:0;
+  margin-bottom:10px;
+  overflow:hidden;
+  background:#ffffff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+.thumb-btn img{ width:100%; height:100%; object-fit:cover; }
+.thumb-btn.active{
+  border-color:#ff6a00;
+  box-shadow:0 0 0 2px rgba(255,106,0,.25);
+}
+.thumb-btn:hover{
+  box-shadow:0 6px 14px rgba(15,23,42,0.20);
+  transform: translateY(-1px);
+}
+.video-thumb{ width:100%; height:100%; background:#111827; color:#fff; display:flex; align-items:center; justify-content:center; }
+.placeholder-thumb{ width:100%; height:100%; background:#f3f4f6; color:#9ca3af; display:flex; align-items:center; justify-content:center; }
+.viewer{
+  min-height: 360px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 20px 24px;
+  background:#ffffff;
+  border-radius:14px;
+  box-shadow:0 18px 45px rgba(15,23,42,0.10);
+}
+#pgMain, #pgMainVideo{
+  max-height: 480px;
+  width:100%;
+  max-width: 78%;
+  height:auto;
+  object-fit:contain;
+  margin: 0 auto;
+}
+
+/* Responsive tweaks for product page */
+@media (min-width: 1200px){
+  .viewer{ padding: 22px 28px; }
+  #pgMain, #pgMainVideo{ max-width: 75%; }
+}
+
+@media (max-width: 991.98px){
+  .product-layout{ flex-direction:column-reverse; }
+  .viewer{ padding: 18px 22px; box-shadow:0 12px 30px rgba(15,23,42,0.10); }
+  #pgMain, #pgMainVideo{ max-width: 88%; max-height: 420px; }
+}
+@media (max-width: 767.98px){
+  .product-gallery{ flex-direction:column; }
+  .product-gallery .thumbs{ flex-direction:row; flex-wrap:wrap; max-height:none; margin-bottom:0.5rem; }
+  .thumb-btn{ margin-bottom:4px; margin-right:8px; }
+  .viewer{ padding: 14px 16px; border-radius:12px; }
+  #pgMain, #pgMainVideo{ max-width: 100%; max-height: 320px; }
+}
+
+/***** Star rating modal *****/
+.star-label { cursor: pointer; font-size: 1.6rem; color: #e5e7eb; transition: color 0.15s; }
+.star-label:hover { color: #fbbf24; }
+.star-label.active { color: #fa6b02 !important; }
+#starRating input[type="radio"] { display: none; }
+#starRating .star-label { margin-right: 2px; }
+
+/* Review media previews */
+.media-thumb{ width:96px; height:96px; border:1px solid #e5e7eb; border-radius:8px; position:relative; overflow:hidden; }
+.media-thumb img, .media-thumb video{ width:100%; height:100%; object-fit:cover; }
+.media-thumb .remove{ position:absolute; top:4px; right:4px; background:#fff; border:1px solid #e5e7eb; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:.85rem; }
+</style>
+<style>
+  /* Store header styles */
+  .pd-store-header{ padding-top:.6rem; padding-bottom:.6rem; }
+  .pd-store-title{ font-size: clamp(0.95rem, 0.5vw + 0.85rem, 1.1rem); font-weight: 700; letter-spacing:.01em; color:#111827; }
+  .store-logo-circle{ width:52px; height:52px; border-radius:50%; border:1px solid #e5e7eb; object-fit:contain; background:#fff; padding:5px; }
+  @media (min-width:992px){ .store-logo-circle{ width:56px; height:56px; } }
+  @media (max-width:576px){ .store-logo-circle{ width:48px; height:48px; } }
+  .breadcrumb{ --bs-breadcrumb-divider: '›'; }
+  .breadcrumb .breadcrumb-item{ color:#6b7280; }
+  .breadcrumb .breadcrumb-item a{ text-decoration:none; }
+  .breadcrumb .breadcrumb-item.active{ color:#111827; }
+</style>
+<style>
+  /* Ratings (scoped) */
+  .ratings{ --radius-md:10px; --border-subtle:#e3e6ec; --text-main:#111827; --text-muted:#6b7280; --accent:#0f4c81; --bg-section:#ffffff; --bg-badge:#e0f2fe; max-width:960px; margin:1.5rem auto; padding:1rem 1.25rem; background:var(--bg-section); border-radius:var(--radius-md); border:1px solid var(--border-subtle); box-shadow:0 8px 20px rgba(15,23,42,0.05);}
+  .ratings__header{ display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:1rem; }
+  .ratings__sort label{ font-size:.85rem; color:var(--text-muted); }
+  .ratings__layout{ display:grid; grid-template-columns:minmax(0,260px) minmax(0,1fr); gap:1rem; }
+  .ratings-summary{ border-right:1px solid var(--border-subtle); padding-right:1rem; }
+  .ratings-summary__value{ font-size:2.25rem; font-weight:700; line-height:1; }
+  .ratings-summary__stars{ color:#f59e0b; letter-spacing:1px; font-size:1rem; }
+  .ratings-summary__count{ font-size:.9rem; color:var(--text-muted); margin:0.25rem 0; }
+  .ratings-list{ display:flex; flex-direction:column; gap:.75rem; }
+  .review-card{ border:1px solid var(--border-subtle); border-radius:12px; padding:.9rem 1rem; display:flex; flex-direction:column; gap:.6rem; background:#fff; }
+  .review-card__header{ display:flex; align-items:center; gap:.75rem; border-bottom:1px solid #f1f3f6; padding-bottom:.5rem; }
+  .review-card__avatar{ width:36px; height:36px; border-radius:50%; background:#f3f4f6; color:#6b7280; display:flex; align-items:center; justify-content:center; font-weight:600; }
+  .review-card__head-meta{ flex:1; min-width:0; }
+  .review-card__row{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+  .review-card__username{ font-weight:600; color:#111827; }
+  .review-card__sep{ color:#9ca3af; }
+  .review-card__stars{ color:#f59e0b; font-size:.9rem; letter-spacing:1px; }
+  .review-card__date{ font-size:.8rem; color:var(--text-muted); }
+  .review-card__variant{ font-size:.78rem; color:#6b7280; margin-top:.1rem; }
+  .review-card__badge{ padding:.1rem .45rem; border-radius:999px; font-size:.7rem; background:var(--bg-badge); color:var(--accent); text-transform:uppercase; letter-spacing:.05em; margin-top:.25rem; display:inline-block; }
+  .review-card__text{ font-size:.9rem; color:#374151; line-height:1.45; }
+
+  /* Media row */
+  .review-media-row{ display:flex; gap:.5rem; margin-top:.2rem; overflow-x:auto; padding-bottom:.25rem; }
+  .media-thumb{ position:relative; width:78px; aspect-ratio:1/1; border:1px solid var(--border-subtle); border-radius:10px; overflow:hidden; background:#fff; flex:0 0 auto; display:block; }
+  .media-thumb img, .media-thumb video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .media-thumb.is-video::after{ content:""; position:absolute; inset:0; background:linear-gradient(to bottom, transparent 60%, rgba(0,0,0,.45)); }
+  .media-thumb__play{ position:absolute; left:8px; bottom:8px; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.9); color:#111827; display:flex; align-items:center; justify-content:center; font-size:.65rem; }
+  .media-thumb__duration{ position:absolute; right:6px; bottom:6px; font-size:.7rem; color:#fff; background:rgba(0,0,0,.55); padding:0 .3rem; border-radius:4px; }
+
+  /* Small recommendation card */
+  .review-reco{ display:flex; align-items:center; gap:.6rem; padding:.55rem; border:1px solid var(--border-subtle); border-radius:10px; text-decoration:none; color:inherit; margin-top:.5rem; }
+  .review-reco__img{ width:48px; height:48px; border-radius:8px; object-fit:cover; border:1px solid var(--border-subtle); background:#fff; flex:0 0 auto; }
+  .review-reco__img--placeholder{ display:flex; align-items:center; justify-content:center; color:#9ca3af; }
+  .review-reco__meta{ min-width:0; }
+  .review-reco__name{ font-size:.86rem; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .review-reco__price{ font-size:.85rem; color:#fa6b02; font-weight:600; }
+  @media (max-width: 768px){
+    .ratings{ margin:1rem auto; padding:.9rem 1rem; }
+    .ratings__layout{ grid-template-columns:minmax(0,1fr); gap:1rem; }
+    .ratings-summary{ border-right:none; border-bottom:1px solid var(--border-subtle); padding-right:0; padding-bottom:1rem; }
+    .review-media-row{ gap:.45rem; }
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Product data for JavaScript (avoids template syntax in JS) -->
+{% set first_media_path = (media_items[0].path if media_items and media_items[0].type=='image' else (url_for('static', filename='uploads/' + product.image_filename) if product.image_filename else '')) %}
+{% set total_sold = (product.total_sold if product.total_sold is defined and product.total_sold is not none else 0) %}
+{% set seller = product.seller %}
+{% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+{% set store_name_value = (app0.store_name if app0 and app0.store_name else (seller.first_name if seller and seller.first_name is defined else 'Unknown Store')) %}
+{% set category_name_value = (product.category.name if product.category and product.category.name is defined else 'General') %}
+
+<div id="productData" 
+     data-product-id="{{ product.id }}"
+     data-product-name="{{ product.name }}"
+     data-product-price="{{ product.price }}"
+     data-product-image="{{ first_media_path }}"
+     data-product-stock="{{ product.stock }}"
+     data-product-total-sold="{{ total_sold }}"
+     data-store-name="{{ store_name_value }}"
+     data-category-name="{{ category_name_value }}"
+     data-url-template="{{ url_for('product_detail', product_id=999999) }}"
+     style="display: none;">
+</div>
+
+<script>
+/*
+  addToCartAjax: AJAX helper for adding a product to cart from product_detail page.
+  - Calls POST /add-to-cart-ajax/<productId>.
+  - Handles redirects (login) and JSON responses from server.
+  - Updates cart badge if server returns cart_count.
+  - Shows inline spinner and toast-style messages.
+*/
+function showMessage(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(toast);
+    setTimeout(()=> { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 3500);
+}
+
+function updateCartBadge(count) {
+    try {
+        // Try to find a cart badge inside a link that points to /cart
+        const cartAnchors = document.querySelectorAll('a[href*="/cart"]');
+        for (const a of cartAnchors) {
+            const badge = a.querySelector('.badge');
+            if (badge) {
+                if (count && count > 0) {
+                    badge.style.display = '';
+                    badge.textContent = count;
+                } else {
+                    // hide when zero
+                    badge.style.display = 'none';
+                }
+                return;
+            }
+        }
+        // If no badge found, try generic selector (fallback)
+        const anyBadge = document.querySelector('.position-absolute.top-0.start-100.translate-middle.badge');
+        if (anyBadge) {
+            if (count && count > 0) {
+                anyBadge.style.display = '';
+                anyBadge.textContent = count;
+            } else {
+                anyBadge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        console.warn('updateCartBadge failed', e);
+    }
+}
+
+async function addToCartAjax(productId, button) {
+    if (!productId) return;
+    const btn = button || document.querySelector('#addToCartBtn');
+    const originalHtml = btn ? btn.innerHTML : null;
+    const qtyEl = document.getElementById('qtyInput');
+    const qty = Math.max(1, parseInt(qtyEl?.value || '1'));
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class=\"spinner-border spinner-border-sm me-2\" role=\"status\" aria-hidden=\"true\"></span>Adding...';
+        }
+
+        const res = await fetch('/add-to-cart-ajax/' + productId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ qty })
+        });
+
+        // If server redirected to login (user not logged in), perform full-page redirect
+        if (res.redirected) {
+            window.location.href = res.url;
+            return;
+        }
+
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') === -1) {
+            // Unexpected non-JSON response
+            const text = await res.text();
+            console.error('Unexpected response from add-to-cart-ajax:', text);
+            showMessage('Could not add to cart. Please try again.', 'danger');
+            return;
+        }
+
+        const data = await res.json();
+        if (data && data.success) {
+            showMessage(data.message || 'Added to cart', 'success');
+            if (typeof data.cart_count !== 'undefined') {
+                updateCartBadge(data.cart_count);
+            } else {
+                // Optionally, fetch updates to header badge from server endpoint if available
+            }
+        } else {
+            showMessage((data && data.message) ? data.message : 'Failed to add to cart', 'danger');
+        }
+    } catch (err) {
+        console.error('addToCartAjax error', err);
+        showMessage('Network error when adding to cart', 'danger');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml || '<i class="fas fa-cart-plus me-2"></i>Add to Cart';
+        }
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Preload media items from server (inject as a JS literal)
+    const mediaItems = JSON.parse('{{ media_items|tojson|safe }}');
+
+   // Gallery swapping
+const thumbs = Array.from(document.querySelectorAll('#pgThumbs .thumb-btn'));
+const viewer = document.getElementById('pgViewer');
+
+function show(index){
+    thumbs.forEach((b,i)=>b.classList.toggle('active', i===index));
+    const btn = thumbs[index]; if (!btn) return;
+    const m = mediaItems[index];
+    if (!m) return;
+    if (m.type === 'image'){
+        viewer.innerHTML = `<img id=\"pgMain\" src=\"${m.path}\" class=\"img-fluid rounded shadow w-100\" alt=\"{{ product.name|e }}\">`;
+    } else if (m.type === 'video'){
+        viewer.innerHTML = `<video id=\"pgMainVideo\" src=\"${m.path}\" class=\"w-100 rounded shadow\" controls playsinline></video>`;
+    }
+}
+
+thumbs.forEach((b,i)=> b.addEventListener('click', ()=> show(i)));
+
+
+});
+
+    const productBtn = document.getElementById('addToCartBtn');
+    if (productBtn) {
+        productBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const pid = this.getAttribute('data-product-id');
+            addToCartAjax(pid, this);
+        });
+    }
+
+    // Add to cart buttons on related product cards
+    document.querySelectorAll('.js-add-related').forEach(btn=>{
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            const pid = this.getAttribute('data-product-id');
+            addToCartAjax(pid, this);
+        });
+    });
+
+    // Share buttons on product cards
+    document.querySelectorAll('.js-share-card').forEach(btn=>{
+        btn.addEventListener('click', function(e){
+            e.preventDefault();
+            const path = this.getAttribute('data-url') || window.location.pathname;
+            const url = path.startsWith('http') ? path : (window.location.origin + path);
+            const title = this.getAttribute('data-title') || document.title;
+            if (navigator.share){
+                navigator.share({ title, url }).catch(()=>{});
+            } else if (navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(url).then(()=> showMessage('Link copied to clipboard','success')).catch(()=>{});
+            } else {
+                window.prompt('Copy this link:', url);
+            }
+        });
+    });
+
+    // Quantity +/- handlers
+    const qtyInput = document.getElementById('qtyInput');
+    const qtyMinus = document.getElementById('qtyMinus');
+    const qtyPlus = document.getElementById('qtyPlus');
+    const maxQty = parseInt(qtyInput?.getAttribute('max') || '999') || 999;
+    if (qtyMinus && qtyInput) qtyMinus.addEventListener('click', ()=>{ qtyInput.value = Math.max(1, (parseInt(qtyInput.value)||1) - 1); });
+    if (qtyPlus && qtyInput) qtyPlus.addEventListener('click', ()=>{ qtyInput.value = Math.min(maxQty, (parseInt(qtyInput.value)||1) + 1); });
+
+    // Buy Now should carry qty parameter
+    const buyNowBtn = document.getElementById('buyNowBtn');
+    if (buyNowBtn && qtyInput){
+        buyNowBtn.addEventListener('click', function(ev){
+            ev.preventDefault();
+            const base = this.getAttribute('href');
+            const q = Math.max(1, parseInt(qtyInput.value)||1);
+            window.location.href = base + `?qty=${q}`;
+        });
+    }
+
+    // Star rating interaction (keeps previous implementation)
+    const starLabels = document.querySelectorAll('#starRating .star-label');
+    const starInputs = document.querySelectorAll('#starRating input[type="radio"]');
+    let hoveredIdx = -1;
+    starLabels.forEach((label, idx) => {
+        label.addEventListener('mouseenter', function() {
+            hoveredIdx = idx;
+            starLabels.forEach((l, i) => l.classList.toggle('active', i <= idx));
+        });
+        label.addEventListener('mouseleave', function() {
+            hoveredIdx = -1;
+            let checkedIdx = -1;
+            starInputs.forEach((input, j) => { if (input.checked) checkedIdx = j; });
+            starLabels.forEach((l, i) => l.classList.toggle('active', i <= checkedIdx && checkedIdx !== -1));
+        });
+        label.addEventListener('click', function() {
+            starInputs[idx].checked = true;
+            starLabels.forEach((l, i) => l.classList.toggle('active', i <= idx));
+        });
+    });
+
+    let reviewModal = document.getElementById('reviewModal');
+    if (reviewModal) {
+        reviewModal.addEventListener('show.bs.modal', function() {
+            starLabels.forEach(l => l.classList.remove('active'));
+            starInputs.forEach(i => i.checked = false);
+            // Reset media selections
+            if (window._reviewSelectedFiles) window._reviewSelectedFiles = [];
+            const input = document.getElementById('reviewMediaInput');
+            if (input) input.value = '';
+            const prev = document.getElementById('reviewMediaPreview');
+            if (prev) prev.innerHTML = '';
+        });
+    }
+
+    // Wire media picker with preview and removal
+    function wireMediaPicker(inputEl, previewEl){
+        window._reviewSelectedFiles = [];
+        function render(){
+            previewEl.innerHTML = '';
+            window._reviewSelectedFiles.forEach((file, idx)=>{
+                const wrap = document.createElement('div');
+                wrap.className = 'media-thumb';
+                const isVideo = file.type.startsWith('video/');
+                const el = document.createElement(isVideo ? 'video' : 'img');
+                el.src = URL.createObjectURL(file);
+                if (isVideo) el.controls = true;
+                wrap.appendChild(el);
+                const rm = document.createElement('button');
+                rm.type = 'button'; rm.className = 'remove'; rm.textContent = '×';
+                rm.addEventListener('click', ()=>{
+                    window._reviewSelectedFiles.splice(idx,1);
+                    const dt = new DataTransfer();
+                    window._reviewSelectedFiles.forEach(f=>dt.items.add(f));
+                    inputEl.files = dt.files; render();
+                });
+                wrap.appendChild(rm);
+                previewEl.appendChild(wrap);
+            });
+        }
+        inputEl.addEventListener('change', (e)=>{
+            const files = Array.from(e.target.files||[]);
+            const next = [];
+            for (const f of files){
+                const extOk = f.type.startsWith('image/') || f.type.startsWith('video/');
+                if (!extOk) continue;
+                if (f.type.startsWith('video/') && f.size > (50*1024*1024)) continue; // 50MB limit
+                next.push(f);
+            }
+            // append to selected, then rebuild FileList
+            window._reviewSelectedFiles = (window._reviewSelectedFiles||[]).concat(next);
+            const dt = new DataTransfer();
+            window._reviewSelectedFiles.forEach(f=>dt.items.add(f));
+            inputEl.files = dt.files; render();
+        });
+    }
+    const mediaInput = document.getElementById('reviewMediaInput');
+    const mediaPrev = document.getElementById('reviewMediaPreview');
+    if (mediaInput && mediaPrev){ wireMediaPicker(mediaInput, mediaPrev); }
+
+    // Review form validation for oversized videos
+    const reviewForm = document.querySelector('#reviewModal form');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', function(e) {
+            // Find the media uploader instance
+            const mediaUploader = document.querySelector('#reviewModal .js-mu');
+            if (mediaUploader && mediaUploader._muInstance) {
+                const mu = mediaUploader._muInstance;
+                if (mu.hasOversizedVideos()) {
+                    e.preventDefault();
+                    const oversizedNames = mu.getOversizedVideoNames().join(', ');
+                    alert(`Please remove oversized video files before submitting: ${oversizedNames}\n\nMaximum video size is 50MB. Please compress your videos or select smaller files.`);
+                    return false;
+                }
+            }
+        });
+    }
+
+    // Recently viewed: store and render
+    document.addEventListener('DOMContentLoaded', function(){
+      try {
+        // Get product data from data attributes (no template syntax in JS)
+        const productData = document.getElementById('productData');
+        if (!productData) return;
+        
+        const productId = productData.dataset.productId;
+        const productName = productData.dataset.productName;
+        const productPrice = parseFloat(productData.dataset.productPrice);
+        const productImage = productData.dataset.productImage;
+        const productStock = parseInt(productData.dataset.productStock);
+        const productTotalSold = parseInt(productData.dataset.productTotalSold);
+        const storeName = productData.dataset.storeName;
+        const categoryName = productData.dataset.categoryName;
+        
+        const cur = {
+          id: productId,
+          name: productName,
+          price: productPrice,
+          image: productImage,
+          stock: productStock,
+          total_sold: productTotalSold,
+          store_name: storeName,
+          category: categoryName
+        };
+        const key = 'recently_viewed';
+        const arr = JSON.parse(localStorage.getItem(key) || '[]').filter(p => p && p.id !== cur.id);
+        arr.unshift(cur);
+        while (arr.length > 8) arr.pop();
+        localStorage.setItem(key, JSON.stringify(arr));
+
+        const grid = document.getElementById('rvGrid');
+        if (grid) {
+          const urlTemplate = productData.dataset.urlTemplate;
+          grid.innerHTML = '';
+          arr.slice(0, 8).forEach(p => {
+            const url = urlTemplate.replace('999999', String(p.id));
+            const price = (typeof Intl !== 'undefined' && Intl.NumberFormat)
+              ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(p.price || 0)
+              : '₱' + Number(p.price || 0).toFixed(2);
+            const img = p.image ? `<img src="${p.image}" alt="${p.name}">` : `<div class="p-card__ph"><i class="fas fa-image"></i></div>`;
+            const card = document.createElement('div');
+            card.className = 'p-card';
+            card.innerHTML = `
+              <a href="${url}" class="stretched-link" aria-label="View ${p.name}"></a>
+              <div class="p-card__media">
+                ${img}
+              </div>
+              <div class="p-card__body">
+                <div class="p-card__price-row">
+                  <span class="p-card__price">${price}</span>
+                </div>
+                <h6 class="p-card__title">${p.name}</h6>
+                <ul class="list-unstyled mb-2 mt-2">
+                  <li class="small text-muted"><i class="fas fa-tags me-1"></i>${p.category || 'General'}</li>
+                </ul>
+              </div>
+                <div class="p-card__footer">
+                  <span class="badge ${p.stock > 0 ? 'bg-success-subtle text-success border-success' : 'bg-danger-subtle text-danger border-danger'} p-card__stock">${p.stock > 0 ? 'In stock' : 'Out of Stock'}</span>
+                  ${p.total_sold && p.total_sold > 0 ? `<div class="small text-muted">Total Sold: <strong>${p.total_sold}</strong></div>` : ''}
+                </div>
+              </a>`;
+            grid.appendChild(card);
+          });
+        }
+      } catch (e) {
+        console.warn('Recently viewed error:', e);
+      }
+    });
+
+    // Sold out action functions
+    function notifyWhenAvailable() {
+      showMessage('We\'ll notify you when this product is back in stock!', 'info');
+      // You can implement actual notification logic here
+    }
+
+    function continueShopping() {
+      window.location.href = '{{ url_for("shop") }}';
+    }
+
+    // Real-time stock updates
+    document.addEventListener('DOMContentLoaded', function() {
+      // Listen for stock updates
+      if (typeof socket !== 'undefined') {
+        socket.on('product_stock_update', function(data) {
+          const productId = data.product_id;
+          const newStock = data.available_stock;
+          
+          // Update current product page if it matches
+          const currentProductId = '{{ product.id }}';
+          if (productId == currentProductId) {
+            updateStockDisplay(newStock);
+          }
+          
+          // Update product cards in related products section
+          updateProductCardStock(productId, newStock);
+        });
+      }
+    });
+
+    function updateStockDisplay(newStock) {
+      // Update stock badge
+      const stockBadge = document.querySelector('.badge.bg-success, .badge.bg-secondary');
+      const stockText = document.querySelector('.text-muted.ms-1');
+      
+      if (stockBadge && stockText) {
+        if (newStock > 0) {
+          stockBadge.className = 'badge bg-success';
+          stockBadge.textContent = 'In stock';
+          stockText.textContent = `(${newStock} available)`;
+          
+          // Remove sold out label
+          const soldOutLabel = document.querySelector('.product-image-sold-out');
+          if (soldOutLabel) {
+            soldOutLabel.remove();
+          }
+          
+          // Show purchase buttons
+          const purchaseRow = document.querySelector('.purchase-row');
+          const soldOutMinimal = document.querySelector('.sold-out-minimal');
+          if (purchaseRow) purchaseRow.style.display = 'flex';
+          if (soldOutMinimal) soldOutMinimal.style.display = 'none';
+          
+          // Update quantity input max
+          const qtyInput = document.getElementById('qtyInput');
+          if (qtyInput) {
+            qtyInput.max = newStock;
+            qtyInput.value = Math.min(1, newStock);
+          }
+        } else {
+          stockBadge.className = 'badge bg-secondary';
+          stockBadge.textContent = 'Out of Stock';
+          stockText.textContent = 'All items have been purchased';
+          
+          // Add sold out label if not exists
+          const productGallery = document.querySelector('.product-gallery');
+          if (productGallery && !document.querySelector('.product-image-sold-out')) {
+            const soldOutLabel = document.createElement('div');
+            soldOutLabel.className = 'product-image-sold-out';
+            soldOutLabel.innerHTML = '<span>Out of Stock</span>';
+            productGallery.appendChild(soldOutLabel);
+          }
+          
+          // Hide purchase buttons
+          const purchaseRow = document.querySelector('.purchase-row');
+          const soldOutMinimal = document.querySelector('.sold-out-minimal');
+          if (purchaseRow) purchaseRow.style.display = 'none';
+          if (soldOutMinimal) soldOutMinimal.style.display = 'block';
+        }
+      }
+    }
+
+    function updateProductCardStock(productId, newStock) {
+      // Update related product cards
+      const productCards = document.querySelectorAll('.p-card');
+      productCards.forEach(card => {
+        const link = card.querySelector('a[href*="' + productId + '"]');
+        if (link) {
+          const stockBadge = card.querySelector('.p-card__stock');
+          if (stockBadge) {
+            if (newStock > 0) {
+              stockBadge.className = 'badge bg-success-subtle text-success border-success p-card__stock';
+              stockBadge.textContent = 'In stock';
+            } else {
+              stockBadge.className = 'badge bg-danger-subtle text-danger border-danger p-card__stock';
+              stockBadge.textContent = 'Out of Stock';
+            }
+          }
+        }
+      });
+    }
+</script>
+{% endblock %}

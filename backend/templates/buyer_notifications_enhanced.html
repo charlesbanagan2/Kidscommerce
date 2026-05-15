@@ -1,0 +1,284 @@
+<!-- Buyer Notifications Page -->
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<style>
+.notification-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.notification-item {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.notification-item.unread {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+}
+
+.notification-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.notification-icon.new-order { background: #dbeafe; color: #3b82f6; }
+.notification-icon.processing { background: #fef3c7; color: #f59e0b; }
+.notification-icon.rider-assigned { background: #d1fae5; color: #10b981; }
+.notification-icon.delivered { background: #dcfce7; color: #16a34a; }
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: #1f2937;
+}
+
+.notification-message {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.notification-time {
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+.notification-badge {
+    background: #ef4444;
+    color: white;
+    border-radius: 12px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+</style>
+
+<div class="notification-container">
+    <div class="notification-header">
+        <div>
+            <h2><i class="fas fa-bell me-2"></i>Notifications</h2>
+            <p class="text-muted">Stay updated with your orders</p>
+        </div>
+        <div>
+            <span class="notification-badge" id="unreadCount">0</span>
+            <button class="btn btn-sm btn-outline-primary ms-2" onclick="markAllAsRead()">
+                <i class="fas fa-check-double me-1"></i>Mark all read
+            </button>
+        </div>
+    </div>
+
+    <div id="notificationsList">
+        <!-- Notifications will be loaded here -->
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="fas fa-bell-slash"></i>
+        <h4>No notifications yet</h4>
+        <p class="text-muted">You'll see updates about your orders here</p>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let loading = false;
+
+// Load notifications on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotifications();
+    
+    // Listen for real-time notifications
+    socket.on('new_notification', function(data) {
+        prependNotification(data);
+        updateUnreadCount();
+        showToast(data.title, data.message);
+    });
+});
+
+function loadNotifications() {
+    if (loading) return;
+    loading = true;
+    
+    fetch(`/api/notifications?page=${currentPage}&per_page=20`)
+        .then(r => r.json())
+        .then(data => {
+            const list = document.getElementById('notificationsList');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (data.notifications.length === 0 && currentPage === 1) {
+                emptyState.style.display = 'block';
+                list.innerHTML = '';
+            } else {
+                emptyState.style.display = 'none';
+                data.notifications.forEach(notif => {
+                    list.appendChild(createNotificationElement(notif));
+                });
+            }
+            
+            document.getElementById('unreadCount').textContent = data.unread_count;
+            loading = false;
+        })
+        .catch(err => {
+            console.error('Error loading notifications:', err);
+            loading = false;
+        });
+}
+
+function createNotificationElement(notif) {
+    const div = document.createElement('div');
+    div.className = `notification-item ${notif.is_read ? '' : 'unread'}`;
+    div.onclick = () => markAsRead(notif.id, notif.action_url);
+    
+    const iconClass = getIconClass(notif.notification_type);
+    const icon = getIcon(notif.notification_type);
+    
+    div.innerHTML = `
+        <div class="d-flex align-items-start">
+            <div class="notification-icon ${iconClass}">
+                <i class="${icon}"></i>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${notif.title}</div>
+                <div class="notification-message">${notif.message}</div>
+                <div class="notification-time">
+                    <i class="far fa-clock me-1"></i>${formatTime(notif.created_at)}
+                </div>
+            </div>
+            ${!notif.is_read ? '<span class="badge bg-primary">New</span>' : ''}
+        </div>
+    `;
+    
+    return div;
+}
+
+function prependNotification(notif) {
+    const list = document.getElementById('notificationsList');
+    const elem = createNotificationElement(notif);
+    list.insertBefore(elem, list.firstChild);
+    
+    // Hide empty state
+    document.getElementById('emptyState').style.display = 'none';
+}
+
+function markAsRead(notificationId, actionUrl) {
+    fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST'
+    }).then(() => {
+        updateUnreadCount();
+        if (actionUrl) {
+            window.location.href = actionUrl;
+        }
+    });
+}
+
+function markAllAsRead() {
+    fetch('/api/notifications/mark-all-read', {
+        method: 'POST'
+    }).then(() => {
+        document.querySelectorAll('.notification-item.unread').forEach(item => {
+            item.classList.remove('unread');
+        });
+        updateUnreadCount();
+    });
+}
+
+function updateUnreadCount() {
+    fetch('/api/notifications/unread-count')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('unreadCount').textContent = data.unread_count;
+        });
+}
+
+function getIconClass(type) {
+    const map = {
+        'new_order': 'new-order',
+        'order_processing': 'processing',
+        'rider_assigned': 'rider-assigned',
+        'out_for_delivery': 'rider-assigned',
+        'order_delivered': 'delivered',
+        'delivery_completed': 'delivered'
+    };
+    return map[type] || 'new-order';
+}
+
+function getIcon(type) {
+    const map = {
+        'new_order': 'fas fa-shopping-cart',
+        'order_processing': 'fas fa-cog',
+        'rider_assigned': 'fas fa-motorcycle',
+        'out_for_delivery': 'fas fa-shipping-fast',
+        'order_delivered': 'fas fa-check-circle',
+        'delivery_completed': 'fas fa-star'
+    };
+    return map[type] || 'fas fa-bell';
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return date.toLocaleDateString();
+}
+
+function showToast(title, message) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-info alert-dismissible fade show';
+    toast.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        <strong>${title}</strong><br>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+{% endblock %}

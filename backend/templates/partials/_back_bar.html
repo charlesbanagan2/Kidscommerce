@@ -1,0 +1,27 @@
+<div class="back-bar d-flex align-items-center gap-2 mb-3">
+  <button type="button" class="btn btn-outline-secondary btn-sm" id="backBtn">
+    <i class="fas fa-arrow-left me-1"></i>Back
+  </button>
+  <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-home me-1"></i>Home
+  </a>
+</div>
+<script>
+(function(){
+  const btn = document.getElementById('backBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function(e){
+    e.preventDefault();
+    try{
+      if (document.referrer && document.referrer !== window.location.href && window.history.length > 1){
+        window.history.back();
+        return;
+      }
+    }catch(_){ }
+    window.location.href = '{{ url_for('index') }}';
+  });
+})();
+</script>
+<style>
+.back-bar{ }
+</style>

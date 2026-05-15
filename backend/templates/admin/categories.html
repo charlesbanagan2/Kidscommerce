@@ -1,0 +1,292 @@
+{% extends "admin_base.html" %}
+{% block title %}Manage Categories{% endblock %}
+{% block admin_content %}
+{% set active_page = 'categories' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Manage Categories</h2>
+</div>
+
+<div class="card shadow-sm">
+                    {# ENCTYPE added to accept file uploads for adding new categories #}
+                    <form method="POST" enctype="multipart/form-data" class="row g-2 align-items-center mb-4">
+                        <div class="col-md-4">
+                            <input type="text" name="name" class="form-control" placeholder="Add new category..." required>
+                        </div>
+                        <div class="col-md-4">
+                            <input type="file" name="cover_image" accept="image/png, image/jpeg" class="form-control" title="Upload a category cover image (recommended: 1000×150 px)">
+                            <div class="form-text">Recommended size: 1000 × 150 px (Canva). JPG or PNG.</div>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-success" type="submit">
+                                <i class="fas fa-plus me-1"></i>Add Category
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:60px;">#</th>
+                                    <th>Category Name</th>
+                                    <th>Cover (preview & change)</th>
+                                    <th>Status</th>
+                                    <th style="width:220px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in categories %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td class="fw-semibold">{{ category.name }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div>
+                                                {% if category.cover_image_filename %}
+                                                    <img src="{{ url_for('static', filename='uploads/categories/' ~ category.cover_image_filename) }}"
+                                                         alt="{{ category.name }} cover" style="width:300px;height:45px;object-fit:cover;border-radius:4px;border:1px solid rgba(0,0,0,0.05);">
+                                                {% elif category.cover_image %}
+                                                    <img src="{{ url_for('static', filename='uploads/categories/' ~ category.cover_image) }}"
+                                                         alt="{{ category.name }} cover" style="width:300px;height:45px;object-fit:cover;border-radius:4px;border:1px solid rgba(0,0,0,0.05);">
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename='images/category-default-1000x150.png') }}"
+                                                         alt="No cover" style="width:300px;height:45px;object-fit:cover;border-radius:4px;border:1px solid rgba(0,0,0,0.05);">
+                                                {% endif %}
+                                            </div>
+
+                                            <div>
+                                                {# Inline form to update existing category cover #}
+                                                <form method="POST" action="{{ url_for('update_category_cover', category_id=category.id) }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                                                    <input type="file" name="cover_image" accept="image/png, image/jpeg" class="form-control form-control-sm" style="width:180px;" title="Upload new cover (recommended: 1000×150 px)">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">Upload</button>
+                                                </form>
+                                                <div class="form-text small text-muted mt-1">Recommended: 1000×150 px. Will overwrite existing cover.</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if category.status == 'active' %}
+                                            <span class="badge bg-success" data-status-badge="{{ category.id }}">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary" data-status-badge="{{ category.id }}">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            {% if category.status == 'active' %}
+                                            <button type="button" class="btn btn-sm btn-outline-danger toggle-status-btn" 
+                                                    data-category-id="{{ category.id }}" 
+                                                    data-action="inactive"
+                                                    data-url="{{ url_for('soft_delete_category', category_id=category.id) }}">
+                                                Set Inactive
+                                            </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-sm btn-outline-success toggle-status-btn" 
+                                                    data-category-id="{{ category.id }}" 
+                                                    data-action="active"
+                                                    data-url="{{ url_for('activate_category', category_id=category.id) }}">
+                                                Set Active
+                                            </button>
+                                            {% endif %}
+
+                                            <a href="{{ url_for('edit_category', category_id=category.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                            <form method="POST" action="{{ url_for('delete_category', category_id=category.id) }}" onsubmit="return confirm('Permanently delete this category?');" style="display:inline;">
+                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No categories yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer text-end small text-muted">
+                    Last updated: {{ now().strftime('%b %d, %Y %I:%M %p') }}
+                </div>
+            </div>
+
+            <!-- Subcategory Management (unchanged) -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Manage Subcategories</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="row g-2 align-items-center mb-4">
+                        <div class="col">
+                            <select name="category_id" class="form-select" required>
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <input type="text" name="subcat_name" class="form-control" placeholder="Add new subcategory..." required>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-info" type="submit">
+                                <i class="fas fa-plus me-1"></i>Add Subcategory
+                            </button>
+                        </div>
+                    </form>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Subcategory Name</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subcat in subcategories %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ subcat.name }}</td>
+                                        <td>{{ subcat.category.name }}</td>
+                                        <td>
+                                            {% if subcat.status == 'active' %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <!-- Add activate/inactivate buttons if needed -->
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">No subcategories yet.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// AJAX status toggle without page refresh
+document.addEventListener('DOMContentLoaded', function() {
+    const statusButtons = document.querySelectorAll('.toggle-status-btn');
+    
+    statusButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const categoryId = this.dataset.categoryId;
+            const action = this.dataset.action;
+            const url = this.dataset.url;
+            const statusBadge = document.querySelector(`[data-status-badge="${categoryId}"]`);
+            
+            // Disable button during request
+            this.disabled = true;
+            const originalText = this.textContent;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Loading...';
+            
+            // Make AJAX request
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update status badge
+                    if (data.status === 'active') {
+                        statusBadge.className = 'badge bg-success';
+                        statusBadge.textContent = 'Active';
+                        
+                        // Change button to "Set Inactive"
+                        this.className = 'btn btn-sm btn-outline-danger toggle-status-btn';
+                        this.textContent = 'Set Inactive';
+                        this.dataset.action = 'inactive';
+                        this.dataset.url = this.dataset.url.replace('/activate/', '/delete/');
+                    } else {
+                        statusBadge.className = 'badge bg-secondary';
+                        statusBadge.textContent = 'Inactive';
+                        
+                        // Change button to "Set Active"
+                        this.className = 'btn btn-sm btn-outline-success toggle-status-btn';
+                        this.textContent = 'Set Active';
+                        this.dataset.action = 'active';
+                        this.dataset.url = this.dataset.url.replace('/delete/', '/activate/');
+                    }
+                    
+                    // Show success message without alert (use a toast or inline message)
+                    showToast(data.message, 'success');
+                } else {
+                    showToast('Failed to update category status', 'error');
+                    this.textContent = originalText;
+                }
+                
+                this.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('An error occurred while updating status', 'error');
+                this.textContent = originalText;
+                this.disabled = false;
+            });
+        });
+    });
+});
+
+// Simple toast notification function
+function showToast(message, type) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 start-50 translate-middle-x mt-3`;
+    toast.style.cssText = 'z-index: 9999; min-width: 300px; animation: slideDown 0.3s ease-out;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Add animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translate(-50%, 0); opacity: 1; }
+            to { transform: translate(-50%, -100%); opacity: 0; }
+        }
+    `;
+    if (!document.querySelector('style[data-toast-style]')) {
+        style.setAttribute('data-toast-style', 'true');
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(toast);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideUp 0.3s ease-in';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+
+{% endblock %}

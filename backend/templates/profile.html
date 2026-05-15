@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Profile - Admin Dashboard{% endblock %}
+
+{% block content %}
+<style>
+/* Shared professional admin panel styles (consistent with dashboard) */
+:root{
+    --brand-blue-700: #0b63a8;
+    --brand-blue-600: #0369a1;
+    --muted-700: #374151;
+    --muted-500: #6b7280;
+    --muted-300: #d1d5db;
+    --surface: #f6f9fb;
+    --card-bg: #ffffff;
+    --card-contrast: #f8fafc;
+    --success: #198754;
+    --danger: #dc3545;
+    --radius-lg: 12px;
+    --radius-sm: 8px;
+    --shadow-lg: 0 12px 30px rgba(3,25,41,0.06);
+}
+
+/* Page background */
+body, .container-fluid.py-4 { background: var(--surface); }
+
+/* Sidebar card */
+.card.sidebar-card{
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(11,99,168,0.14);
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.88));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow:
+        0 14px 40px rgba(3,25,41,0.10),
+        inset 0 1px 0 rgba(255,255,255,0.65);
+    position: sticky;
+    top: 24px;
+}
+.card-header.admin-header{
+    position: relative;
+    background: linear-gradient(90deg, var(--brand-blue-700), var(--brand-blue-600));
+    color:#fff; padding:14px 16px; font-weight:800; display:flex; align-items:center; gap:.6rem; font-size:.95rem;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.18), 0 8px 20px rgba(3,25,41,0.18);
+    letter-spacing:.2px;
+}
+.card-header.admin-header::after{
+    content:"";
+    position:absolute; inset:0;
+    pointer-events:none;
+    background: linear-gradient(90deg, rgba(255,255,255,.16), transparent 32%, transparent 68%, rgba(255,255,255,.16));
+    opacity:.35;
+}
+
+/* Scoped sidebar list */
+.list-group.list-group-flush{ padding:10px; background:transparent; }
+.card.sidebar-card .list-group.list-group-flush{
+    padding:12px;
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(3,105,161,0.35) transparent;
+}
+.card.sidebar-card .list-group.list-group-flush::-webkit-scrollbar{ width: 6px; }
+.card.sidebar-card .list-group.list-group-flush::-webkit-scrollbar-thumb{
+    background: rgba(3,105,161,0.35);
+    border-radius: 10px;
+}
+
+/* Sidebar items: pro micro-interactions */
+.list-group-item{
+    border:none; border-radius: var(--radius-sm); margin:6px 6px; transition:all .12s ease; color:var(--muted-700);
+    font-weight:700; display:flex; align-items:center; gap:.75rem; background:transparent; padding:10px 12px;
+}
+.card.sidebar-card .list-group-item{
+    position: relative;
+    isolation: isolate;
+    border: 1px solid transparent;
+    transition:
+        transform .18s ease,
+        background-color .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease,
+        color .18s ease;
+}
+.card.sidebar-card .list-group-item::before{
+    content:"";
+    position:absolute;
+    left:-1px; top:8px; bottom:8px; width:3px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #06b6d4, #0b63a8);
+    opacity:0; transform: scaleY(.4);
+    transition: opacity .18s ease, transform .18s ease, width .18s ease;
+}
+.list-group-item .fas{ width:24px; text-align:center; color:var(--brand-blue-600); font-size:.95rem; }
+
+.card.sidebar-card .list-group-item:hover{
+    background: rgba(6,42,84,.04);
+    border-color: rgba(11,99,168,0.16);
+    transform: translateX(4px);
+    box-shadow: 0 10px 24px rgba(3,25,41,.08);
+    color:#0b2b45;
+}
+.card.sidebar-card .list-group-item:hover::before{ opacity:1; transform: scaleY(1); }
+.card.sidebar-card .list-group-item:active{ transform: translateX(6px) scale(.995); }
+
+/* Icon halo on hover */
+.card.sidebar-card .list-group-item .fas{ position:relative; z-index:1; transition: transform .18s ease, color .18s ease; }
+.card.sidebar-card .list-group-item:hover .fas{ transform: translateX(1px); }
+.card.sidebar-card .list-group-item .fas::after{
+    content:"";
+    position:absolute; left:50%; top:50%;
+    width:28px; height:28px; border-radius:50%;
+    transform: translate(-50%,-50%) scale(.7);
+    background: radial-gradient(circle at 50% 50%, rgba(3,105,161,.22), transparent 62%);
+    opacity:0; transition: opacity .2s ease, transform .2s ease;
+}
+.card.sidebar-card .list-group-item:hover .fas::after{ opacity:1; transform: translate(-50%,-50%) scale(1); }
+
+/* Active state */
+.list-group-item.active{
+    background: linear-gradient(90deg, rgba(11,99,168,.12), rgba(3,105,161,.06)) !important;
+    border-left:4px solid var(--brand-blue-700) !important; color: var(--brand-blue-700) !important; font-weight:900;
+}
+.card.sidebar-card .list-group-item.active{
+    border-color: rgba(11,99,168,0.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 10px 24px rgba(3,25,41,.06);
+}
+.card.sidebar-card .list-group-item.active::before{
+    opacity:1; transform: scaleY(1); width:4px;
+}
+
+/* Badge polish */
+.card.sidebar-card .list-group .badge{
+    font-weight:800; border-radius:999px; padding:.25rem .6rem;
+    box-shadow: 0 2px 8px rgba(3,25,41,.15);
+}
+
+/* Focus */
+.card.sidebar-card .list-group-item:focus-visible{
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(3,105,161,.25);
+}
+
+/* Responsive */
+@media (max-width: 991.98px){
+    .col-md-3{ margin-bottom:1rem; }
+    .list-group-item{ margin:6px 4px; }
+    .card.sidebar-card{ position: static; max-height: none; }
+}
+@media (max-width: 576px){
+    .card-header.admin-header{ padding:12px; font-size:.95rem; }
+}
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 mb-4 mb-md-0">
+            <div class="card sidebar-card">
+                <div class="card-header admin-header">
+                    <i class="fas fa-crown me-2"></i>Admin Panel
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('admin_profile') }}" class="list-group-item list-group-item-action active">
+                        <i class="fas fa-user-shield me-2"></i>Admin Profile
+                    </a>
+                    <a href="{{ url_for('admin_seller_applications') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-store me-2"></i>Seller Applications
+                    </a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-users me-2"></i>Users
+                    </a>
+                    <a href="{{ url_for('admin_products') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-box me-2"></i>Products
+                    </a>
+                    <a href="{{ url_for('admin_orders') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-shopping-cart me-2"></i>Orders
+                    </a>
+                    <a href="{{ url_for('admin_payments') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-credit-card me-2"></i>Payments
+                    </a>
+                    <a href="{{ url_for('admin_reports') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-bar me-2"></i>Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">Admin Profile</h2>
+                <span class="badge bg-{% if admin_profile.account_status == 'Active' %}success{% else %}danger{% endif %} fs-6">
+                    {{ admin_profile.account_status }}
+                </span>
+            </div>
+
+            <div class="row g-4">
+                <!-- Personal Information (Identity Section) -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Personal Information (Identity Section)</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Profile Picture / Avatar -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <label class="form-label">Profile Picture / Avatar</label>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-container me-3">
+                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" 
+                                                 style="width: 80px; height: 80px; font-size: 2rem; color: white;">
+                                                <i class="fas fa-user-shield"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <input type="file" class="form-control mb-2" id="profile_picture" accept="image/*" disabled>
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Profile picture upload feature will be available soon
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <form action="{{ url_for('update_admin_profile') }}" method="post">
+                                <!-- Full Name (Admin Name) -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="first_name" class="form-label">
+                                            <i class="fas fa-user me-1"></i>First Name
+                                        </label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                                               value="{{ user.first_name }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="last_name" class="form-label">
+                                            <i class="fas fa-user me-1"></i>Last Name
+                                        </label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                                               value="{{ user.last_name }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="full_name" class="form-label">
+                                            <i class="fas fa-id-badge me-1"></i>Full Name (Admin Name)
+                                        </label>
+                                        <input type="text" class="form-control" id="full_name" name="full_name" 
+                                               value="{{ admin_profile.full_name }}" required>
+                                        <small class="text-muted">Complete admin display name</small>
+                                    </div>
+                                    <!-- Username / Admin ID -->
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">
+                                            <i class="fas fa-envelope me-1"></i>Email / Admin ID
+                                        </label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ user.email }}" readonly>
+                                        <small class="text-muted">System identifier (cannot be changed)</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Email Address (for login and recovery) -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">
+                                            <i class="fas fa-envelope me-1"></i>Email Address
+                                        </label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ user.email }}" required>
+                                        <small class="text-muted">For login and account recovery</small>
+                                    </div>
+                                    <!-- Contact Number (optional, for system recovery or notifications) -->
+                                    <div class="col-md-6 mb-3">
+                                        <label for="contact_number" class="form-label">
+                                            <i class="fas fa-phone me-1"></i>Contact Number
+                                        </label>
+                                        <input type="tel" class="form-control" id="contact_number" name="contact_number" 
+                                               value="{{ admin_profile.contact_number }}" placeholder="+1 (555) 123-4567">
+                                        <small class="text-muted">For system recovery or important notifications</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="system_role" class="form-label">
+                                            <i class="fas fa-crown me-1"></i>System Role
+                                        </label>
+                                        <select class="form-control" id="system_role" name="system_role">
+                                            <option value="Administrator" {{ 'selected' if admin_profile.system_role == 'Administrator' else '' }}>Administrator</option>
+                                            <option value="Super Admin" {{ 'selected' if admin_profile.system_role == 'Super Admin' else '' }}>Super Admin</option>
+                                        </select>
+                                        <small class="text-muted">Administrative privilege level</small>
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-4">
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Update Profile Information
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Status & Security -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security & Status</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Account Status</label>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="badge bg-{% if admin_profile.account_status == 'Active' %}success{% else %}danger{% endif %} fs-6">
+                                        <i class="fas fa-{% if admin_profile.account_status == 'Active' %}check-circle{% else %}times-circle{% endif %} me-1"></i>
+                                        {{ admin_profile.account_status }}
+                                    </span>
+                                    {% if admin_profile.account_status == 'Suspended' %}
+                                        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Restricted Access</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Last Login Date & Time</label>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clock text-primary me-2"></i>
+                                    <div>
+                                        {% if admin_profile.last_login %}
+                                            <strong>{{ admin_profile.last_login.strftime('%B %d, %Y') }}</strong><br>
+                                            <small class="text-muted">{{ admin_profile.last_login.strftime('%I:%M %p') }}</small>
+                                        {% else %}
+                                            <span class="text-warning">Never logged in</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Created At</label>
+                                <div>{{ admin_profile.created_at.strftime('%B %d, %Y') }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Password -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-key me-2"></i>Change Password</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid">
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                    <i class="fas fa-key me-2"></i>Change Password
+                                </button>
+                            </div>
+                            <hr class="my-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Password must be 8-12 characters with uppercase, lowercase, number, and special character
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h6>
+                            <a href="{{ url_for('admin_activity_logs') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_logs %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Action</th>
+                                                <th>Details</th>
+                                                <th>IP Address</th>
+                                                <th>Timestamp</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for log in recent_logs %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ log.action }}</span>
+                                                    </td>
+                                                    <td>{{ log.details or 'N/A' }}</td>
+                                                    <td><code>{{ log.ip_address }}</code></td>
+                                                    <td>{{ log.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-history fa-3x mb-3"></i>
+                                    <p>No recent activity</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- /Main -->
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('change_admin_password') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                        <div class="form-text">Password must be 8-12 characters with uppercase, lowercase, number, and special character</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

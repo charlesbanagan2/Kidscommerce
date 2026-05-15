@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+{% block title %}Review Return {{ rr.id }}{% endblock %}
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+.return-detail-container {
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.evidence-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.evidence-item:hover {
+  transform: scale(1.05);
+}
+
+.evidence-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.video-container video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reason-box {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid #007bff;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.badge-reason {
+  background: #007bff;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .evidence-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+  }
+  
+  .evidence-item img {
+    height: 80px;
+  }
+}
+
+@media (max-width: 576px) {
+  .evidence-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+
+<div class="container-fluid py-4 return-detail-container">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3 col-lg-2">
+      {% set active_page = 'returns' %}
+      {% include 'seller/_sidebar.html' %}
+    </div>
+    <!-- Main Content -->
+    <div class="col-md-9 col-lg-10">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;">Review Return Request</h2>
+      </div>
+      
+      <div class="row g-4">
+        <!-- Left Column - Buyer Information -->
+        <div class="col-lg-8">
+          <!-- Status Card -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+              <i class="fas fa-info-circle me-2"></i>Status Information
+            </div>
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="badge bg-primary fs-6 px-3 py-2">{{ rr.status.replace('_',' ')|title }}</span>
+                </div>
+                <div class="text-muted small">
+                  <i class="fas fa-clock me-1"></i>
+                  {{ rr.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buyer Reason & Description -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-info text-white">
+              <i class="fas fa-comment-dots me-2"></i>Buyer's Reason & Description
+            </div>
+            <div class="card-body">
+              <div class="reason-box">
+                <div class="mb-3">
+                  <strong class="text-muted">Primary Reason:</strong>
+                  <span class="badge-reason ms-2">{{ rr.reason }}</span>
+                  {% if rr.reason_other %}
+                    <span class="text-muted ms-2">— {{ rr.reason_other }}</span>
+                  {% endif %}
+                </div>
+                {% if rr.description %}
+                <div>
+                  <strong class="text-muted">Detailed Description:</strong>
+                  <p class="mt-2 mb-0">{{ rr.description }}</p>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Uploaded Evidence -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-success text-white">
+              <i class="fas fa-camera me-2"></i>Evidence Uploaded by Buyer
+            </div>
+            <div class="card-body">
+              <!-- Images -->
+              {% if rr.images is not none and rr.images|length > 0 %}
+              <div class="mb-4">
+                <h6 class="text-muted mb-3">
+                  <i class="fas fa-images me-2"></i>Images ({{ rr.images|length }})
+                </h6>
+                <div class="evidence-grid">
+                  {% for img in rr.images %}
+                  <div class="evidence-item" 
+                       data-bs-toggle="modal" 
+                       data-bs-target="#imageModal">
+                    <img src="{{ url_for('static', filename='uploads/' + img) }}" 
+                         alt="Evidence {{ loop.index }}"
+                         class="border"
+                         onerror="this.onerror=null; this.src='https://via.placeholder.com/150x150/cccccc/666666?text=Image+Not+Found';">
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Image Modal -->
+              <div class="modal fade" id="imageModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title">Evidence Images</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div id="imageCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                          {% for img in rr.images %}
+                          <div class="carousel-item {% if loop.first %}active{% endif %}">
+                            <img src="{{ url_for('static', filename='uploads/' + img) }}" 
+                                 class="d-block w-100" 
+                                 alt="Evidence {{ loop.index }}"
+                                 style="max-height: 500px; object-fit: contain;"
+                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/500x300/cccccc/666666?text=Image+Not+Found';">
+                          </div>
+                          {% endfor %}
+                        </div>
+                        {% if rr.images|length > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#imageCarousel" data-bs-slide="prev">
+                          <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#imageCarousel" data-bs-slide="next">
+                          <span class="carousel-control-next-icon"></span>
+                        </button>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+
+              <!-- Video -->
+              {% if rr.video_filename %}
+              <div class="mb-4">
+                <h6 class="text-muted mb-3">
+                  <i class="fas fa-video me-2"></i>Video Evidence
+                </h6>
+                <div class="video-container border">
+                  <video src="{{ url_for('static', filename='uploads/' + rr.video_filename) }}" 
+                          controls 
+                          class="w-100 h-100">
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              </div>
+              {% endif %}
+
+              <!-- No Evidence Message -->
+              {% if (rr.images is none or rr.images|length == 0) and not rr.video_filename %}
+              <div class="text-center py-4 text-muted">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>No evidence uploaded by buyer</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column - Order & Actions -->
+        <div class="col-lg-4">
+          <!-- Order Item Details -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-warning text-dark">
+              <i class="fas fa-shopping-cart me-2"></i>Order Details
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="text-muted small d-block">Order Number</label>
+                  <div class="fw-bold fs-5">#{{ rr.order_id }}</div>
+                </div>
+                <div class="col-12">
+                  <label class="text-muted small d-block">Product Information</label>
+                  <div class="fw-bold">{{ rr.order_item.product.name }}</div>
+                  <div class="text-primary fw-bold">₱{{ "%.2f"|format(rr.order_item.price_at_time) }}</div>
+                </div>
+                <div class="col-6">
+                  <label class="text-muted small d-block">Quantity Requested</label>
+                  <div class="fw-bold">{{ rr.quantity }}</div>
+                </div>
+                <div class="col-6">
+                  <label class="text-muted small d-block">Total Value</label>
+                  <div class="fw-bold text-primary">₱{{ "%.2f"|format(rr.order_item.price_at_time * rr.quantity) }}</div>
+                </div>
+                <div class="col-12">
+                  <label class="text-muted small d-block">Buyer Information</label>
+                  <div class="fw-bold">{{ rr.buyer.first_name }} {{ rr.buyer.last_name }}</div>
+                  <div class="text-muted small">{{ rr.buyer.email }}</div>
+                  <div class="text-muted small">{{ rr.buyer.phone or 'No phone provided' }}</div>
+                </div>
+                {% if rr.order_item.product.image_filename %}
+                <div class="col-12">
+                  <label class="text-muted small d-block">Product Image</label>
+                  <div class="product-image-container">
+                    <img src="{{ url_for('static', filename='uploads/' + rr.order_item.product.image_filename) }}" 
+                         alt="{{ rr.order_item.product.name }}"
+                         class="img-fluid rounded border shadow-sm"
+                         style="max-height: 200px; object-fit: cover; width: 100%; cursor: pointer;"
+                         data-bs-toggle="modal" 
+                         data-bs-target="#productImageModal">
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+              <i class="fas fa-cogs me-2"></i>Actions
+            </div>
+            <div class="card-body">
+              {% if rr.status in ['submitted','seller_reviewing','waiting_seller_approval'] %}
+              <form class="mb-2" method="post" action="{{ url_for('seller_return_approve', return_id=rr.id) }}">
+                <button class="btn btn-success w-100 mb-2">
+                  <i class="fas fa-check me-2"></i>Approve (Rider Pickup)
+                </button>
+              </form>
+              <form class="mb-2" method="post" action="{{ url_for('seller_return_reject', return_id=rr.id) }}">
+                <div class="mb-2">
+                  <input type="text" name="seller_reason" class="form-control" placeholder="Reason for rejection (optional)">
+                </div>
+                <button class="btn btn-outline-danger w-100 mb-2">
+                  <i class="fas fa-times me-2"></i>Reject
+                </button>
+              </form>
+              <a href="{{ url_for('seller_chat_with_buyer', buyer_id=rr.buyer_id) }}" class="btn btn-outline-primary w-100">
+                <i class="fas fa-comments me-2"></i>Contact Buyer
+              </a>
+              {% elif rr.status == 'rider_to_seller' %}
+              <div class="alert alert-info">
+                <i class="fas fa-truck me-2"></i>Rider is delivering the parcel to you.
+              </div>
+              {% elif rr.status in ['rider_picked_up','waiting_rider_pickup'] %}
+              <div class="alert alert-info">
+                <i class="fas fa-clock me-2"></i>Waiting for rider to deliver the parcel to you.
+              </div>
+              {% elif rr.status in ['item_received_by_seller'] %}
+              <form class="mb-2" method="post" action="{{ url_for('seller_return_start_refund', return_id=rr.id) }}">
+                <button class="btn btn-primary w-100 mb-2">
+                  <i class="fas fa-money-bill me-2"></i>Start Refund
+                </button>
+              </form>
+              {% elif rr.status == 'refund_processing' %}
+              <form method="post" action="{{ url_for('seller_return_complete', return_id=rr.id) }}">
+                <button class="btn btn-success w-100">
+                  <i class="fas fa-check-double me-2"></i>Mark as Completed
+                </button>
+              </form>
+              {% endif %}
+              {% if rr.status in ['rider_to_seller','rider_picked_up','waiting_rider_pickup'] %}
+              <form class="mt-3" method="post" action="{{ url_for('seller_return_mark_received', return_id=rr.id) }}">
+                <button class="btn btn-outline-secondary w-100">
+                  <i class="fas fa-box me-2"></i>Mark Parcel Received
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS for modals -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Product Image Modal -->
+{% if rr.order_item.product.image_filename %}
+<div class="modal fade" id="productImageModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ rr.order_item.product.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="{{ url_for('static', filename='uploads/' + rr.order_item.product.image_filename) }}" 
+             alt="{{ rr.order_item.product.name }}"
+             class="img-fluid rounded"
+             style="max-height: 500px; object-fit: contain;">
+        <div class="mt-3">
+          <h6>{{ rr.order_item.product.name }}</h6>
+          <div class="text-primary fw-bold">₱{{ "%.2f"|format(rr.order_item.price_at_time) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+/* Additional responsive styles */
+@media (max-width: 992px) {
+  .col-lg-8 {
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .return-detail-container {
+    padding: 1rem;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .badge.fs-6 {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .evidence-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 0.5rem;
+  }
+  
+  .evidence-item img {
+    height: 60px;
+  }
+  
+  .video-container {
+    padding-bottom: 75%; /* More vertical for mobile */
+  }
+  
+  .reason-box {
+    padding: 0.75rem;
+  }
+  
+  .badge-reason {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .container-fluid {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .card-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .card-body {
+    padding: 0.75rem;
+  }
+  
+  .evidence-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .evidence-item img {
+    height: 50px;
+  }
+  
+  .fw-bold.fs-5 {
+    font-size: 1rem !important;
+  }
+  
+  .btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+  }
+  
+  .form-control {
+    font-size: 0.875rem;
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  .evidence-item {
+    cursor: pointer;
+  }
+  
+  .evidence-item:hover {
+    transform: none;
+  }
+  
+  .evidence-item:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Improve contrast for accessibility */
+.card-header {
+  font-weight: 600;
+}
+
+.text-muted small {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Better spacing for mobile */
+@media (max-width: 768px) {
+  .row.g-4 > * {
+    margin-bottom: 1.5rem;
+  }
+}
+</style>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+{% endblock %}

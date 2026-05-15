@@ -1,0 +1,60 @@
+{% extends "admin_base.html" %}
+{% block title %}Add Rider{% endblock %}
+{% block admin_content %}
+{% set active_page = 'add_rider' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Add Rider</h2>
+</div>
+
+<div class="card mb-4">
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input
+                              type="tel"
+                              name="phone"
+                              class="form-control"
+                              inputmode="numeric"
+                              pattern="^[0-9]{11}$"
+                              minlength="11"
+                              maxlength="11"
+                              oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0,11);"
+                              required
+                            >
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Employee ID</label>
+                            <input type="text" name="employee_id" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle Type</label>
+                            <input type="text" name="vehicle_type" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vehicle Number</label>
+                            <input type="text" name="vehicle_number" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-save me-2"></i>Create Rider
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+/* Admin Panel Responsive Design - Same as Seller Panel */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+/* Ensure all active sidebar items have blue background */
+.admin-sidebar .list-group-item.active {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+.admin-sidebar .list-group-item.active i.fas {
+    color: #ffffff !important;
+}
+
+/* Hover effects for sidebar items */
+.admin-sidebar .list-group-item:hover {
+    background: linear-gradient(90deg, #0a5294 0%, #025a8a 100%) !important;
+    color: #ffffff !important;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar-card .admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.badge.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+/* More specific selectors to override Bootstrap */
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover,
+.list-group.admin-sidebar .list-group-item.active,
+.list-group.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas,
+.list-group.admin-sidebar .list-group-item.active i.fas,
+.list-group.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior: only collapsible on smaller screens */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    /* On desktop, let the grid handle layout; no sticky positioning to avoid overlap */
+    .admin-sidebar-card {
+        position: static;
+    }
+
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .admin-sidebar .list-group-item {
+        padding: 0.7rem 0.9rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* KPI cards matching seller panel style */
+.kpi-card{ 
+    border-radius:12px; 
+    color:#fff; 
+    border:none; 
+    box-shadow:0 8px 28px rgba(3,25,41,.06); 
+}
+
+.kpi-users{ background: linear-gradient(135deg, #06b6d4 0%, #0369a1 100%); }
+.kpi-commission{ background: linear-gradient(135deg, #15803d 0%, #16a34a 100%); }
+.kpi-orders{ background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+.kpi-products{ background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%); }
+.kpi-riders{ background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+.kpi-sellers{ background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+
+.kpi-card .card-body{ padding:20px; }
+.kpi-card h3{ font-size:1.25rem; margin-bottom:.2rem; font-weight:800; }
+.kpi-card p{ margin:0; opacity:.95; font-weight:700; }
+.kpi-card .fa-2x{ opacity:.95; text-shadow:0 6px 10px rgba(0,0,0,.08); }
+
+/* Responsive KPI cards */
+@media (max-width: 991.98px){
+    .col-md-3{ margin-bottom:1rem; } 
+    .kpi-card h3 { font-size: 1.15rem; }
+    .kpi-card p { font-size: 0.9rem; }
+}
+@media (max-width: 768px) {
+    .kpi-card .card-body{ padding:16px; }
+    .kpi-card h3 { font-size: 1.1rem; }
+    .kpi-card p { font-size: 0.85rem; }
+    .kpi-card .fa-2x { font-size: 1.5rem; }
+}
+@media (max-width: 576px){
+    .kpi-card .card-body{ padding:14px; }
+    .kpi-card h3 { font-size: 1rem; }
+    .kpi-card p { font-size: 0.8rem; }
+    .kpi-card .fa-2x { font-size: 1.3rem; }
+}
+
+/* Tables */
+.table{
+    background: #ffffff;
+    border-radius: 8px;
+    overflow:hidden;
+    box-shadow: 0 4px 12px rgba(3,25,41,.04);
+    font-size: .9rem;
+}
+.table thead{
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+.table thead th{
+    font-weight: 800;
+    color: #1e293b;
+    border: none;
+    padding: 12px 16px;
+}
+.table tbody td{
+    border: none;
+    padding: 12px 16px;
+    vertical-align: middle;
+    color: #475569;
+}
+.table tbody tr:hover{
+    background: rgba(6,42,84,.02);
+}
+
+/* Cards */
+.card {
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 4px 12px rgba(3, 25, 41, 0.04);
+}
+
+.card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    font-weight: 700;
+    color: #1e293b;
+}
+
+/* Forms */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0b63a8;
+    box-shadow: 0 0 0 0.2rem rgba(11, 99, 168, 0.25);
+}
+
+/* Buttons */
+.btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(90deg, #0369a1 0%, #025373 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(11, 99, 168, 0.3);
+}
+
+.btn-secondary {
+    background: #64748b;
+    border: none;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+    transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .table {
+        font-size: 0.85rem;
+    }
+    
+    .table thead th, .table tbody td {
+        padding: 8px 12px;
+    }
+    
+    .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .table {
+        font-size: 0.8rem;
+    }
+    
+    .table thead th, .table tbody td {
+        padding: 6px 8px;
+    }
+    
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2">
+            <div class="card shadow-sm mb-4 admin-sidebar-card" data-admin-sidebar data-active-page="{{ active_page|default('dashboard') }}">
+                <div class="card-header admin-panel-header text-white d-flex align-items-center justify-content-between">
+                    <h6 class="mb-0 d-flex align-items-center">
+                        <i class="fas fa-crown me-2"></i>Admin Panel
+                    </h6>
+                    <button type="button"
+                            class="btn btn-sm btn-light admin-sidebar-toggle d-lg-none"
+                            data-sidebar-toggle
+                            aria-label="Toggle admin navigation"
+                            aria-expanded="true">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                </div>
+                <div class="list-group list-group-flush admin-sidebar">
+                    <a href="{{ url_for('admin_dashboard') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'dashboard' %}active{% endif %}"
+                       data-page="dashboard"
+                       {% if active_page == 'dashboard' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('admin_profile') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'admin_profile' %}active{% endif %}"
+                       data-page="admin_profile"
+                       {% if active_page == 'admin_profile' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-user-shield me-2"></i>Admin Profile
+                    </a>
+                    <a href="{{ url_for('admin_pending_registrations') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'pending_registrations' %}active{% endif %}"
+                       data-page="pending_registrations"
+                       {% if active_page == 'pending_registrations' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-user-check me-2"></i>Pending Registrations
+                        {% if pending_registrations and pending_registrations > 0 %}
+                            <span class="badge admin-badge float-end">{{ pending_registrations }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin_rider_applications') }}"
+                        class="list-group-item list-group-item-action {% if active_page == 'rider_applications' %}active{% endif %}"
+                        data-page="rider_applications"
+                        {% if active_page == 'rider_applications' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-motorcycle me-2"></i>Rider Applications
+                        {% if pending_riders and pending_riders > 0 %}
+                            <span class="badge admin-badge float-end">{{ pending_riders }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin_seller_applications') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'seller_applications' %}active{% endif %}"
+                       data-page="seller_applications"
+                       {% if active_page == 'seller_applications' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-store me-2"></i>Seller Applications
+                        {% if pending_sellers and pending_sellers > 0 %}
+                            <span class="badge admin-badge float-end">{{ pending_sellers }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin_users') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'users' %}active{% endif %}"
+                       data-page="users"
+                       {% if active_page == 'users' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-users me-2"></i>Users
+                    </a>
+                    <a href="{{ url_for('admin_categories') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'categories' %}active{% endif %}"
+                       data-page="categories"
+                       {% if active_page == 'categories' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-list me-2"></i>Manage Categories
+                    </a>
+                    <a href="{{ url_for('admin_products') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'products' %}active{% endif %}"
+                       data-page="products"
+                       {% if active_page == 'products' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-box me-2"></i>Products
+                        {% if pending_products and pending_products > 0 %}
+                            <span class="badge admin-badge float-end">{{ pending_products }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin_orders') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'orders' %}active{% endif %}"
+                       data-page="orders"
+                       {% if active_page == 'orders' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-shopping-cart me-2"></i>Orders
+                    </a>
+                     <a href="{{ url_for('admin_restock_requests') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'restock_requests' or request.endpoint == 'admin_restock_requests' %}active{% endif %}"
+                       data-page="restock_requests"
+                       {% if active_page == 'restock_requests' or request.endpoint == 'admin_restock_requests' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-boxes me-2"></i>Restock Requests
+                        {% if pending_restocks and pending_restocks > 0 %}
+                            <span class="badge admin-badge float-end">{{ pending_restocks }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('admin_payments') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'payments' %}active{% endif %}"
+                       data-page="payments"
+                       {% if active_page == 'payments' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-credit-card me-2"></i>Payments
+                    </a>
+                    <a href="{{ url_for('admin_coupons') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'coupons' %}active{% endif %}"
+                       data-page="coupons"
+                       {% if active_page == 'coupons' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                        <i class="fas fa-ticket-alt me-2"></i>Coupons
+                    </a>
+                    <a href="{{ url_for('theme_settings') }}" 
+                       class="list-group-item list-group-item-action {% if active_page == 'theme_settings' %}active{% endif %}"
+                       data-page="theme_settings"
+                       {% if active_page == 'theme_settings' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+                       <i class="fas fa-images me-2"></i>Theme
+                    </a>
+
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10">
+            {% block admin_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Admin sidebar toggle functionality (same as seller panel)
+    const adminSidebarCard = document.querySelector('[data-admin-sidebar]');
+    const adminSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+    
+    if (adminSidebarCard && adminSidebarToggle) {
+        adminSidebarToggle.addEventListener('click', function() {
+            adminSidebarCard.classList.toggle('is-collapsed');
+            const isExpanded = adminSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+            adminSidebarToggle.setAttribute('aria-expanded', isExpanded);
+            
+            // Toggle chevron direction
+            const icon = this.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('fa-chevron-left');
+                icon.classList.toggle('fa-chevron-down');
+            }
+        });
+    }
+
+    // Real-time notifications for admin panel
+    if (typeof io !== 'undefined') {
+        const socket = io();
+        const adminId = parseInt('{{ session["user_id"] if session and "user_id" in session else "null" }}') || null;
+        
+        if (adminId) {
+            socket.on('connect', function() {
+                socket.emit('join_room', {room: 'user_' + adminId});
+            });
+            
+            socket.on('notification', function(data) {
+                console.log('Admin notification received:', data);
+                
+                // Update notification badges in sidebar
+                updateAdminBadges();
+                
+                // Show toast notification with enhanced features
+                showToast(data.message, data.type || 'info', data.link, data.image_url);
+                
+                // Play notification sound (optional)
+                playNotificationSound();
+            });
+        }
+        
+        function updateAdminBadges() {
+            // Fetch updated badge counts from server
+            fetch('/api/admin/badge-counts')
+                .then(response => response.json())
+                .then(data => {
+                    // Update product badge
+                    const productBadge = document.querySelector('[data-page="products"] .admin-badge');
+                    if (productBadge && data.pending_products_count > 0) {
+                        productBadge.textContent = data.pending_products_count;
+                        productBadge.style.display = 'inline-block';
+                    } else if (productBadge) {
+                        productBadge.style.display = 'none';
+                    }
+                    
+                    // Update other badges
+                    const registrationBadge = document.querySelector('[data-page="pending_registrations"] .admin-badge');
+                    if (registrationBadge && data.pending_registrations_count > 0) {
+                        registrationBadge.textContent = data.pending_registrations_count;
+                        registrationBadge.style.display = 'inline-block';
+                    } else if (registrationBadge) {
+                        registrationBadge.style.display = 'none';
+                    }
+                    
+                    const riderBadge = document.querySelector('[data-page="rider_applications"] .admin-badge');
+                    if (riderBadge && data.pending_rider_applications_count > 0) {
+                        riderBadge.textContent = data.pending_rider_applications_count;
+                        riderBadge.style.display = 'inline-block';
+                    } else if (riderBadge) {
+                        riderBadge.style.display = 'none';
+                    }
+                    
+                    const sellerBadge = document.querySelector('[data-page="seller_applications"] .admin-badge');
+                    if (sellerBadge && data.pending_applications > 0) {
+                        sellerBadge.textContent = data.pending_applications;
+                        sellerBadge.style.display = 'inline-block';
+                    } else if (sellerBadge) {
+                        sellerBadge.style.display = 'none';
+                    }
+                    
+                    const restockBadge = document.querySelector('[data-page="restock_requests"] .admin-badge');
+                    if (restockBadge && data.pending_restock_count > 0) {
+                        restockBadge.textContent = data.pending_restock_count;
+                        restockBadge.style.display = 'inline-block';
+                    } else if (restockBadge) {
+                        restockBadge.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error fetching badge counts:', error));
+        }
+        
+        function showToast(message, type = 'info', link = null, image_url = null) {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : type === 'brand_added' ? 'success' : type === 'warning' ? 'warning' : 'info'} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px; cursor: pointer;';
+            
+            let content = '';
+            if (image_url) {
+                content += `<div class="d-flex align-items-start">
+                    <img src="${image_url}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px; margin-right: 12px;" alt="Brand">
+                    <div class="flex-grow-1">`;
+            }
+            
+            content += `<div>${message}</div>`;
+            
+            if (image_url) {
+                content += `</div></div>`;
+            }
+            
+            if (link) {
+                content += `<div class="mt-2">
+                    <a href="${link}" class="btn btn-sm btn-outline-light text-dark border">View Store</a>
+                </div>`;
+            }
+            
+            content += `<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            
+            toast.innerHTML = content;
+            
+            // Make entire toast clickable if link exists
+            if (link) {
+                toast.addEventListener('click', function(e) {
+                    if (!e.target.classList.contains('btn-close')) {
+                        window.location.href = link;
+                    }
+                });
+            }
+            
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 8 seconds for brand/product notifications, 6 seconds for warnings, 5 seconds for others
+            const timeout = (type === 'product_pending' || type === 'brand_added') ? 8000 : (type === 'warning') ? 6000 : 5000;
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, timeout);
+        }
+        
+        function playNotificationSound() {
+            // Create a simple beep sound using Web Audio API
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } catch (e) {
+                console.log('Could not play notification sound:', e);
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

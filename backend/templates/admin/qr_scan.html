@@ -1,0 +1,210 @@
+{% extends "admin_base.html" %}
+
+{% block title %}QR Code Scanner - Admin Dashboard{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'qr_scan' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">QR Code Scanner</h2>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="startCamera()">
+            <i class="fas fa-camera me-2"></i>Start Camera
+        </button>
+        <button class="btn btn-outline-secondary" onclick="stopCamera()">
+            <i class="fas fa-stop me-2"></i>Stop Camera
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- QR Scanner -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+    <h6 class="mb-0"><i class="fas fa-qrcode me-2"></i>QR Code Scanner</h6>
+</div>
+<div class="card-body">
+    <div id="qr-reader" style="width: 100%;"></div>
+    <div id="qr-reader-results"></div>
+    
+    <!-- Manual QR Code Input -->
+    <hr>
+    <h6>Manual QR Code Entry</h6>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="qr_code" class="form-label">QR Code</label>
+            <input type="text" class="form-control" id="qr_code" name="qr_code" 
+                   placeholder="Enter QR code manually" required>
+        </div>
+        <div class="mb-3">
+            <label for="scan_type" class="form-label">Scan Type</label>
+            <select class="form-control" id="scan_type" name="scan_type" required>
+                <option value="">Select scan type</option>
+                <option value="packing">Packing</option>
+                <option value="pickup">Pickup</option>
+                <option value="delivery">Delivery</option>
+                <option value="return">Return</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="scan_notes" class="form-label">Notes (Optional)</label>
+            <textarea class="form-control" id="scan_notes" name="scan_notes" rows="3" 
+                      placeholder="Add any notes about this scan..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check me-2"></i>Process Scan
+        </button>
+    </form>
+</div>
+</div>
+</div>
+
+<!-- Recent Scans -->
+<div class="col-md-6">
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recent Scans</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>QR Code</th>
+            <th>Type</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Recent scans will be loaded here via AJAX -->
+        <tr>
+            <td colspan="4" class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin me-2"></i>Loading recent scans...
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Instructions -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Scan Instructions</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <i class="fas fa-box fa-2x text-primary mb-2"></i>
+                    <h6>Packing</h6>
+                    <small class="text-muted">Scan when order is packed and ready for pickup</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <i class="fas fa-truck fa-2x text-info mb-2"></i>
+                    <h6>Pickup</h6>
+                    <small class="text-muted">Scan when order is picked up for delivery</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h6>Delivery</h6>
+                    <small class="text-muted">Scan when order is successfully delivered</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <i class="fas fa-undo fa-2x text-warning mb-2"></i>
+                    <h6>Return</h6>
+                    <small class="text-muted">Scan when processing a return</small>
+                </div>
+            </div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- QR Code Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<script>
+let html5QrcodeScanner = null;
+
+function startCamera() {
+    if (html5QrcodeScanner) {
+        return;
+    }
+    
+    html5QrcodeScanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 } 
+        },
+        false
+    );
+    
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+}
+
+function stopCamera() {
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.clear().catch(err => {
+            console.error("Error stopping camera:", err);
+        });
+        html5QrcodeScanner = null;
+        document.getElementById('qr-reader').innerHTML = '';
+    }
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    console.log(`QR Code detected: ${decodedText}`);
+    
+    // Fill the QR code input field
+    document.getElementById('qr_code').value = decodedText;
+    
+    // Show success message
+    document.getElementById('qr-reader-results').innerHTML = `
+        <div class="alert alert-success">
+            <i class="fas fa-check me-2"></i>QR Code detected: <strong>${decodedText}</strong>
+        </div>
+    `;
+    
+    // Stop the scanner
+    stopCamera();
+}
+
+function onScanFailure(error) {
+    // Handle scan failure, ignore most errors
+    console.log(`QR Code scan failed: ${error}`);
+}
+
+// Load recent scans
+function loadRecentScans() {
+    // This would be implemented with an AJAX call to get recent scans
+    // For now, we'll show a placeholder
+    setTimeout(() => {
+        document.querySelector('.table tbody').innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    <i class="fas fa-info-circle me-2"></i>No recent scans found
+                </td>
+            </tr>
+        `;
+    }, 1000);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentScans();
+});
+</script>
+{% endblock %}

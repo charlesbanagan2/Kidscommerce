@@ -1,0 +1,331 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Users Management - Admin Dashboard{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'users' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Users (Buyers & Sellers)</h2>
+    <div>
+        <span class="badge bg-info fs-6 me-2">Total: {{ users|length }}</span>
+        <span class="badge bg-success fs-6 me-2">Active: {{ users|selectattr('status', 'equalto', 'active')|list|length }}</span>
+        <span class="badge bg-danger fs-6">Suspended: {{ users|selectattr('status', 'equalto', 'suspended')|list|length }}</span>
+    </div>
+</div>
+
+<!-- Search & Filter Controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search Users</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Name, email, username...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="role" class="form-label">Filter by Role</label>
+                <select class="form-control" id="role" name="role">
+                    <option value="all" {{ 'selected' if role == 'all' else '' }}>All Roles</option>
+                    <option value="buyer" {{ 'selected' if role == 'buyer' else '' }}>Buyers</option>
+                    <option value="seller" {{ 'selected' if role == 'seller' else '' }}>Sellers</option>
+                    <option value="admin" {{ 'selected' if role == 'admin' else '' }}>Admins</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Filter by Status</label>
+                <select class="form-control" id="status" name="status">
+                    <option value="all" {{ 'selected' if status == 'all' else '' }}>All Status</option>
+                    <option value="active" {{ 'selected' if status == 'active' else '' }}>Active</option>
+                    <option value="suspended" {{ 'selected' if status == 'suspended' else '' }}>Suspended</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Tables -->
+<div class="row g-4">
+    <!-- Buyer List -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Buyer List</h5>
+                <span class="badge bg-primary">{{ users|selectattr('role', 'equalto', 'buyer')|list|length }} Buyers</span>
+            </div>
+            <div class="card-body">
+                {% set buyers = users|selectattr('role', 'equalto', 'buyer')|list %}
+                {% if buyers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Orders Count</th>
+                                    <th>Account Status</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in buyers %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                                    {{ user.first_name[0] }}{{ user.last_name[0] }}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ user.first_name }} {{ user.last_name }}</strong><br>
+                                                    <small class="text-muted">@{{ user.username }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ user.email }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ user.orders|length }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if user.status == 'active' %}success{% elif user.status == 'suspended' %}danger{% else %}warning{% endif %}">
+                                                <i class="fas fa-{% if user.status == 'active' %}check-circle{% elif user.status == 'suspended' %}ban{% else %}clock{% endif %} me-1"></i>
+                                                {{ user.status|title }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if user.admin_profile and user.admin_profile[0].last_login %}
+                                                <small>{{ user.admin_profile[0].last_login.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                                            {% else %}
+                                                <small class="text-muted">Never logged in</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                {% if user.status == 'active' %}
+                                                    <a href="{{ url_for('block_user', user_id=user.id) }}" 
+                                                       class="btn btn-outline-warning" title="Block User">
+                                                        <i class="fas fa-ban"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <a href="{{ url_for('unblock_user', user_id=user.id) }}" 
+                                                       class="btn btn-outline-success" title="Unblock User">
+                                                        <i class="fas fa-check-circle"></i>
+                                                    </a>
+                                                {% endif %}
+                                                <button class="btn btn-outline-primary" title="Reset Password" 
+                                                        onclick="resetUserPassword({{ user.id }}, '{{ user.first_name }} {{ user.last_name }}')">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
+                                                <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="post" class="d-inline" onsubmit="return confirm('Permanently delete this buyer and all their orders and data? This cannot be undone.');">
+                                                    <button type="submit" class="btn btn-outline-danger" title="Delete Buyer">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <p>No buyers found</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+<!-- Seller List -->
+<div class="col-12">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-store me-2"></i>Seller List</h5>
+            <span class="badge bg-success">{{ users|selectattr('role', 'equalto', 'seller')|list|length }} Sellers</span>
+        </div>
+                        <div class="card-body">
+            {% set sellers = users|selectattr('role', 'equalto', 'seller')|list %}
+            {% if sellers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Store Name</th>
+                                <th>Email</th>
+                                <th>Products</th>
+                                <th>Rating</th>
+                                <th>Account Status</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in sellers %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                                <i class="fas fa-store"></i>
+                                            </div>
+                                            <div>
+                                                <strong>
+                                                    {% set seller_app = user.seller_applications|selectattr('status', 'equalto', 'approved')|first %}
+                                                    {% if seller_app %}
+                                                        {{ seller_app.store_name }}
+                                                    {% else %}
+                                                        {{ user.first_name }}'s Store
+                                                    {% endif %}
+                                                </strong><br>
+                                                <small class="text-muted">@{{ user.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        <span class="badge bg-info">{{ user.products|length }}</span>
+                                    </td>
+                                    <td>
+                                        {% set avg_rating = user.reviews|selectattr('rating')|map(attribute='rating')|list %}
+                                        {% if avg_rating %}
+                                            {% set rating = (avg_rating|sum / avg_rating|length)|round(1) %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-star me-1"></i>{{ rating }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">No rating</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if user.status == 'active' %}success{% elif user.status == 'suspended' %}danger{% else %}warning{% endif %}">
+                                            <i class="fas fa-{% if user.status == 'active' %}check-circle{% elif user.status == 'suspended' %}ban{% else %}clock{% endif %} me-1"></i>
+                                            {{ user.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.admin_profile and user.admin_profile[0].last_login %}
+                                            <small>{{ user.admin_profile[0].last_login.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                                        {% else %}
+                                            <small class="text-muted">Never logged in</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            {% if user.status == 'active' %}
+                                                <a href="{{ url_for('block_user', user_id=user.id) }}" 
+                                                   class="btn btn-outline-warning" title="Block Seller">
+                                                    <i class="fas fa-ban"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{{ url_for('unblock_user', user_id=user.id) }}" 
+                                                   class="btn btn-outline-success" title="Unblock Seller">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </a>
+                                            {% endif %}
+                                            <button class="btn btn-outline-primary" title="Reset Password" 
+                                                    onclick="resetUserPassword({{ user.id }}, '{{ user.first_name }} {{ user.last_name }}')">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+                                            <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="post" class="d-inline" onsubmit="return confirm('Permanently delete this seller and all their products and data? This cannot be undone.');">
+                                                <button type="submit" class="btn btn-outline-danger" title="Delete Seller">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-store fa-3x mb-3"></i>
+                    <p>No sellers found</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Reset User Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Are you sure you want to reset the password for <strong id="resetUserName"></strong>?
+                </div>
+                <p>This action will:</p>
+                <ul>
+                    <li>Generate a new temporary password</li>
+                    <li>Force the user to change password on next login</li>
+                    <li>Log the user out of all active sessions</li>
+                </ul>
+                <div class="mb-3">
+                    <label for="tempPassword" class="form-label">New Temporary Password</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="tempPassword" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="generateTempPassword()">
+                            <i class="fas fa-sync-alt"></i> Generate
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmResetBtn">
+                    <i class="fas fa-key me-2"></i>Reset Password
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let resetUserId = null;
+
+function resetUserPassword(userId, userName) {
+    resetUserId = userId;
+    document.getElementById('resetUserName').textContent = userName;
+    generateTempPassword();
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+function generateTempPassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('tempPassword').value = password;
+}
+
+document.getElementById('confirmResetBtn').addEventListener('click', function() {
+    if (resetUserId) {
+        const tempPassword = document.getElementById('tempPassword').value;
+        // Here you would make an AJAX call to reset the password
+        alert('Password reset functionality would be implemented here');
+        bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+    }
+});
+</script>
+
+{% endblock %}

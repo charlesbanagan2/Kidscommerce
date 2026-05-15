@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+
+{% block title %}Add Product - Seller Dashboard{% endblock %}
+
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+:root{
+    --brand-blue-700: #0b63a8;
+    --brand-blue-600: #0369a1;
+    --cta-start: #ff8a2b;
+    --cta-end: #fa6b02;
+    --muted: #6b7280;
+    --input-border: #e6edf3;
+    --card-bg: #ffffff;
+    --radius-lg: 12px;
+    --id-bg: #f5f9ff;
+    --id-border: #d4e5f5;
+    --id-shadow: 0 4px 18px rgba(11,99,168,0.10);
+}
+.container-product { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+.card.product-card { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid rgba(16,24,40,0.04); background: var(--card-bg); box-shadow: 0 10px 30px rgba(3,25,41,0.05); }
+.card-header.product-header { background: linear-gradient(90deg, var(--brand-blue-700), var(--brand-blue-600)); color: #fff; display: flex; align-items: center; gap: 14px; padding: 20px 22px; font-weight: 700; font-size: 1.05rem; border-bottom: none; }
+.card-subheader { background: #fff; padding: 12px 22px; border-bottom: 1px solid var(--input-border); color: var(--muted); font-size: 0.95rem; }
+.card-body.product-body { padding: 22px; background: var(--card-bg); }
+.form-label.required::after { content: " *"; color: #d9534f; font-weight: 700; margin-left: 2px; }
+.form-control, .form-select { border-radius: 10px; border: 1px solid var(--input-border); padding: 10px 12px; background: #fff; transition: box-shadow .12s ease, border-color .12s ease, transform .06s ease; box-shadow: none; }
+.form-control:focus, .form-select:focus { box-shadow: 0 8px 30px rgba(3,25,41,0.06); border-color: var(--brand-blue-600); outline: none; transform: translateY(-1px); }
+.input-group .input-group-text { background: #fbfdff; border: 1px solid var(--input-border); border-radius: 10px; color: var(--muted); font-weight: 600; }
+.form-text { color: var(--muted); font-size: 0.9rem; }
+.btn-cta { background: linear-gradient(90deg, var(--cta-start), var(--cta-end)); border: none; color: #fff; font-weight: 800; padding: 10px 18px; border-radius: 10px; box-shadow: 0 10px 30px rgba(250,107,2,0.14); transition: transform .08s ease, box-shadow .12s ease, filter .12s ease; }
+.btn-cta:hover, .btn-cta:focus { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(250,107,2,0.18); filter: brightness(1.03); }
+.btn-secondary-outline { border: 1px solid #e6edf3; color: #374151; background: #fff; border-radius: 10px; padding: 8px 14px; }
+
+/* Old single preview (kept for reference in styles) */
+.image-preview { height: 160px; border-radius: 10px; border: 1px dashed var(--input-border); display: flex; align-items: center; justify-content: center; background: #fbfdff; overflow: hidden; position: relative; }
+.image-preview img { max-width: 100%; max-height: 100%; object-fit: cover; }
+.image-preview .placeholder { color: var(--muted); text-align: center; }
+
+.row.g-3 > [class*="col-"] { margin-bottom: 6px; }
+
+/* Professional Product ID block */
+.product-id-wrapper {
+    background: var(--id-bg);
+    border: 1px solid var(--id-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    box-shadow: var(--id-shadow);
+    position: relative;
+    overflow: hidden;
+}
+.product-id-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--brand-blue-700), var(--brand-blue-600));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px rgba(11,99,168,0.25);
+}
+.product-id-content { flex: 1; min-width: 0; }
+.product-id-label { font-size: 0.75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand-blue-700); margin: 0 0 4px; }
+.product-id-value {
+    display: inline-block;
+    font-family: "SF Mono","Menlo","Consolas","Courier New",monospace;
+    font-size: 1.05rem; font-weight: 600; padding: 6px 14px;
+    background: #ffffff; border: 1px solid #cbdcec; border-radius: 8px; letter-spacing: 0.5px; color: #0f3e63; box-shadow: inset 0 0 0 2px #f2f7fb; user-select: text;
+}
+.product-id-hint { margin-top: 6px; font-size: 0.78rem; line-height: 1.25rem; color: #44627d; background: #e7f2fb; padding: 6px 10px; border-radius: 8px; border: 1px solid #d3e6f3; }
+
+/* Multi-image uploader (5 slots) */
+.image-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(5, 1fr);
+}
+@media (max-width: 992px){ .image-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 768px){ .image-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 576px){ .image-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.image-slot {
+    position: relative;
+    border: 1px dashed var(--input-border);
+    border-radius: 12px;
+    background: #fbfdff;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: border-color .12s ease, box-shadow .12s ease;
+}
+.image-slot.primary {
+    border: 1px solid #b9d9ff;
+    box-shadow: 0 6px 18px rgba(3,25,41,0.06);
+}
+.image-slot:hover { border-color: var(--brand-blue-600); box-shadow: 0 8px 22px rgba(3,25,41,0.08); }
+.slot-input { display: none; }
+.slot-preview, .slot-preview img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.slot-placeholder {
+    color: var(--muted);
+    text-align: center;
+    padding: 10px;
+    font-size: .9rem;
+}
+.slot-badge {
+    position: absolute;
+    top: 8px; left: 8px;
+    background: linear-gradient(90deg, var(--brand-blue-700), var(--brand-blue-600));
+    color: #fff; font-size: .7rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+}
+.slot-actions {
+    position: absolute;
+    bottom: 8px; left: 8px; right: 8px;
+    display: flex; justify-content: space-between; gap: 6px;
+}
+.btn-upload, .btn-remove {
+    border: 1px solid #e6edf3;
+    background: rgba(255,255,255,0.9);
+    color: #0f3e63;
+    font-size: .78rem;
+    padding: 4px 8px;
+    border-radius: 8px;
+    backdrop-filter: blur(3px);
+}
+.btn-upload:hover { background: #fff; border-color: #d7e3ee; }
+.btn-remove { color: #b42318; border-color: #ffe0dc; background: rgba(255,245,244,0.9); }
+.btn-remove:hover { background:#fff; }
+
+@media (max-width: 576px) { .card-header.product-header { font-size: 1rem; padding: 16px; } .card-body.product-body { padding: 16px; } .container-product { padding: 24px 12px; } }
+
+@media (prefers-color-scheme: dark) {
+    .image-slot { background:#0f1e29; border-color:#203646; }
+    .btn-upload { background: rgba(25,43,58,0.85); color:#d5e7f6; border-color:#294657; }
+    .btn-remove { background: rgba(50,20,20,0.85); color:#ffd3cf; border-color:#5a2a2a; }
+    .slot-placeholder { color:#a0bed4; }
+}
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar-column">
+            {% set active_page = 'add_product' %}
+            {% include 'seller/_sidebar.html' %}
+        </div>
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10 main-content-column">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-2 fw-bold text-dark" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-plus me-3" style="color: #0b63a8;"></i>Add Product</h2>
+                    <p class="text-muted mb-0 fs-5">Add new products to your store and manage your inventory</p>
+                </div>
+            </div>
+            <div class="container-product">
+    <div class="card product-card">
+        <div class="card-header product-header">
+            <i class="fas fa-plus-circle fa-lg" aria-hidden="true"></i>
+            <div>
+                <div style="font-size: 1.5rem; font-family: 'Arial', sans-serif; font-weight: bold;">Add New Product</div>
+                <div style="font-weight:400; font-size:0.92rem; opacity:0.95;">Write a clear title, good photos, and concise details — this improves buyer trust.</div>
+            </div>
+        </div>
+
+        <div class="card-subheader">
+            Fields marked with an asterisk are required. Use clear photos and honest descriptions for faster sales.
+        </div>
+
+        <div class="card-body product-body">
+            <!-- PRODUCT ID (Professional display) -->
+            <div class="product-id-wrapper mb-4">
+                <div class="product-id-icon" aria-hidden="true">
+                    <i class="fas fa-barcode"></i>
+                </div>
+                <div class="product-id-content">
+                    <p class="product-id-label">Product ID </p>
+                    <span class="product-id-value" role="textbox" aria-readonly="true" aria-label="Auto generated product ID">
+                        {{ next_product_id }}
+                    </span>
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" id="addProductForm" novalidate>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="name" class="form-label required">Product Name</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Hot Wheels Basic Car" required aria-required="true" maxlength="120">
+                        <div class="form-text">Include brand, main feature, or intended age/size (keeps listings searchable).</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="category_id" class="form-label required">Category</label>
+                        <select class="form-select" id="category_id" name="category_id" required aria-required="true">
+                            <option value="">Select a category</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Pick the most relevant category to increase discoverability.</div>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label for="price" class="form-label required">Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text"></span>
+                            <input type="number" class="form-control" id="price" name="price" placeholder="0.00" step="0.01" min="0" required aria-required="true">
+                        </div>
+                        <div class="form-text">Set a clear price. Buyers will see this amount in PHP.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="stock" class="form-label required">Available Stock</label>
+                        <input type="number" class="form-control" id="stock" name="stock" placeholder="e.g., 10" min="0" step="1" required aria-required="true">
+                        <div class="form-text">How many units you currently have available.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="description" class="form-label required">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" placeholder="Describe the product, materials, sizes, and care instructions." required aria-required="true" maxlength="2000"></textarea>
+                        <div class="form-text">Tip: Explain fit, material, and any important measurements or shipping notes.</div>
+                    </div>
+
+                    <!-- Multi-image uploader (5 slots) -->
+                    <div class="col-12">
+                        <label class="form-label">Product Images</label>
+                        <div class="image-grid" id="imageGrid">
+                            <!-- Slot 1 (Primary - keeps backend name 'image') -->
+                            <div class="image-slot primary" data-slot="1">
+                                <span class="slot-badge">Primary</span>
+                                <input type="file" id="image" name="image" accept="image/*" class="slot-input" aria-describedby="imageHelp">
+                                <div class="slot-preview" id="slotPreview1">
+                                    <div class="slot-placeholder">
+                                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                                        Main product photo
+                                    </div>
+                                </div>
+                                <div class="slot-actions">
+                                    <button type="button" class="btn-upload">Upload</button>
+                                    <button type="button" class="btn-remove d-none">Remove</button>
+                                </div>
+                            </div>
+                            <!-- Slot 2 -->
+                            <div class="image-slot" data-slot="2">
+                                <input type="file" id="image2" name="image2" accept="image/*" class="slot-input">
+                                <div class="slot-preview" id="slotPreview2">
+                                    <div class="slot-placeholder">
+                                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                                        Additional photo
+                                    </div>
+                                </div>
+                                <div class="slot-actions">
+                                    <button type="button" class="btn-upload">Upload</button>
+                                    <button type="button" class="btn-remove d-none">Remove</button>
+                                </div>
+                            </div>
+                            <!-- Slot 3 -->
+                            <div class="image-slot" data-slot="3">
+                                <input type="file" id="image3" name="image3" accept="image/*" class="slot-input">
+                                <div class="slot-preview" id="slotPreview3">
+                                    <div class="slot-placeholder">
+                                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                                        Additional photo
+                                    </div>
+                                </div>
+                                <div class="slot-actions">
+                                    <button type="button" class="btn-upload">Upload</button>
+                                    <button type="button" class="btn-remove d-none">Remove</button>
+                                </div>
+                            </div>
+                            <!-- Slot 4 -->
+                            <div class="image-slot" data-slot="4">
+                                <input type="file" id="image4" name="image4" accept="image/*" class="slot-input">
+                                <div class="slot-preview" id="slotPreview4">
+                                    <div class="slot-placeholder">
+                                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                                        Additional photo
+                                    </div>
+                                </div>
+                                <div class="slot-actions">
+                                    <button type="button" class="btn-upload">Upload</button>
+                                    <button type="button" class="btn-remove d-none">Remove</button>
+                                </div>
+                            </div>
+                            <!-- Slot 5 -->
+                            <div class="image-slot" data-slot="5">
+                                <input type="file" id="image5" name="image5" accept="image/*" class="slot-input">
+                                <div class="slot-preview" id="slotPreview5">
+                                    <div class="slot-placeholder">
+                                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                                        Additional photo
+                                    </div>
+                                </div>
+                                <div class="slot-actions">
+                                    <button type="button" class="btn-upload">Upload</button>
+                                    <button type="button" class="btn-remove d-none">Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text mt-2" id="imageHelp">
+                            Upload up to five images. The first slot is your primary photo.
+                            Accepted: JPG/PNG. Max 5MB per image.
+                        </div>
+                    </div>
+
+                    <!-- Product video (optional) -->
+                    <div class="col-12 mt-3">
+                        <label for="video" class="form-label">Product Video (optional)</label>
+                        <div class="image-slot" id="videoSlot" aria-describedby="videoHelp">
+                            <input type="file" id="video" name="video" accept="video/*" class="slot-input">
+                            <div class="slot-preview" id="videoPreview">
+                                <div class="slot-placeholder">
+                                    <i class="fas fa-video fa-lg mb-2 d-block"></i>
+                                    Upload a short product clip (15–30s recommended)
+                                </div>
+                            </div>
+                            <div class="slot-actions">
+                                <button type="button" class="btn-upload" id="videoUploadBtn">Upload</button>
+                                <button type="button" class="btn-remove d-none" id="videoRemoveBtn">Remove</button>
+                            </div>
+                        </div>
+                        <div class="form-text" id="videoHelp">
+                            Accepted: MP4/WebM/OGG. Max 50MB. Keep it steady and well-lit.
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end align-items-center mt-2">
+                        <a href="{{ url_for('seller_dashboard') }}" class="btn btn-secondary-outline me-2">Cancel</a>
+                        <button type="submit" class="btn btn-cta" id="submitBtn">
+                            <i class="fas fa-plus me-2" aria-hidden="true"></i>
+                            Add Product
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const grid = document.getElementById('imageGrid');
+    const videoSlot = document.getElementById('videoSlot');
+    const videoInput = document.getElementById('video');
+    const videoPreview = document.getElementById('videoPreview');
+    const videoUploadBtn = document.getElementById('videoUploadBtn');
+    const videoRemoveBtn = document.getElementById('videoRemoveBtn');
+
+    function setSlotPlaceholder(slotEl){
+        const preview = slotEl.querySelector('.slot-preview');
+        preview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-image fa-lg mb-2 d-block"></i>Additional photo</div>';
+        const removeBtn = slotEl.querySelector('.btn-remove');
+        if(removeBtn) removeBtn.classList.add('d-none');
+    }
+
+    function setPrimaryPlaceholder(slotEl){
+        const preview = slotEl.querySelector('.slot-preview');
+        preview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-image fa-lg mb-2 d-block"></i>Main product photo</div>';
+        const removeBtn = slotEl.querySelector('.btn-remove');
+        if(removeBtn) removeBtn.classList.add('d-none');
+    }
+
+    function bindSlot(slotEl){
+        const input = slotEl.querySelector('.slot-input');
+        const preview = slotEl.querySelector('.slot-preview');
+        const uploadBtn = slotEl.querySelector('.btn-upload');
+        const removeBtn = slotEl.querySelector('.btn-remove');
+
+        uploadBtn.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', function(){
+            const file = this.files && this.files[0];
+            if(!file){
+                // restore placeholder
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            if(!file.type.startsWith('image/')){
+                alert('Please select a valid image file (JPG/PNG).');
+                this.value = '';
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            if(file.size > maxSize){
+                alert('Image is too large. Maximum size is 5MB per image.');
+                this.value = '';
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                preview.innerHTML = '<img src="'+ev.target.result+'" alt="Product image">';
+            };
+            reader.readAsDataURL(file);
+            removeBtn.classList.remove('d-none');
+        });
+
+        removeBtn.addEventListener('click', function(){
+            input.value = '';
+            if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+            else setSlotPlaceholder(slotEl);
+        });
+    }
+
+    // Initialize all slots
+    grid.querySelectorAll('.image-slot').forEach(slot => {
+        // ensure placeholders
+        if(slot.classList.contains('primary')) setPrimaryPlaceholder(slot);
+        else setSlotPlaceholder(slot);
+        bindSlot(slot);
+    });
+
+    // Bind video slot
+    if(videoUploadBtn){
+        videoUploadBtn.addEventListener('click', ()=> videoInput && videoInput.click());
+    }
+    if(videoInput){
+        videoInput.addEventListener('change', function(){
+            const file = this.files && this.files[0];
+            if(!file){
+                videoPreview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-video fa-lg mb-2 d-block"></i>Upload a short product clip (15–30s recommended)</div>';
+                videoRemoveBtn.classList.add('d-none');
+                return;
+            }
+            if(!file.type.startsWith('video/')){
+                alert('Please select a valid video file (MP4/WebM/OGG).');
+                this.value = '';
+                videoPreview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-video fa-lg mb-2 d-block"></i>Upload a short product clip (15–30s recommended)</div>';
+                videoRemoveBtn.classList.add('d-none');
+                return;
+            }
+            if(file.size > (50*1024*1024)){
+                alert('Video is too large. Maximum size is 50MB.');
+                this.value = '';
+                videoPreview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-video fa-lg mb-2 d-block"></i>Upload a short product clip (15–30s recommended)</div>';
+                videoRemoveBtn.classList.add('d-none');
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            videoPreview.innerHTML = '<video src="'+url+'" controls muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>';
+            videoRemoveBtn.classList.remove('d-none');
+        });
+    }
+    if(videoRemoveBtn){
+        videoRemoveBtn.addEventListener('click', function(){
+            if(videoInput){ videoInput.value=''; }
+            videoPreview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-video fa-lg mb-2 d-block"></i>Upload a short product clip (15–30s recommended)</div>';
+            videoRemoveBtn.classList.add('d-none');
+        });
+    }
+
+    // Form submit guard
+    const form = document.getElementById('addProductForm');
+    form.addEventListener('submit', function(e){
+        if(!form.checkValidity()){
+            e.preventDefault(); e.stopPropagation();
+            const firstInvalid = form.querySelector(':invalid');
+            if(firstInvalid) firstInvalid.focus();
+            alert('Please complete the required fields.');
+            return false;
+        } else {
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Adding...';
+        }
+    });
+})();
+</script>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+{% endblock %}

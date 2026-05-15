@@ -1,0 +1,26 @@
+{% extends "admin_base.html" %}
+{% block title %}Rider Application Details{% endblock %}
+{% block admin_content %}
+{% set active_page = 'rider_details' %}
+<div class="container mt-4">
+    <h2>Rider Application Details</h2>
+    <div class="card">
+        <div class="card-body">
+            <h5>{{ application.user.first_name }} {{ application.user.last_name }}</h5>
+            <p><strong>Email:</strong> {{ application.user.email }}</p>
+            <p><strong>Phone:</strong> {{ application.user.phone }}</p>
+            <p><strong>Address:</strong> {{ application.user.address }}</p>
+            {% if application.user.valid_id %}
+            <p><strong>ID Document:</strong> <a href="{{ application.user.valid_id }}" target="_blank">View</a></p>
+            {% endif %}
+            <p><strong>Vehicle Type:</strong> {{ application.vehicle_type }}</p>
+            <p><strong>Vehicle Number:</strong> {{ application.vehicle_number }}</p>
+            <p><strong>Driver's License:</strong> {{ application.drivers_license }}</p>
+            <p><strong>Applied At:</strong> {{ application.applied_at }}</p>
+            <p><strong>Status:</strong> {{ application.status }}</p>
+            <a href="{{ url_for('admin_approve_rider', app_id=application.id) }}" class="btn btn-success">Approve</a>
+            <a href="{{ url_for('admin_reject_rider', app_id=application.id) }}" class="btn btn-danger">Reject</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

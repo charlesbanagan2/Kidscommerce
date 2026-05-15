@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}My Messages{% endblock %}
+{% block content %}
+<div class="container py-3" style="max-width:1100px;">
+  <!-- Top bar with back on upper-left and profile on the right -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn btn-light border d-inline-flex align-items-center" href="{{ url_for('index') }}">
+        <i class="fa fa-arrow-left me-1"></i>
+        <span class="d-none d-sm-inline">Back</span>
+      </a>
+      <h3 class="fw-bold mb-0 ms-1">Messages</h3>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <img src="{{ navbar_avatar_url }}" class="rounded-circle border" alt="me" style="width:36px;height:36px;object-fit:cover;">
+      <div class="small text-end">
+        <div class="fw-semibold">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+        <div class="text-muted">Buyer</div>
+      </div>
+    </div>
+  </div>
+
+<style>
+  .list-group-item-action:hover{ background:#fafafa; }
+  .badge{ font-size:.75rem; }
+  @media (max-width: 576px){
+    .list-group-item { padding: .75rem; }
+  }
+</style>
+<ul class="nav nav-tabs" id="msgTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="sellers-tab" data-bs-toggle="tab" data-bs-target="#sellers" type="button" role="tab">Sellers</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="riders-tab" data-bs-toggle="tab" data-bs-target="#riders" type="button" role="tab">Riders</button>
+    </li>
+  </ul>
+  <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white shadow-sm" id="msgTabsContent">
+    <div class="tab-pane fade show active" id="sellers" role="tabpanel">
+      {% if seller_convos %}
+      <div class="list-group list-group-flush">
+        {% for c in seller_convos %}
+          <a href="{{ url_for('chat_window', seller_id=c.peer.id) }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <img src="{{ c.peer.seller_applications[0].store_logo if c.peer.seller_applications and c.peer.seller_applications[0].store_logo else url_for('static', filename='default_logo.png') }}" class="rounded-circle border me-3" style="width:42px;height:42px;object-fit:cover;">
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between">
+                <strong>{{ c.peer.seller_applications[0].store_name if c.peer.seller_applications else c.peer.first_name ~ ' ' ~ c.peer.last_name }}</strong>
+                {% if c.unread > 0 %}<span class="badge bg-danger">{{ c.unread }}</span>{% endif %}
+              </div>
+              <div class="text-muted small">{{ c.last_message or 'No messages yet' }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="text-muted">No seller conversations yet.</div>
+      {% endif %}
+    </div>
+    <div class="tab-pane fade" id="riders" role="tabpanel">
+      {% if rider_convos %}
+      <div class="list-group list-group-flush">
+        {% for c in rider_convos %}
+          <a href="{{ url_for('buyer_rider_chat', rider_id=c.peer.id) }}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <img src="{{ c.avatar or url_for('static', filename='user_avatar.png') }}" class="rounded-circle border me-3" style="width:42px;height:42px;object-fit:cover;">
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between">
+                <strong>{{ c.peer.first_name }} {{ c.peer.last_name }}</strong>
+                {% if c.unread > 0 %}<span class="badge bg-danger">{{ c.unread }}</span>{% endif %}
+              </div>
+              <div class="text-muted small">{{ c.last_message or 'No messages yet' }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="text-muted">No rider conversations yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

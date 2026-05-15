@@ -1,0 +1,172 @@
+<style>
+/* Unified Media Uploader (MU) — Shopee/Lazada-like minimal style */
+.mu-grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media (min-width:420px){.mu-grid{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:768px){.mu-grid{grid-template-columns:repeat(4,1fr)}}
+@media (min-width:1024px){.mu-grid{grid-template-columns:repeat(5,1fr)}}
+@media (min-width:1280px){.mu-grid{grid-template-columns:repeat(6,1fr)}}
+.mu-item,.mu-add{position:relative;width:100%;aspect-ratio:1/1;border:1px solid #e5e7eb;border-radius:12px;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.mu-item img,.mu-item video{width:100%;height:100%;object-fit:cover}
+.mu-add{cursor:pointer;border:2px dashed #d1d5db;color:#6b7280;transition:border-color .15s, color .15s;background:#fafafa}
+.mu-add:hover{border-color:#0d6efd;color:#0d6efd}
+.mu-add .mu-plus{font-size:22px;font-weight:700}
+.mu-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mu-hint{font-size:.9rem;color:#6b7280}
+.mu-error{font-size:.9rem;color:#dc2626}
+.mu-busy{position:absolute;inset:0;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center}
+.mu-spinner{width:22px;height:22px;border-radius:50%;border:2px solid #d1d5db;border-top-color:#0d6efd;animation:mu-spin .8s linear infinite}
+@keyframes mu-spin{to{transform:rotate(360deg)}}
+</style>
+<script>
+(function(){
+  if (window.__MU_LOADED) return; window.__MU_LOADED = true;
+  function isAllowed(file, accept){
+    if (!accept) return true; // fallback
+    const m = file.type.toLowerCase();
+    const name = (file.name||'').toLowerCase();
+    const exts = accept.split(',').map(s=>s.trim().toLowerCase());
+    // basic mime or extension check
+    return exts.some(a=>{
+      if (a.endsWith('/*')) return m.startsWith(a.slice(0,-1));
+      if (a.startsWith('.')) return name.endsWith(a);
+      return m === a;
+    });
+  }
+  function MU(root){
+    this.root = root;
+    this.max = parseInt(root.dataset.max||'6',10)||6;
+    this.name = root.dataset.name||'media[]';
+    this.accept = root.dataset.accept||'image/*,video/*';
+    this.multiple = this.max>1;
+    this.files = [];
+    this.grid = root.querySelector('.mu-grid');
+    this.errorEl = root.querySelector('.mu-error');
+    this.busy = null;
+    // build hidden input
+    this.input = document.createElement('input');
+    this.input.type='file';
+    this.input.name=this.name;
+    this.input.accept=this.accept;
+    if (this.multiple) this.input.multiple = true;
+    this.input.className='mu-input visually-hidden';
+    root.appendChild(this.input);
+    const addBtn = root.querySelector('.mu-add');
+    addBtn.addEventListener('click', ()=> this.input.click());
+    this.input.addEventListener('change', (e)=>{
+      if (!e.target.files) return;
+      this.addFiles(Array.from(e.target.files));
+      // reset input so same file selection can trigger again
+      e.target.value = '';
+    });
+    this.render();
+  }
+  MU.prototype.showBusy = function(show){
+    if (show){
+      if (!this.busy){
+        this.busy = document.createElement('div');
+        this.busy.className='mu-busy';
+        this.busy.innerHTML='<div class="mu-spinner"></div>';
+        this.grid.appendChild(this.busy);
+      }
+    } else if (this.busy){ this.busy.remove(); this.busy=null; }
+  }
+  MU.prototype.setError = function(msg){
+    if (!this.errorEl) return; this.errorEl.textContent = msg||'';
+  }
+  MU.prototype.syncInput = function(){
+    const dt = new DataTransfer();
+    this.files.forEach(f=>dt.items.add(f));
+    this.input.files = dt.files;
+  }
+  MU.prototype.addFiles = function(list){
+    this.setError('');
+    const remain = Math.max(0, this.max - this.files.length);
+    if (list.length > remain){ this.setError(`You can upload up to ${this.max} file(s).`); list = list.slice(0, remain); }
+    
+    // Validate types and sizes
+    const bad = [];
+    const oversized = [];
+    const ok = [];
+    const maxVideoSize = 50 * 1024 * 1024; // 50MB
+    
+    list.forEach(f => { 
+      if (isAllowed(f, this.accept)) {
+        // Check video file size
+        if (f.type.toLowerCase().startsWith('video/') && f.size > maxVideoSize) {
+          oversized.push(f);
+        } else {
+          ok.push(f);
+        }
+      } else {
+        bad.push(f);
+      }
+    });
+    
+    // Show appropriate error messages
+    if (bad.length) { 
+      this.setError('Some files were not allowed (JPG, PNG, MP4, MOV only).'); 
+    }
+    
+    if (oversized.length) {
+      const oversizedNames = oversized.map(f => f.name).join(', ');
+      this.setError(`Video file(s) too large: ${oversizedNames}. Maximum size is 50MB per video.`);
+      return; // Don't add any files if videos are too large
+    }
+    
+    if (!ok.length) { return; }
+    
+    this.showBusy(true);
+    // small delay to show spinner
+    setTimeout(()=>{
+      this.files = this.files.concat(ok);
+      this.syncInput();
+      this.render();
+      this.showBusy(false);
+    }, 60);
+  }
+  MU.prototype.hasOversizedVideos = function(){
+    const maxVideoSize = 50 * 1024 * 1024; // 50MB
+    return this.files.some(f => f.type.toLowerCase().startsWith('video/') && f.size > maxVideoSize);
+  }
+  
+  MU.prototype.getOversizedVideoNames = function(){
+    const maxVideoSize = 50 * 1024 * 1024; // 50MB
+    return this.files.filter(f => f.type.toLowerCase().startsWith('video/') && f.size > maxVideoSize).map(f => f.name);
+  }
+  
+  MU.prototype.removeAt = function(idx){
+    this.files.splice(idx,1); this.syncInput(); this.render();
+  }
+  MU.prototype.render = function(){
+    // Clear all current preview tiles except the add tile
+    const tiles = Array.from(this.grid.querySelectorAll('.mu-item'));
+    tiles.forEach(el=>el.remove());
+    // Insert previews before the add tile
+    const addEl = this.grid.querySelector('.mu-add');
+    this.files.forEach((f, idx)=>{
+      const item = document.createElement('div');
+      item.className='mu-item';
+      const isVideo = f.type.toLowerCase().startsWith('video/');
+      let media;
+      if (isVideo){ media = document.createElement('video'); media.muted=true; media.playsInline=true; media.src=URL.createObjectURL(f); }
+      else { media = document.createElement('img'); media.src=URL.createObjectURL(f); }
+      item.appendChild(media);
+      const rm = document.createElement('button'); rm.type='button'; rm.className='mu-remove'; rm.innerHTML='&times;';
+      rm.addEventListener('click', ()=> this.removeAt(idx));
+      item.appendChild(rm);
+      this.grid.insertBefore(item, addEl);
+    });
+    // Toggle add visibility
+    addEl.style.display = (this.files.length >= this.max) ? 'none' : '';
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.js-mu').forEach(root=>{ 
+      if (!root.dataset.muInit){ 
+        root.dataset.muInit='1'; 
+        const instance = new MU(root);
+        root._muInstance = instance; // Store reference for form validation
+      } 
+    });
+  });
+})();
+</script>

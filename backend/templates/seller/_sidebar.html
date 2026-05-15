@@ -1,0 +1,72 @@
+{% set current = active_page|default('dashboard') %}
+
+<div class="card shadow-sm mb-4 admin-sidebar-card" data-seller-sidebar data-active-page="{{ current }}">
+    <div class="card-header admin-panel-header text-white d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 d-flex align-items-center">
+            <i class="fas fa-store me-2"></i>Seller Panel
+        </h6>
+        <button type="button"
+                class="btn btn-sm btn-light admin-sidebar-toggle d-lg-none"
+                data-sidebar-toggle
+                aria-label="Toggle seller navigation"
+                aria-expanded="true">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    </div>
+    <div class="list-group list-group-flush admin-sidebar">
+        <a href="{{ url_for('seller_dashboard') }}"
+           class="list-group-item list-group-item-action {% if current == 'dashboard' %}active{% endif %}"
+           data-page="dashboard"
+           {% if current == 'dashboard' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </a>
+        <a href="{{ url_for('add_product') }}"
+           class="list-group-item list-group-item-action {% if current == 'add_product' %}active{% endif %}"
+           data-page="add_product"
+           {% if current == 'add_product' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-plus me-2"></i>Add Product
+        </a>
+        <a href="{{ url_for('seller_products') }}"
+           class="list-group-item list-group-item-action {% if current == 'products' %}active{% endif %}"
+           data-page="products"
+           {% if current == 'products' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-box me-2"></i>My Products
+        </a>
+        <a href="{{ url_for('seller_orders') }}"
+           class="list-group-item list-group-item-action {% if current == 'orders' %}active{% endif %}"
+           data-page="orders"
+           {% if current == 'orders' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-shopping-cart me-2"></i>Manage Orders
+            {% if unread_order_count|default(0) > 0 %}
+                <span class="badge admin-badge float-end" id="notificationBadge">{{ unread_order_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('seller_returns_index') }}"
+           class="list-group-item list-group-item-action {% if current == 'returns' %}active{% endif %}"
+           data-page="returns"
+           {% if current == 'returns' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-undo me-2"></i>Returns & Refunds
+        </a>
+        <a href="{{ url_for('seller_sales_report') }}"
+           class="list-group-item list-group-item-action {% if current == 'sales_report' %}active{% endif %}"
+           data-page="sales_report"
+           {% if current == 'sales_report' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-chart-line me-2"></i>Sales Reports
+        </a>
+        <a href="{{ url_for('seller_profile') }}"
+           class="list-group-item list-group-item-action {% if current == 'profile' %}active{% endif %}"
+           data-page="profile"
+           {% if current == 'profile' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-user me-2"></i>Profile
+        </a>
+        <a href="{{ url_for('seller_inbox') }}"
+           class="list-group-item list-group-item-action {% if current == 'inbox' %}active{% endif %}"
+           data-page="inbox"
+           {% if current == 'inbox' %}style="background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important; color: #ffffff !important; font-weight: 700;"{% endif %}>
+            <i class="fas fa-envelope me-2"></i>Messages
+            {% if unread_chat_count > 0 %}
+                <span class="badge admin-badge float-end">{{ unread_chat_count }}</span>
+            {% endif %}
+        </a>
+    </div>
+</div>

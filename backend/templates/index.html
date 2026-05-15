@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}Kids & Baby Store - Quality Products for Your Little Ones{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white">
+    <style>
+    /* HERO: responsive sizing and closer spacing to category bar */
+    :root {
+        --hero-height-desktop: 420px;
+        --hero-height-lg: 360px;
+        --hero-height-md: 280px;
+        --hero-height-sm: 200px;
+        --hero-bottom-gap: 12px;
+    }
+    .hero-section {
+        min-height: var(--hero-height-desktop);
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #007bff 0%, #6c757d 100%);
+        position: relative;
+        overflow: hidden;
+        margin-bottom: var(--hero-bottom-gap);
+    }
+    .hero-section .hero-carousel-wrapper {
+        width: 100vw;
+        margin-left: 50%;
+        transform: translateX(-50%);
+        background: none;
+    }
+    .hero-slide-img {
+        width: 100vw;
+        max-width: 100vw;
+        height: var(--hero-height-desktop);
+        object-fit: cover;
+        display: block;
+        margin: 0 auto;
+        background: #eee;
+    }
+    .carousel-indicators { bottom: 18px; }
+    .carousel-caption { display: none !important; }
+    
+    @media (max-width: 1200px) {
+        .hero-section { min-height: var(--hero-height-lg); }
+        .hero-slide-img { height: var(--hero-height-lg); }
+    }
+    
+    @media (max-width: 992px) {
+        .hero-section { min-height: var(--hero-height-md); }
+        .hero-slide-img { height: var(--hero-height-md); }
+        .carousel-indicators { bottom: 12px; }
+    }
+    
+    @media (max-width: 768px) {
+        .hero-section { min-height: var(--hero-height-sm); }
+        .hero-slide-img { height: var(--hero-height-sm); }
+        .carousel-indicators { bottom: 10px; }
+    }
+    
+    @media (max-width: 576px) {
+        .hero-section { min-height: 180px; }
+        .hero-slide-img { height: 180px; }
+        .carousel-indicators { bottom: 8px; }
+    }
+    
+    @media (min-height: 900px) {
+        .hero-section { min-height: clamp(320px, 40vh, 520px); }
+        .hero-slide-img { height: clamp(320px, 40vh, 520px); }
+    }
+    </style>
+
+    <div class="hero-carousel-wrapper">
+        <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-indicators">
+                {% for slide in hero_slides %}
+                    <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ loop.index0 }}"
+                        {% if loop.first %}class="active"{% endif %} aria-current="true" aria-label="Slide {{ loop.index }}">
+                    </button>
+                {% endfor %}
+            </div>
+            <div class="carousel-inner">
+                {% for slide in hero_slides %}
+                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                        {% if slide.link %}
+                            <a href="{{ slide.link }}">
+                        {% endif %}
+                        <img src="{{ url_for('static', filename='uploads/' + slide.image_filename) }}"
+                             class="hero-slide-img"
+                             alt="{{ slide.title }}">
+                        {% if slide.link %}
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- Brands & Admin-Approved Products -->
+<section class="py-4 brands-section">
+    <style>
+    /* Brands grid: 6 logos per view, no horizontal scroll */
+    .brand-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 16px;
+        padding: 10px 6px;
+    }
+
+    /* Circular brand card — solid colors without borders */
+    .brand-card {
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        background: var(--brand-start, #3b82f6);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+        transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    }
+    .brand-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 24% 16%, rgba(255,255,255,.9) 0 2px, transparent 3px) center/14px 14px no-repeat;
+        opacity: .25;
+        pointer-events: none;
+    }
+    .brand-card:hover {
+        transform: translateY(-6px) scale(1.05);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+        filter: brightness(1.1);
+    }
+    .brand-card .brand-logo {
+        width: 90%;
+        height: 90%;
+        object-fit: cover; /* fills the circular container, removing white space */
+        display: block;
+        margin: 0 auto;
+        transition: transform .18s ease;
+        border-radius: 50%; /* makes the logo circular to match container */
+        /* Remove blend mode to show full logo with solid background */
+        background: transparent;
+        filter: contrast(1.1) saturate(1.1);
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: optimizeQuality;
+    }
+    .brand-card:hover .brand-logo { transform: scale(1.1); }
+
+    /* Enlarge logos except the 3rd (Baby Bliss) and the last (CutieCove) */
+    .brand-grid .brand-card:not(:nth-child(3)):not(:last-child) .brand-logo{ width:96%; height:96%; }
+    .brand-grid .brand-card:not(:nth-child(3)):not(:last-child):hover .brand-logo{ transform: scale(1.12); }
+
+    /* Solid color palette — no gradients, no borders */
+    .brand-grid .brand-card:nth-child(6n+1){ --brand-start: #3b82f6; } /* bright blue */
+    .brand-grid .brand-card:nth-child(6n+2){ --brand-start: #ec4899; } /* bright pink */
+    .brand-grid .brand-card:nth-child(6n+3){ --brand-start: #f59e0b; } /* bright yellow */
+    .brand-grid .brand-card:nth-child(6n+4){ --brand-start: #10b981; } /* bright green */
+    .brand-grid .brand-card:nth-child(6n+5){ --brand-start: #8b5cf6; } /* bright purple */
+    .brand-grid .brand-card:nth-child(6){    --brand-start: #f97316; } /* bright orange */
+
+    /* Swap colors: 1st <-> 3rd tile */
+    .brand-grid .brand-card:nth-child(1){ --brand-start: #f59e0b; } /* bright yellow */
+    .brand-grid .brand-card:nth-child(3){ --brand-start: #3b82f6; } /* bright blue */
+
+    /* Category cover fallback tiles use rectangular cards */
+    .brand-card--with-bg {
+        border-radius: 12px;
+        aspect-ratio: 14 / 5;
+        background-size: cover !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        color: #fff !important;
+        border: none;
+    }
+    .brand-card--with-bg::after{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(0deg, rgba(0,0,0,0.35), rgba(0,0,0,0.10));
+        pointer-events: none;
+    }
+    .brand-card .brand-name { font-size: .95rem; padding: 6px; }
+
+    /* Responsive columns */
+    @media (max-width: 1200px) { .brand-grid { grid-template-columns: repeat(5, 1fr); } }
+    @media (max-width: 992px)  { .brand-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 768px)  { .brand-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 480px)  { .brand-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    /* Featured products */
+    .approved-product-card { 
+        transition: transform .12s ease, box-shadow .12s ease; 
+    }
+    .approved-product-card:hover { 
+        transform: translateY(-6px); 
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
+    }
+    .approved-product-card .card-img-top { 
+        height: 160px; 
+        object-fit: cover; 
+    }
+    
+    /* Product card responsiveness */
+    @media (max-width: 991.98px) {
+        .approved-product-card .card-img-top { 
+            height: 150px; 
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .approved-product-card .card-img-top { 
+            height: 140px; 
+        }
+        .card-title { font-size: 0.95rem; }
+    }
+    
+    @media (max-width: 576px) {
+        .approved-product-card .card-img-top { height: 130px; }
+        .card-title { font-size: 0.9rem; }
+        .card-text { font-size: 0.85rem; }
+    }
+    
+    /* Section headings responsive */
+    @media (max-width: 768px) {
+        section h2 {
+            font-size: 1.5rem;
+        }
+        section .text-muted {
+            font-size: 0.9rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        section h2 {
+            font-size: 1.3rem;
+        }
+        section .text-muted {
+            font-size: 0.85rem;
+        }
+        .py-4 {
+            padding-top: 1.5rem !important;
+            padding-bottom: 1.5rem !important;
+        }
+        .py-5 {
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }
+    }
+    </style>
+    <style>
+      /* Make homepage product cards slightly wider on desktop (5 per row) */
+      @media (min-width: 992px){ .home-card-col{ flex: 0 0 20%; max-width: 20%; } }
+    </style>
+    <style>
+      /* Ensure stretched-link overlay exists and buttons remain clickable */
+      .card .stretched-link::after{ position:absolute; inset:0; content:""; }
+      .approved-product-card .btn, .product-card .btn{ position:relative; z-index:1; }
+      .btn-card-cart{ position:absolute; right:12px; bottom:12px; width:42px; height:42px; border-radius:50%; background:#0ea5e9; color:#fff; border:none; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(14,165,233,.25); }
+      .btn-card-cart:hover{ filter:brightness(1.05); }
+    </style>
+
+    <div class="container brands-wrapper">
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <div>
+                <h2 class="fw-bold mb-0">Brands</h2>
+                <p class="text-muted mb-0">Charles Bading — find items from your favourites</p>
+            </div>
+            <div>
+                <a href="{{ url_for('shop') }}" class="btn btn-link text-decoration-none">View all products</a>
+            </div>
+        </div>
+
+        {% if brands %}
+            <div class="brand-grid mb-4">
+                {% for brand in brands[:6] %}
+                    {% set brand_logo = brand.logo %}
+                    {% if brand_logo %}
+                        {# Avoid calling Python methods in templates for portability #}
+                        {% set is_abs = '://' in brand_logo %}
+                        {% set is_root = brand_logo and brand_logo[0] == '/' %}
+                        {% if is_abs or is_root %}
+                            {% set logo_src = brand_logo %}
+                        {% else %}
+                            {% set logo_src = url_for('static', filename='uploads/' ~ brand_logo) %}
+                        {% endif %}
+                        <a href="{{ url_for('store_page', seller_id=brand.user_id) }}" class="brand-card text-center" title="Visit {{ brand.store_name }}" aria-label="Visit {{ brand.store_name }} store">
+                            <img src="{{ logo_src }}" alt="{{ brand.store_name }} logo" class="brand-logo" 
+                                 onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                            <span class="brand-name" style="display:none;">{{ brand.store_name }}</span>
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('store_page', seller_id=brand.user_id) }}" class="brand-card text-center" title="Visit {{ brand.store_name }}" aria-label="Visit {{ brand.store_name }} store">
+                            <span class="brand-name">{{ brand.store_name }}</span>
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            {% set category_cover_map = {
+                'Baby Clothes & Accessories': 'images/category-covers/baby-clothes.svg',
+                'Educational Materials': 'images/category-covers/education.svg',
+                'Nursery Furniture': 'images/category-covers/nursery.svg',
+                'Safety and Health': 'images/category-covers/health.svg',
+                'Strollers & Gear': 'images/category-covers/strollers.svg',
+                'Toys & Games': 'images/category-covers/toys.svg'
+            } %}
+            <div class="brand-grid mb-4">
+                {% for category in categories[:6] %}
+                    {% set cover = category.cover_image_filename or category.cover_image %}
+                    {% set default_rel = category_cover_map.get(category.name, 'images/category-default-1000x150.svg') %}
+                    {% set cover_url = cover and url_for('static', filename='uploads/categories/' ~ cover) or url_for('static', filename=default_rel) %}
+                    <a href="{{ url_for('shop', category=category.id) }}"
+                       class="brand-card text-center brand-card--with-bg"
+                       style="background-image: url('{{ cover_url }}');"
+                       aria-label="{{ category.name }}">
+                        <span class="visually-hidden">{{ category.name }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <div>
+                <h2 class="fw-bold mb-0">Featured Products</h2>
+            </div>
+           
+        </div>
+
+        <div class="row g-4 mb-4">
+            {% if approved_products %}
+                {% for product in approved_products %}
+                    <div class="col-6 col-md-4 col-lg-2 home-card-col">
+                        <div class="card h-100 shadow-sm approved-product-card position-relative">
+                            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="stretched-link" aria-label="View {{ product.name }}"></a>
+                            {% if product.video_filename %}
+                                <video class="card-img-top product-card-video" muted playsinline preload="metadata" loop {% if product.image_filename %}poster="{{ url_for('static', filename='uploads/' + product.image_filename) }}"{% endif %} style="height:160px; object-fit:cover;">
+                                    <source src="{{ url_for('static', filename='uploads/' + product.video_filename) }}" type="video/mp4">
+                                </video>
+                            {% elif product.image_filename %}
+                                <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" class="card-img-top" alt="{{ product.name }}" style="height:160px; object-fit:cover;">
+                            {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body d-flex flex-column">
+                                <div class="small text-muted mb-1 brand-pill">
+                                    <i class="fas fa-store me-1"></i>
+                                    <span></span>{% set seller = product.seller %}
+                                    {% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+                                    {{ (app0.store_name if app0 and app0.store_name else seller.first_name) }}</span>
+                                </div>
+                                <h6 class="card-title mb-1">{{ product.name }}</h6>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    <span class="fw-bold text-primary">₱{{ "%.2f"|format(product.price) }}</span>
+                                </div>
+                                <ul class="list-unstyled mb-2 mt-2">
+                                    <li class="small text-muted"><i class="fas fa-tags me-1"></i>{{ product.category.name if product.category else 'General' }}</li>
+                                </ul>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    {% if product.stock > 0 %}
+                                        <span class="badge bg-success-subtle text-success border-success">In stock</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border-danger">Out of Stock</span>
+                                    {% endif %}
+                                    {% if product.total_sold %}
+                                        <small class="text-muted small">Total Sold: {{ product.total_sold }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                {% for product in recent_products[:8] %}
+                    <div class="col-6 col-md-4 col-lg-2 home-card-col">
+                        <div class="card h-100 shadow-sm approved-product-card position-relative">
+                            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="stretched-link" aria-label="View {{ product.name }}"></a>
+                            {% if product.image_filename %}
+                                <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" class="card-img-top" alt="{{ product.name }}" style="height:160px; object-fit:cover;">
+                            {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body d-flex flex-column">
+                                <div class="small text-muted mb-1 brand-pill">
+                                    <i class="fas fa-store me-1"></i>
+                                    <span>{% set seller = product.seller %}
+                                    {% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+                                    {{ (app0.store_name if app0 and app0.store_name else seller.first_name) }}</span>
+                                </div>
+                                <h6 class="card-title mb-1">{{ product.name }}</h6>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    <span class="fw-bold text-primary">₱{{ "%.2f"|format(product.price) }}</span>
+                                </div>
+                                <ul class="list-unstyled mb-2 mt-2">
+                                    <li class="small text-muted"><i class="fas fa-tags me-1"></i>{{ product.category.name if product.category else 'General' }}</li>
+                                </ul>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    {% if product.stock > 0 %}
+                                        <span class="badge bg-success-subtle text-success border-success">In stock</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border-danger">Out of Stock</span>
+                                    {% endif %}
+                                    {% if product.total_sold %}
+                                        <small class="text-muted small">Total Sold: {{ product.total_sold }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- New Arrivals -->
+<section class="py-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h2 class="fw-bold mb-0">New Arrivals</h2>
+                <p class="text-muted mb-0">Latest admin-selected arrivals</p>
+            </div>
+            <div>
+                <a href="{{ url_for('shop') }}" class="btn btn-link">View all</a>
+            </div>
+        </div>
+        <div class="row g-4">
+            {% if new_arrivals %}
+                {% for product in new_arrivals %}
+                    <div class="col-6 col-md-4 col-lg-2 home-card-col">
+                        <div class="card h-100 shadow-sm product-card position-relative">
+                            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="stretched-link" aria-label="View {{ product.name }}"></a>
+                            {% if product.video_filename %}
+                                <video class="card-img-top product-card-video" muted playsinline preload="metadata" loop {% if product.image_filename %}poster="{{ url_for('static', filename='uploads/' + product.image_filename) }}"{% endif %} style="height: 160px; object-fit: cover;">
+                                    <source src="{{ url_for('static', filename='uploads/' + product.video_filename) }}" type="video/mp4">
+                                </video>
+                            {% elif product.image_filename %}
+                                <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" class="card-img-top" alt="{{ product.name }}" style="height: 160px; object-fit: cover;">
+                            {% else %}
+                                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body d-flex flex-column">
+                                <div class="small text-muted mb-1 brand-pill">
+                                    <i class="fas fa-store me-1"></i>
+                                    <span>{% set seller = product.seller %}
+                                    {% set app0 = (seller.seller_applications[0] if seller and seller.seller_applications else None) %}
+                                    {{ (app0.store_name if app0 and app0.store_name else seller.first_name) }}</span>
+                                </div>
+                                <h6 class="card-title mb-1">{{ product.name }}</h6>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    <span class="fw-bold text-primary">₱{{ "%.2f"|format(product.price) }}</span>
+                                </div>
+                                <ul class="list-unstyled mb-2 mt-2">
+                                    <li class="small text-muted"><i class="fas fa-tags me-1"></i>{{ product.category.name if product.category else 'General' }}</li>
+                                </ul>
+                                <div class="d-flex justify-content-between align-items-center mt-auto">
+                                    {% if product.stock > 0 %}
+                                        <span class="badge bg-success-subtle text-success border-success">In stock</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border-danger">Out of Stock</span>
+                                    {% endif %}
+                                    {% if product.total_sold %}
+                                        <small class="text-muted small">Total Sold: {{ product.total_sold }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center text-muted py-4">
+                    <p>No new arrivals at the moment. Please check back soon.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-play/pause product videos on hover/touch for subtle, lightweight previews
+(function(){
+  const vids = document.querySelectorAll('.product-card-video');
+  vids.forEach(v => {
+    v.addEventListener('mouseenter', ()=> { try{ v.play(); }catch(e){} });
+    v.addEventListener('mouseleave', ()=> { try{ v.pause(); v.currentTime = 0; }catch(e){} });
+    // Mobile: start on tap, pause on second tap outside
+    v.addEventListener('touchstart', ()=> { try{ v.play(); }catch(e){} }, {passive:true});
+  });
+})();
+
+// addToCartAjax — embedded as requested (no separate JS file)
+function addToCartAjax(productId, button) {
+    if (!productId) return;
+    if (button) {
+        button.disabled = true;
+        var original = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Adding...';
+    }
+    fetch('/add-to-cart-ajax/' + productId, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) showMessage(data.message || 'Added to cart', 'success');
+        else showMessage(data.message || 'Failed to add to cart', 'danger');
+        // Optional: update header cart badge via reload or fetch notifications summary
+    }).catch(()=> showMessage('Error adding to cart','danger'))
+    .finally(()=> { if(button){ button.disabled=false; button.innerHTML = original || 'Add to Cart'; }});
+}
+
+function showMessage(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(toast);
+    setTimeout(()=> { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 5000);
+}
+</script>
+
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/692d5c56c860c2197de65194/1jbcj1dce';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Seller Applications - Admin Dashboard{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'seller_applications' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Seller Applications</h2>
+    <span class="badge bg-warning fs-6">
+        {{ applications|selectattr('status', 'equalto', 'pending')|list|length }} Pending
+    </span>
+</div>
+    {% if applications %}
+                <div class="accordion" id="sellerApplicationsAccordion">
+                    {% for app in applications %}
+                        <div class="accordion-item mb-3 shadow-sm border-0">
+                            <h2 class="accordion-header" id="heading{{ app.id }}">
+                                <button class="accordion-button d-flex justify-content-between align-items-center {% if not loop.first %}collapsed{% endif %}"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#collapse{{ app.id }}"
+                                        aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                                        aria-controls="collapse{{ app.id }}">
+                                    <div class="d-flex flex-column">
+                                        <strong class="text-truncate">
+                                            {{ app.store_name or 'Untitled Store' }}
+                                        </strong>
+                                        <small class="text-muted">
+                                            Applicant: {{ app.user.first_name }} {{ app.user.last_name }} • {{ app.user.email }}
+                                        </small>
+                                    </div>
+                                    <span class="ms-auto badge bg-{% if app.status == 'pending' %}warning{% elif app.status == 'approved' %}success{% else %}danger{% endif %}">
+                                        {{ app.status|title }}
+                                    </span>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ app.id }}"
+                                 class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                                 aria-labelledby="heading{{ app.id }}"
+                                 data-bs-parent="#sellerApplicationsAccordion">
+                                <div class="accordion-body bg-white">
+
+                                    {% if app.status == 'pending' %}
+                                        <div class="alert alert-info d-flex justify-content-between align-items-center py-2 px-3 mb-4">
+                                            <span class="small">
+                                                This application is awaiting your review.
+                                            </span>
+                                            <div class="d-flex gap-2">
+                                                <a href="{{ url_for('approve_seller', app_id=app.id) }}" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Approve
+                                                </a>
+                                                <a href="{{ url_for('reject_seller', app_id=app.id) }}" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-times me-1"></i>Reject
+                                                </a>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="mb-4">
+                                            <span class="badge bg-{% if app.status == 'approved' %}success{% else %}danger{% endif %} px-3 py-2">
+                                                Status: {{ app.status|title }}
+                                            </span>
+                                            {% if app.reviewed_at %}
+                                                <small class="text-muted ms-2">
+                                                    Reviewed: {{ app.reviewed_at.strftime('%B %d, %Y %I:%M %p') }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- PERSONAL INFORMATION -->
+                                    <div class="border rounded mb-4">
+                                        <div class="bg-light border-bottom px-3 py-2">
+                                            <h6 class="mb-0 text-uppercase text-secondary fw-semibold">
+                                                <i class="fas fa-user me-2"></i>Personal Information
+                                            </h6>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">First Name</label>
+                                                    <div class="fw-semibold">{{ app.user.first_name }}</div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Last Name</label>
+                                                    <div class="fw-semibold">{{ app.user.last_name }}</div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Email Address</label>
+                                                    <div class="fw-semibold">{{ app.user.email }}</div>
+                                                    <div class="small text-muted fst-italic">Email cannot be changed for security reasons.</div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Phone Number</label>
+                                                    <div class="fw-semibold">{{ app.user.phone or '—' }}</div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small text-muted mb-0">Personal Address</label>
+                                                    <div class="fw-semibold">{{ app.user.address or '—' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- BUSINESS / STORE INFORMATION -->
+                                    <div class="border rounded mb-4">
+                                        <div class="bg-light border-bottom px-3 py-2">
+                                            <h6 class="mb-0 text-uppercase text-secondary fw-semibold">
+                                                <i class="fas fa-store me-2"></i>Business / Store Information
+                                            </h6>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Store Name</label>
+                                                    <div class="fw-semibold">{{ app.store_name or '—' }}</div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Store Category</label>
+                                                    <div class="fw-semibold">{{ app.store_category or '—' }}</div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small text-muted mb-0">Store Description</label>
+                                                    <div class="fw-semibold">{{ app.store_description or 'No description provided.' }}</div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label small text-muted mb-0">Business Address (Raw / Final)</label>
+                                                    <div class="fw-semibold">{{ app.business_address or '—' }}</div>
+                                                    <div class="small text-muted mt-1">
+                                                        Standardized components (Region / Province / City / Barangay) not individually stored.
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">GCash Number</label>
+                                                    <div class="fw-semibold">{{ app.gcash_number or '—' }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- BUSINESS DOCUMENTS -->
+                                    <div class="border rounded mb-2">
+                                        <div class="bg-light border-bottom px-3 py-2">
+                                            <h6 class="mb-0 text-uppercase text-secondary fw-semibold">
+                                                <i class="fas fa-file-alt me-2"></i>Business Documents
+                                            </h6>
+                                        </div>
+                                        <div class="p-3">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label small text-muted mb-0">Business ID</label>
+                                                    {% if app.school_id_document %}
+                                                        <div class="mt-1">
+                                                            <a href="{{ url_for('static', filename='uploads/documents/' ~ app.school_id_document) }}"
+                                                               target="_blank"
+                                                               class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-eye me-1"></i>View Document
+                                                            </a>
+                                                        </div>
+                                                    {% else %}
+                                                        <div class="fw-semibold text-muted">No file uploaded</div>
+                                                    {% endif %}
+                                                    <div class="small text-muted mt-1">
+                                                        Upload should be a clear image or PDF (Max 5MB).
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    {% if app.valid_id %}
+                                                        <div class="mt-1">
+                                                            <a href="{{ app.valid_id }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-id-card me-1"></i>View Valid ID
+                                                            </a>
+                                                        </div>
+                                                    {% else %}
+                                                    {% endif %}
+                                                </div>
+                                                {% if app.business_registration %}
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small text-muted mb-0">Business Registration</label>
+                                                        <div class="mt-1">
+                                                            <a href="{{ app.business_registration }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-file me-1"></i>View Registration
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div> <!-- /accordion-body -->
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                    <h4>No Applications Yet</h4>
+                    <p class="text-muted">Seller applications will appear here when submitted.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

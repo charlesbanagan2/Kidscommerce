@@ -1,0 +1,654 @@
+{% extends 'base.html' %}
+{% block title %}Edit Product{% endblock %}
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+  .edit-product-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .edit-product-body {
+    padding: 2.5rem;
+  }
+  .form-label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+  .form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+  .btn-secondary {
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+  .form-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+/* Multi-image uploader (5 slots) */
+.image-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(5, 1fr);
+}
+@media (max-width: 992px){ .image-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 768px){ .image-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 576px){ .image-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* Make the video slot the same visual size as one image slot */
+#videoSlot {
+    max-width: 180px;           /* roughly one grid cell */
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+/* Ensure the video preview behaves like an image inside the slot */
+#videoPreview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-slot {
+    position: relative;
+    border: 2px dashed #d1d5db;
+    border-radius: 10px;
+    background: #f9fafb;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+.image-slot:hover { border-color: #667eea; background: #f3f4f6; }
+.image-slot.has-image { border-style: solid; border-color: #667eea; }
+
+.image-slot.primary {
+    border-color: #667eea;
+    background: #f0f4ff;
+}
+.image-slot.primary::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+    z-index: 0;
+}
+.image-slot.primary > * { position: relative; z-index: 1; }
+
+.slot-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #667eea;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(102,126,234,0.3);
+}
+
+.slot-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.slot-preview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.slot-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+.slot-placeholder {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.8rem;
+    pointer-events: none;
+}
+.slot-placeholder i { font-size: 1.5rem; margin-bottom: 4px; opacity: 0.6; }
+
+.slot-actions {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 3;
+}
+.btn-upload, .btn-remove {
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #d1d5db;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    backdrop-filter: blur(4px);
+}
+.btn-upload:hover, .btn-remove:hover {
+    background: white;
+    border-color: #667eea;
+    color: #667eea;
+    transform: translateY(-1px);
+}
+.btn-remove {
+    background: rgba(239,68,68,0.95);
+    color: white;
+    border-color: #ef4444;
+}
+.btn-remove:hover {
+    background: #ef4444;
+    border-color: #dc2626;
+}
+</style>
+<div class="container-fluid py-4">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3 col-lg-2">
+      {% set active_page = 'products' %}
+      {% include 'seller/_sidebar.html' %}
+    </div>
+    <!-- Main Content -->
+    <div class="col-md-9 col-lg-10">
+      <div class="products-header">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2 class="fw-bold mb-0" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;">Edit Product</h2>
+        </div>
+      </div>
+      <div class="card edit-product-card">
+        <div class="card-body edit-product-body">
+          {% if status_note %}
+            <div class="alert alert-warning">{{ status_note }}</div>
+          {% endif %}
+
+          <form method="post" enctype="multipart/form-data" class="row g-4">
+            <div class="col-md-6">
+              <label class="form-label">Product Name</label>
+              <input type="text" name="name" class="form-control" value="{{ product.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select name="category_id" class="form-select" required>
+                <option value="">Select Category</option>
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id == product.category_id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea name="description" class="form-control" rows="5" required>{{ product.description }}</textarea>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Price (₱)</label>
+              <input type="number" name="price" step="0.01" min="0" class="form-control" value="{{ '%.2f'|format(product.price) }}" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Current Stock</label>
+              <div class="form-control bg-light" style="border: 1px solid #d1d5db; background-color: #f8f9fa;">
+                {{ product.stock }} units
+              </div>
+              <div class="form-text">
+                <i class="fas fa-info-circle me-1"></i>
+                To increase stock, use the "Request Restock" button on the Products page. Admin approval is required.
+              </div>
+            </div>
+
+            <!-- Multi-image uploader (5 slots) -->
+            <div class="col-12 mt-4">
+              <label class="form-label">Product Images</label>
+              <!-- Debug info (remove in production) -->
+              <div class="form-text" style="font-size: 0.8rem; color: #666;">
+                Debug: image_filename = {{ product.image_filename or 'None' }} | gallery = {{ product.gallery or 'None' }}
+              </div>
+              <div class="image-grid" id="imageGrid">
+                <!-- Slot 1 (Primary - keeps backend name 'image') -->
+                <div class="image-slot primary" data-slot="1">
+                  <span class="slot-badge">Primary</span>
+                  <input type="file" id="image" name="image" accept="image/*" class="slot-input" aria-describedby="imageHelp">
+                  <div class="slot-preview" id="slotPreview1">
+                    {% if product.image_filename %}
+                      <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" alt="Current product image">
+                    {% else %}
+                      <div class="slot-placeholder">
+                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                        Main product photo
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="slot-actions">
+                    <button type="button" class="btn-upload">Upload</button>
+                    <button type="button" class="btn-remove {% if not product.image_filename %}d-none{% endif %}">Remove</button>
+                  </div>
+                </div>
+                <!-- Slot 2 -->
+                <div class="image-slot" data-slot="2">
+                  <input type="file" id="image2" name="image2" accept="image/*" class="slot-input">
+                  <div class="slot-preview" id="slotPreview2">
+                    {% if product.gallery and product.gallery|length >= 1 %}
+                      <img src="{{ url_for('static', filename='uploads/' + product.gallery[0]) }}" alt="Additional product image">
+                    {% else %}
+                      <div class="slot-placeholder">
+                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                        Additional photo
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="slot-actions">
+                    <button type="button" class="btn-upload">Upload</button>
+                    <button type="button" class="btn-remove {% if not (product.gallery and product.gallery|length >= 1) %}d-none{% endif %}">Remove</button>
+                  </div>
+                </div>
+                <!-- Slot 3 -->
+                <div class="image-slot" data-slot="3">
+                  <input type="file" id="image3" name="image3" accept="image/*" class="slot-input">
+                  <div class="slot-preview" id="slotPreview3">
+                    {% if product.gallery and product.gallery|length >= 2 %}
+                      <img src="{{ url_for('static', filename='uploads/' + product.gallery[1]) }}" alt="Additional product image">
+                    {% else %}
+                      <div class="slot-placeholder">
+                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                        Additional photo
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="slot-actions">
+                    <button type="button" class="btn-upload">Upload</button>
+                    <button type="button" class="btn-remove {% if not (product.gallery and product.gallery|length >= 2) %}d-none{% endif %}">Remove</button>
+                  </div>
+                </div>
+                <!-- Slot 4 -->
+                <div class="image-slot" data-slot="4">
+                  <input type="file" id="image4" name="image4" accept="image/*" class="slot-input">
+                  <div class="slot-preview" id="slotPreview4">
+                    {% if product.gallery and product.gallery|length >= 3 %}
+                      <img src="{{ url_for('static', filename='uploads/' + product.gallery[2]) }}" alt="Additional product image">
+                    {% else %}
+                      <div class="slot-placeholder">
+                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                        Additional photo
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="slot-actions">
+                    <button type="button" class="btn-upload">Upload</button>
+                    <button type="button" class="btn-remove {% if not (product.gallery and product.gallery|length >= 3) %}d-none{% endif %}">Remove</button>
+                  </div>
+                </div>
+                <!-- Slot 5 -->
+                <div class="image-slot" data-slot="5">
+                  <input type="file" id="image5" name="image5" accept="image/*" class="slot-input">
+                  <div class="slot-preview" id="slotPreview5">
+                    {% if product.gallery and product.gallery|length >= 4 %}
+                      <img src="{{ url_for('static', filename='uploads/' + product.gallery[3]) }}" alt="Additional product image">
+                    {% else %}
+                      <div class="slot-placeholder">
+                        <i class="fas fa-image fa-lg mb-2 d-block"></i>
+                        Additional photo
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="slot-actions">
+                    <button type="button" class="btn-upload">Upload</button>
+                    <button type="button" class="btn-remove {% if not (product.gallery and product.gallery|length >= 4) %}d-none{% endif %}">Remove</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-text mt-2" id="imageHelp">
+                Upload up to 5 product photos. The first image will be the primary product photo.
+              </div>
+            </div>
+
+            <!-- Product video (optional) -->
+            <div class="col-12 mt-3">
+              <label class="form-label">Product Video (optional)</label>
+              <div class="image-slot" id="videoSlot" aria-describedby="videoHelp">
+                <input type="file" id="video" name="video" accept="video/*" class="slot-input">
+                <div class="slot-preview" id="videoPreview">
+                  {% if product.video_filename %}
+                    <video src="{{ url_for('static', filename='uploads/' + product.video_filename) }}" controls muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                  {% else %}
+                    <div class="slot-placeholder">
+                      <i class="fas fa-video fa-lg mb-2 d-block"></i>
+                      Upload a short product clip (15–30s recommended)
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="slot-actions">
+                  <button type="button" class="btn-upload" id="videoUploadBtn">Upload</button>
+                  <button type="button" class="btn-remove {% if not product.video_filename %}d-none{% endif %}" id="videoRemoveBtn">Remove</button>
+                </div>
+              </div>
+              <div class="form-text" id="videoHelp">
+                Accepted: MP4/WebM/OGG. Max 50MB. Keep it steady and well-lit.
+              </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-primary">Save Changes</button>
+              <a href="{{ url_for('seller_products') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+    const maxSize = 5 * 1024 * 1024; // 5MB for images
+    const grid = document.getElementById('imageGrid');
+
+    function setSlotPlaceholder(slotEl){
+        const preview = slotEl.querySelector('.slot-preview');
+        preview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-image fa-lg mb-2 d-block"></i>Additional photo</div>';
+        const removeBtn = slotEl.querySelector('.btn-remove');
+        if(removeBtn) removeBtn.classList.add('d-none');
+    }
+
+    function setPrimaryPlaceholder(slotEl){
+        const preview = slotEl.querySelector('.slot-preview');
+        preview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-image fa-lg mb-2 d-block"></i>Main product photo</div>';
+        const removeBtn = slotEl.querySelector('.btn-remove');
+        if(removeBtn) removeBtn.classList.add('d-none');
+    }
+
+    function bindSlot(slotEl){
+        const input = slotEl.querySelector('.slot-input');
+        const preview = slotEl.querySelector('.slot-preview');
+        const uploadBtn = slotEl.querySelector('.btn-upload');
+        const removeBtn = slotEl.querySelector('.btn-remove');
+
+        uploadBtn.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', function(){
+            const file = this.files && this.files[0];
+            if(!file){
+                // restore placeholder
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            if(!file.type.startsWith('image/')){
+                alert('Please select a valid image file (JPG/PNG).');
+                this.value = '';
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            if(file.size > maxSize){
+                alert('Image is too large. Maximum size is 5MB per image.');
+                this.value = '';
+                if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+                else setSlotPlaceholder(slotEl);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                preview.innerHTML = '<img src="'+ev.target.result+'" alt="Product image">';
+            };
+            reader.readAsDataURL(file);
+            removeBtn.classList.remove('d-none');
+        });
+
+        removeBtn.addEventListener('click', function(){
+            input.value = '';
+            if(slotEl.classList.contains('primary')) setPrimaryPlaceholder(slotEl);
+            else setSlotPlaceholder(slotEl);
+        });
+    }
+
+    // Initialize all image slots
+    grid.querySelectorAll('.image-slot').forEach(slot => {
+        // Skip the video slot (it has id="videoSlot" and different behavior)
+        if (slot.id === 'videoSlot') return;
+        // Check if slot has an existing image
+        const hasImage = slot.querySelector('.slot-preview img') !== null;
+        if (!hasImage) {
+            if(slot.classList.contains('primary')) setPrimaryPlaceholder(slot);
+            else setSlotPlaceholder(slot);
+        }
+        bindSlot(slot);
+    });
+
+    // --- Video slot (preview + remove) ---
+    const videoSlot = document.getElementById('videoSlot');
+    const videoInput = document.getElementById('video');
+    const videoPreview = document.getElementById('videoPreview');
+    const videoUploadBtn = document.getElementById('videoUploadBtn');
+    const videoRemoveBtn = document.getElementById('videoRemoveBtn');
+
+    function setVideoPlaceholder(){
+        if (!videoPreview) return;
+        videoPreview.innerHTML = '<div class="slot-placeholder"><i class="fas fa-video fa-lg mb-2 d-block"></i>Upload a short product clip (15–30s recommended)</div>';
+        if (videoRemoveBtn) videoRemoveBtn.classList.add('d-none');
+    }
+
+    if (videoUploadBtn && videoInput){
+        videoUploadBtn.addEventListener('click', () => videoInput.click());
+    }
+
+    if (videoInput && videoPreview){
+        videoInput.addEventListener('change', function(){
+            const file = this.files && this.files[0];
+            if (!file){
+                setVideoPlaceholder();
+                return;
+            }
+            if (!file.type.startsWith('video/')){
+                alert('Please select a valid video file (MP4/WebM/OGG).');
+                this.value = '';
+                setVideoPlaceholder();
+                return;
+            }
+            // 50MB client-side guard (same as backend MAX_VIDEO_BYTES)
+            if (file.size > (50 * 1024 * 1024)){
+                alert('Video is too large. Maximum size is 50MB.');
+                this.value = '';
+                setVideoPlaceholder();
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            videoPreview.innerHTML = '<video src="'+url+'" controls muted playsinline style="width:100%;height:100%;object-fit:cover;"></video>';
+            if (videoRemoveBtn) videoRemoveBtn.classList.remove('d-none');
+        });
+    }
+
+    if (videoRemoveBtn && videoInput){
+        videoRemoveBtn.addEventListener('click', function(){
+            videoInput.value = '';
+            setVideoPlaceholder();
+        });
+    }
+
+})();
+</script>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+{% endblock %}
+
+
+

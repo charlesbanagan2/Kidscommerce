@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="300" viewBox="0 0 1400 300" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8e1ff"/>
+      <stop offset="100%" stop-color="#c7d7ff"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7b91e8"/>
+      <stop offset="100%" stop-color="#a6b4ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="300" fill="url(#bg)"/>
+
+  <!-- simple stroller silhouette -->
+  <g fill="none" stroke="#6c7fd8" stroke-width="5" opacity="0.7" transform="translate(160,160)">
+    <path d="M0,0 q80,-60 160,0"/>
+    <path d="M0,0 l40,0 40,40"/>
+    <circle cx="30" cy="60" r="16" fill="#6c7fd8"/>
+    <circle cx="110" cy="60" r="16" fill="#6c7fd8"/>
+  </g>
+
+  <!-- gear dots -->
+  <g fill="#8fa0ff" opacity="0.35">
+    <circle cx="1040" cy="60" r="4"/>
+    <circle cx="1070" cy="72" r="3"/>
+    <circle cx="1100" cy="64" r="5"/>
+    <circle cx="1130" cy="78" r="3"/>
+    <circle cx="1160" cy="68" r="4"/>
+  </g>
+
+  <path d="M0,245 C260,215 520,280 780,245 C1040,215 1220,275 1400,245 L1400,300 L0,300 Z" fill="url(#accent)" opacity="0.22"/>
+</svg>

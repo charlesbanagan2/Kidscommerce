@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+{% block title %}Seller Notifications{% endblock %}
+
+{% block content %}
+<style>
+
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0,0,0,0.06);
+}
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 10px 24px rgba(3,25,41,0.06);
+}
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas { color: #ffffff !important; }
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6,42,84,0.04);
+    color: #0b2b45;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(3,25,41,0.08);
+}
+.admin-sidebar .list-group-item:hover i.fas { color: #0b63a8; transform: scale(1.05); }
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px; opacity: 1; overflow: hidden;
+}
+.admin-sidebar-card.is-collapsed .admin-sidebar { max-height: 0; opacity: 0; }
+@media (min-width: 992px) {
+    .admin-sidebar-card.is-collapsed .admin-sidebar { display: block; }
+    .admin-sidebar-toggle { display: none !important; }
+}
+
+/* ── Page Header ── */
+.notif-page-header {
+    background: linear-gradient(135deg, #0b63a8 0%, #0369a1 60%, #0284c7 100%);
+    border-radius: 1rem;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 8px 24px rgba(11,99,168,0.18);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.notif-page-header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+}
+.notif-page-header::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; left: 40%;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+}
+.notif-page-header h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.notif-page-header p { opacity: 0.88; margin: 0.25rem 0 0; font-size: 0.95rem; }
+
+/* ── Stats Bar ── */
+.notif-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+.notif-stat-pill {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* ── Unread badge ── */
+#unreadCount {
+    background: linear-gradient(90deg, #fa6b02, #ff8a2b);
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    box-shadow: 0 4px 12px rgba(250,107,2,0.28);
+    vertical-align: middle;
+}
+
+/* ── Mark all read button ── */
+.btn-mark-all {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.4rem 1rem;
+    transition: background 0.15s, transform 0.08s;
+    backdrop-filter: blur(4px);
+}
+.btn-mark-all:hover {
+    background: rgba(255,255,255,0.28);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+/* ── Notification Feed ── */
+#notificationsList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+/* ── Notification Card ── */
+.notif-card {
+    background: #fff;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(15,23,42,0.07);
+    box-shadow: 0 2px 10px rgba(15,23,42,0.05);
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none !important;
+}
+.notif-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(15,23,42,0.10);
+    border-color: rgba(11,99,168,0.18);
+}
+.notif-card.is-unread {
+    border-left: 4px solid #0b63a8;
+    background: linear-gradient(to right, rgba(11,99,168,0.04) 0%, #fff 60%);
+}
+
+/* ── Icon bubble ── */
+.notif-icon-wrap {
+    flex-shrink: 0;
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem;
+}
+.notif-icon-wrap.type-new_order      { background: linear-gradient(135deg,#fbbf24,#f59e0b); color:#fff; }
+.notif-icon-wrap.type-rider_assigned { background: linear-gradient(135deg,#38bdf8,#0284c7); color:#fff; }
+.notif-icon-wrap.type-order_delivered{ background: linear-gradient(135deg,#34d399,#059669); color:#fff; }
+.notif-icon-wrap.type-default        { background: linear-gradient(135deg,#a78bfa,#7c3aed); color:#fff; }
+
+/* ── Card body ── */
+.notif-body { flex: 1; min-width: 0; }
+.notif-title {
+    font-size: 0.93rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.notif-message {
+    font-size: 0.85rem;
+    color: #475569;
+    margin: 0 0 0.5rem;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.notif-time {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* ── NEW badge ── */
+.notif-new-badge {
+    flex-shrink: 0;
+    background: linear-gradient(90deg,#0b63a8,#0369a1);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+    align-self: flex-start;
+    margin-top: 0.1rem;
+    box-shadow: 0 3px 8px rgba(11,99,168,0.25);
+}
+
+/* ── Empty state ── */
+#emptyState {
+    border-radius: 1rem;
+    border: 2px dashed rgba(15,23,42,0.10);
+    padding: 4rem 2rem;
+    text-align: center;
+    color: #64748b;
+}
+#emptyState .empty-icon-ring {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#e0f2fe,#bfdbfe);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+    font-size: 2rem;
+    color: #0b63a8;
+    box-shadow: 0 8px 24px rgba(11,99,168,0.10);
+}
+#emptyState h4 { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-bottom: 0.4rem; }
+#emptyState p  { font-size: 0.88rem; color: #64748b; }
+
+/* ── Skeleton loader ── */
+.notif-skeleton {
+    background: #fff;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(15,23,42,0.06);
+    padding: 1rem 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    animation: pulse 1.4s ease-in-out infinite;
+}
+.sk-icon { width:46px; height:46px; border-radius:12px; background:#e2e8f0; flex-shrink:0; }
+.sk-line  { height:12px; border-radius:6px; background:#e2e8f0; }
+.sk-line.w80 { width:80%; }
+.sk-line.w60 { width:60%; margin-top:8px; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* ── Section wrapper card ── */
+.notif-section-card {
+    background: #fff;
+    border-radius: 1rem;
+    border: 1px solid rgba(15,23,42,0.06);
+    box-shadow: 0 4px 16px rgba(15,23,42,0.05);
+    padding: 1.5rem;
+}
+.notif-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(15,23,42,0.07);
+}
+.notif-section-header h6 {
+    font-size: 0.9rem; font-weight: 700; color: #334155;
+    margin: 0; display: flex; align-items: center; gap: 0.4rem;
+}
+.notif-count-pill {
+    font-size: 0.75rem; font-weight: 700;
+    background: rgba(11,99,168,0.08); color: #0b63a8;
+    border-radius: 999px; padding: 0.2rem 0.6rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .notif-page-header { padding: 1.1rem 1.25rem; }
+    .notif-page-header h2 { font-size: 1.25rem; }
+    .notif-card { padding: 0.85rem 1rem; }
+}
+@media (max-width: 576px) {
+    .notif-icon-wrap { width:38px; height:38px; font-size:1rem; border-radius:10px; }
+    .notif-title  { font-size:0.88rem; }
+    .notif-message{ font-size:0.8rem; }
+    .notif-section-card { padding:1rem; }
+}
+</style>
+
+<div class="container-fluid py-4" style="overflow-x:hidden;">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2">
+            {% set active_page = 'notifications' %}
+            {% include 'seller/_sidebar.html' %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9 col-lg-10">
+
+            <!-- Page Header -->
+            <div class="notif-page-header">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <h2><i class="fas fa-bell"></i> Notifications</h2>
+                        <p>Order updates, alerts, and real-time activity</p>
+                        <div class="notif-stats-bar">
+                            <span class="notif-stat-pill">
+                                <i class="fas fa-circle" style="font-size:0.55rem;color:#4ade80;"></i>
+                                Live updates enabled
+                            </span>
+                            <span class="notif-stat-pill" id="headerUnreadPill">
+                                <i class="fas fa-bell-slash" style="font-size:0.75rem;"></i>
+                                <span id="headerUnreadText">0 unread</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge" id="unreadCount">0</span>
+                        <button class="btn-mark-all btn" onclick="markAllAsRead()">
+                            <i class="fas fa-check-double me-1"></i> Mark all read
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Section -->
+            <div class="notif-section-card">
+                <div class="notif-section-header">
+                    <h6>
+                        <i class="fas fa-list-ul text-primary"></i>
+                        All Notifications
+                    </h6>
+                    <span class="notif-count-pill" id="totalCountPill">0 total</span>
+                </div>
+
+                <!-- Skeleton loaders -->
+                <div id="skeletonLoader">
+                    <div class="notif-skeleton mb-2">
+                        <div class="sk-icon"></div>
+                        <div style="flex:1">
+                            <div class="sk-line w80"></div>
+                            <div class="sk-line w60"></div>
+                        </div>
+                    </div>
+                    <div class="notif-skeleton mb-2">
+                        <div class="sk-icon"></div>
+                        <div style="flex:1">
+                            <div class="sk-line w80"></div>
+                            <div class="sk-line w60"></div>
+                        </div>
+                    </div>
+                    <div class="notif-skeleton">
+                        <div class="sk-icon"></div>
+                        <div style="flex:1">
+                            <div class="sk-line w80"></div>
+                            <div class="sk-line w60"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="notificationsList"></div>
+
+                <div id="emptyState" style="display:none;">
+                    <div class="empty-icon-ring">
+                        <i class="fas fa-bell-slash"></i>
+                    </div>
+                    <h4>You're all caught up!</h4>
+                    <p>No notifications yet — you'll see order updates and alerts here.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script id="notifications-data" type="application/json">
+{{ notifications|tojson|safe }}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotifications();
+
+    socket.on('new_notification', function(data) {
+        prependNotification(data);
+        updateUnreadCount();
+        playNotificationSound();
+        showDesktopNotification(data.message);
+    });
+});
+
+function loadNotifications() {
+    const list  = document.getElementById('notificationsList');
+    const empty = document.getElementById('emptyState');
+    const skel  = document.getElementById('skeletonLoader');
+
+    const notificationsData = document.getElementById('notifications-data').textContent;
+    const notifications = JSON.parse(notificationsData);
+
+    skel.style.display = 'none';
+
+    if (notifications.length === 0) {
+        empty.style.display = 'block';
+    } else {
+        empty.style.display = 'none';
+        notifications.forEach(n => list.appendChild(createNotificationCard(n)));
+    }
+
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+    document.getElementById('unreadCount').textContent = unreadCount;
+    document.getElementById('headerUnreadText').textContent = unreadCount + ' unread';
+    document.getElementById('totalCountPill').textContent = notifications.length + ' total';
+}
+
+function createNotificationCard(notif) {
+    const wrap = document.createElement('div');
+    wrap.className = 'notif-card' + (notif.is_read ? '' : ' is-unread');
+    wrap.onclick = () => markAsRead(notif.id, notif.link);
+
+    const iconClass = getNotificationIcon(notif.type);
+    const typeKey   = ['new_order','rider_assigned','order_delivered'].includes(notif.type) ? notif.type : 'default';
+    const shortMsg  = notif.message.length > 55 ? notif.message.substring(0, 55) + '…' : notif.message;
+
+    wrap.innerHTML = `
+        <div class="notif-icon-wrap type-${typeKey}">
+            <i class="${iconClass}"></i>
+        </div>
+        <div class="notif-body">
+            <p class="notif-title">${shortMsg}</p>
+            <p class="notif-message">${notif.message}</p>
+            <span class="notif-time">
+                <i class="far fa-clock"></i>
+                ${formatTime(notif.created_at)}
+            </span>
+        </div>
+        ${!notif.is_read ? '<span class="notif-new-badge">NEW</span>' : ''}
+    `;
+    return wrap;
+}
+
+function prependNotification(notif) {
+    const list = document.getElementById('notificationsList');
+    list.insertBefore(createNotificationCard(notif), list.firstChild);
+    document.getElementById('emptyState').style.display = 'none';
+}
+
+function markAsRead(id, url) {
+    fetch(`/api/notifications/${id}/read`, { method: 'POST' })
+        .then(() => {
+            updateUnreadCount();
+            if (url) window.location.href = url;
+        });
+}
+
+function markAllAsRead() {
+    fetch('/api/notifications/mark-all-read', { method: 'POST' })
+        .then(() => {
+            document.querySelectorAll('.notif-card.is-unread').forEach(el => el.classList.remove('is-unread'));
+            document.querySelectorAll('.notif-new-badge').forEach(el => el.remove());
+            updateUnreadCount();
+        });
+}
+
+function updateUnreadCount() {
+    fetch('/api/notifications/unread-count')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('unreadCount').textContent = data.unread_count;
+            document.getElementById('headerUnreadText').textContent = data.unread_count + ' unread';
+        });
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        'new_order':       'fas fa-shopping-cart',
+        'rider_assigned':  'fas fa-motorcycle',
+        'order_delivered': 'fas fa-check-circle'
+    };
+    return icons[type] || 'fas fa-bell';
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now  = new Date();
+    const diff = Math.floor((now - date) / 1000);
+    if (diff < 60)    return 'Just now';
+    if (diff < 3600)  return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return date.toLocaleDateString();
+}
+
+function playNotificationSound() {
+    const audio = new Audio('/static/notification.mp3');
+    audio.play().catch(() => {});
+}
+
+function showDesktopNotification(title, message) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body: message, icon: '/static/logo.png' });
+    }
+}
+
+if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+}
+</script>
+{% endblock %}

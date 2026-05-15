@@ -1,0 +1,271 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Profile - Admin Dashboard{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'admin_profile' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+<h2 class="fw-bold">Admin Profile</h2>
+    <span class="badge bg-{% if admin_profile.account_status == 'Active' %}success{% else %}danger{% endif %} fs-6">
+        {{ admin_profile.account_status }}
+    </span>
+</div>
+
+<div class="row g-4">
+                <!-- Personal Information (Identity Section) -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Personal Information (Identity Section)</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="{{ url_for('update_admin_profile') }}" method="post" enctype="multipart/form-data">
+                                <!-- Profile Picture / Avatar -->
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <label class="form-label">Profile Picture / Avatar</label>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-container me-3">
+                                                <img src="{{ admin_avatar_url }}" alt="Admin avatar" class="rounded-circle border" 
+                                                     style="width: 80px; height: 80px; object-fit: cover;">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <input type="file" class="form-control mb-2" id="avatar" name="avatar" accept="image/png,image/jpeg">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Upload a square image (PNG/JPG); it will be resized automatically.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Full Name (Admin Name) -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="first_name" class="form-label">
+                                            <i class="fas fa-user me-1"></i>First Name
+                                        </label>
+                                        <input type="text" class="form-control" id="first_name" name="first_name" 
+                                               value="{{ user.first_name }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="last_name" class="form-label">
+                                            <i class="fas fa-user me-1"></i>Last Name
+                                        </label>
+                                        <input type="text" class="form-control" id="last_name" name="last_name" 
+                                               value="{{ user.last_name }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="full_name" class="form-label">
+                                            <i class="fas fa-id-badge me-1"></i>Full Name (Admin Name)
+                                        </label>
+                                        <input type="text" class="form-control" id="full_name" name="full_name" 
+                                               value="{{ admin_profile.full_name }}" required>
+                                        <small class="text-muted">Complete admin display name</small>
+                                    </div>
+                                    <!-- Username / Admin ID -->
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">
+                                            <i class="fas fa-envelope me-1"></i>Email / Admin ID
+                                        </label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ user.email }}" readonly>
+                                        <small class="text-muted">System identifier (cannot be changed)</small>
+                                    </div>
+                                </div>
+                                
+                                <!-- Email Address (for login and recovery) -->
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">
+                                            <i class="fas fa-envelope me-1"></i>Email Address
+                                        </label>
+                                        <input type="email" class="form-control" id="email" name="email" 
+                                               value="{{ user.email }}" required>
+                                        <small class="text-muted">For login and account recovery</small>
+                                    </div>
+                                    <!-- Contact Number -->
+                                    <div class="col-md-6 mb-3">
+                                        <label for="contact_number" class="form-label">
+                                            <i class="fas fa-phone me-1"></i>Contact Number
+                                        </label>
+                                        <input type="tel" class="form-control" id="contact_number" name="contact_number" 
+                                               value="{{ admin_profile.contact_number }}" placeholder="09xxxxxxxxx" pattern="\d{11}" minlength="11" maxlength="11" inputmode="numeric" required>
+                                        <small class="text-muted">11-digit mobile number only (numbers 0-9).</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="system_role" class="form-label">
+                                            <i class="fas fa-crown me-1"></i>System Role
+                                        </label>
+                                        <select class="form-control" id="system_role" name="system_role">
+                                            <option value="Administrator" {{ 'selected' if admin_profile.system_role == 'Administrator' else '' }}>Administrator</option>
+                                            <option value="Super Admin" {{ 'selected' if admin_profile.system_role == 'Super Admin' else '' }}>Super Admin</option>
+                                        </select>
+                                        <small class="text-muted">Administrative privilege level</small>
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-4">
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Update Profile Information
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Status & Security -->
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security & Status</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Account Status</label>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="badge bg-{% if admin_profile.account_status == 'Active' %}success{% else %}danger{% endif %} fs-6">
+                                        <i class="fas fa-{% if admin_profile.account_status == 'Active' %}check-circle{% else %}times-circle{% endif %} me-1"></i>
+                                        {{ admin_profile.account_status }}
+                                    </span>
+                                    {% if admin_profile.account_status == 'Suspended' %}
+                                        <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Restricted Access</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Last Login Date & Time</label>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clock text-primary me-2"></i>
+                                    <div>
+                                        {% if admin_profile.last_login %}
+                                            <strong>{{ admin_profile.last_login.strftime('%B %d, %Y') }}</strong><br>
+                                            <small class="text-muted">{{ admin_profile.last_login.strftime('%I:%M %p') }}</small>
+                                        {% else %}
+                                            <span class="text-warning">Never logged in</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Created At</label>
+                                <div>{{ admin_profile.created_at.strftime('%B %d, %Y') }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change Password -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-key me-2"></i>Change Password</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid">
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                    <i class="fas fa-key me-2"></i>Change Password
+                                </button>
+                            </div>
+                            <hr class="my-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Password must be 8-12 characters with uppercase, lowercase, number, and special character
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h6>
+                            <a href="{{ url_for('admin_activity_logs') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_logs %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Action</th>
+                                                <th>Details</th>
+                                                <th>IP Address</th>
+                                                <th>Timestamp</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for log in recent_logs %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-info">{{ log.action }}</span>
+                                                    </td>
+                                                    <td>{{ log.details or 'N/A' }}</td>
+                                                    <td><code>{{ log.ip_address }}</code></td>
+                                                    <td>{{ log.created_at.strftime('%m/%d/%Y %I:%M %p') if log.created_at else 'N/A' }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-history fa-3x mb-3"></i>
+                                    <p>No recent activity</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('change_admin_password') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="current_password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" name="current_password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required>
+                        <div class="form-text">Password must be 8-12 characters with uppercase, lowercase, number, and special character</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key me-2"></i>Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

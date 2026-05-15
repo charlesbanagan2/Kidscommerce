@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+
+{% block title %}Seller Profile - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Store Status Card */
+.store-status-card {
+    border-radius: 12px;
+    border: 2px solid #28a745;
+    background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+    position: relative;             /* ensure lower stacking than sidebar */
+    z-index: 1;
+    box-shadow: 0 6px 16px rgba(16,185,129,.16);
+    transition: box-shadow .22s ease, transform .22s ease;
+}
+.store-status-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(16,185,129,.22); }
+
+/* Sidebar affix behavior */
+.seller-sidebar-card{
+    position: -webkit-sticky; /* Safari */
+    position: sticky;
+    top: 80px;                /* keeps it below the navbar */
+    z-index: 1045;            /* above any cards in the flow */
+    will-change: transform;
+    transition: box-shadow .22s ease, transform .22s ease, background-color .22s ease;
+}
+.seller-sidebar-card:hover{ transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+@media (max-width: 991.98px){
+    .seller-sidebar-card{ position: static; top: auto; z-index: auto; }
+}
+
+/* Main Content Cards */
+.profile-card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+}
+
+.profile-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem 1.25rem;
+}
+
+.profile-card .card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Store Header Banner */
+.store-banner {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-radius: 12px 12px 0 0;
+}
+
+/* Form Styling */
+.profile-card .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.profile-card .form-control:focus,
+.profile-card .form-select:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* Buttons */
+.btn-seller-primary {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    color: white;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-seller-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    color: white;
+}
+
+/* Store Logo */
+.store-logo-container {
+    position: relative;
+    display: inline-block;
+}
+
+.store-logo-container img {
+    border-radius: 12px;
+    border: 3px solid #28a745;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    object-fit: cover; /* fills the container, removing white space */
+}
+
+/* Statistics Grid */
+.stat-box {
+    padding: 1.25rem;
+    text-align: center;
+    border-right: 1px solid #dee2e6;
+}
+
+.stat-box:last-child {
+    border-right: none;
+}
+
+.stat-box h4 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stat-box small {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Document Upload Area */
+.doc-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.doc-upload-area:hover {
+    border-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stat-box {
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .stat-box:last-child {
+        border-bottom: none;
+    }
+}
+
+/* Smooth page scrolling and minor polish */
+html{ scroll-behavior: smooth; }
+.container-fluid.py-4{ contain: paint; }
+
+/* Force all text black on this page for white backgrounds, BUT do not override the seller sidebar
+   so that its active state colors remain consistent across seller pages. */
+.seller-profile-scope,
+.seller-profile-scope a,
+.seller-profile-scope .card,
+.seller-profile-scope .card-body,
+.seller-profile-scope .card-header,
+.seller-profile-scope label,
+.seller-profile-scope small,
+.seller-profile-scope .form-text,
+.seller-profile-scope .badge,
+.seller-profile-scope button,
+.seller-profile-scope .btn,
+.seller-profile-scope .nav-link {
+  color: #111 !important;
+}
+.seller-profile-scope h1, .seller-profile-scope h2, .seller-profile-scope h3, .seller-profile-scope h4, .seller-profile-scope h5, .seller-profile-scope h6 { color: #111 !important; }
+/* Override any Bootstrap utility that forces white or muted text */
+.seller-profile-scope .text-white,
+.seller-profile-scope .text-muted,
+.seller-profile-scope .text-secondary,
+.seller-profile-scope [class^="text-"],
+.seller-profile-scope [class*=" text-"] {
+  color: #111 !important;
+}
+
+/* Preserve seller sidebar header colors on the profile page */
+/* .seller-profile-scope .seller-panel-header,
+.seller-profile-scope .seller-panel-header *,
+.seller-profile-scope .seller-sidebar-card .seller-panel-header,
+.seller-profile-scope .seller-sidebar-card .seller-panel-header * {
+  color: inherit !important;
+} */
+/* Links stay black on hover/focus */
+.seller-profile-scope a:hover, .seller-profile-scope a:focus { color: #111 !important; text-decoration: underline; }
+</style>
+
+<div class="container-fluid py-4 seller-profile-scope">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2 sidebar-column">
+            {% set active_page = 'profile' %}
+            {% include 'seller/_sidebar.html' %}
+
+            <!-- Store Status Card -->
+            <div class="card store-status-card mt-3">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h6 class="fw-bold text-success mb-2">Store Active</h6>
+                    <p class="small text-muted mb-3">Your seller account is approved and active.</p>
+                    <span class="badge bg-success px-3 py-2">✓ Verified Seller</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Profile Content -->
+        <div class="col-md-9 col-lg-10 main-content-column">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-2 fw-bold text-dark" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-user me-3" style="color: #0b63a8;"></i>Profile</h2>
+                    <p class="text-muted mb-0 fs-5">Manage your store information and settings</p>
+                </div>
+            </div>
+            
+            <!-- Store Profile Header -->
+            <div class="card profile-card mb-4">
+                <div class="card-header store-banner text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-store me-2"></i>{{ seller_app.store_name if seller_app else 'Store Name' }}</h4>
+                        <button class="btn btn-quick-edit btn-sm" data-bs-toggle="modal" data-bs-target="#editStoreModal">
+                            <i class="fas fa-edit me-1"></i>Quick Edit
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2 text-center">
+                            <div class="store-logo-container">
+                                <img src="{{ seller_app.store_logo if seller_app and seller_app.store_logo else '/static/uploads/default-store-logo.png' }}" 
+                                     alt="Store Logo" class="img-fluid" style="width: 100px; height: 100px; object-fit: cover;">
+                            </div>
+                        </div>
+                        <div class="col-md-10">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="text-muted small mb-1">Store Category</label>
+                                        <h6 class="mb-0">
+                                            <span class="badge bg-success-soft text-success px-3 py-2">
+                                                <i class="fas fa-tag me-1"></i>{{ seller_app.store_category if seller_app else 'Not Set' }}
+                                            </span>
+                                        </h6>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="text-muted small mb-1">About Store</label>
+                                        <p class="mb-0 text-secondary">{{ (seller_app.store_description[:100] + '...') if seller_app and seller_app.store_description and seller_app.store_description|length > 100 else (seller_app.store_description if seller_app and seller_app.store_description else 'No description provided yet.') }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="text-muted small mb-1">Contact</label>
+                                        <div>
+                                            <i class="fas fa-envelope text-success me-2"></i>{{ user.email }}<br>
+                                            <i class="fas fa-phone text-success me-2"></i>{{ user.phone if user.phone else 'Not provided' }}
+                                        </div>
+                                    </div>
+                                    {% if seller_app and seller_app.store_logo %}
+                                    <form method="POST" action="{{ url_for('remove_store_logo') }}" style="display:inline;" onsubmit="return confirmRemoveLogo();">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="fas fa-trash-alt me-1"></i>Remove Logo
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Store Information -->
+            <div class="card profile-card">
+                <div class="card-header">
+                    <h5><i class="fas fa-store me-2"></i>Store Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_store_info') }}" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="store_name" class="form-label">Store Name</label>
+                                <input type="text" class="form-control" id="store_name" name="store_name" 
+                                       value="{{ seller_app.store_name if seller_app else '' }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="store_category" class="form-label">Store Category</label>
+                                <select class="form-select" id="store_category" name="store_category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Toys & Games" {{ 'selected' if seller_app and seller_app.store_category == 'Toys & Games' else '' }}>Toys & Games</option>
+                                    <option value="Baby Care" {{ 'selected' if seller_app and seller_app.store_category == 'Baby Care' else '' }}>Baby Care</option>
+                                    <option value="Kids Clothing" {{ 'selected' if seller_app and seller_app.store_category == 'Kids Clothing' else '' }}>Kids Clothing</option>
+                                    <option value="Educational" {{ 'selected' if seller_app and seller_app.store_category == 'Educational' else '' }}>Educational</option>
+                                    <option value="Sports & Outdoor" {{ 'selected' if seller_app and seller_app.store_category == 'Sports & Outdoor' else '' }}>Sports & Outdoor</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="store_logo" class="form-label">Store Logo</label>
+                            <input type="file" class="form-control" id="store_logo" name="store_logo" accept="image/*">
+                            <div class="form-text">Upload a logo for your store (JPG, PNG, GIF - Max 2MB). If you want to remove the existing logo, click "Remove Logo".</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-seller-primary">
+                            <i class="fas fa-save me-1"></i>Update Store Info
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Description / About Store -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Description / About Store</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_store_description') }}">
+                        <div class="mb-3">
+                            <label for="store_description" class="form-label">Store Description</label>
+                            <textarea class="form-control" id="store_description" name="store_description" rows="5" 
+                                      placeholder="Tell customers about your store, what makes you special, your story...">{{ seller_app.store_description if seller_app else '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="store_mission" class="form-label">Store Mission</label>
+                            <textarea class="form-control" id="store_mission" name="store_mission" rows="3" 
+                                      placeholder="What is your store's mission?">{{ seller_app.store_mission if seller_app else '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Description
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Return Policy -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-undo me-2"></i>Return Policy</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_return_policy') }}">
+                        <div class="mb-3">
+                            <label for="return_policy" class="form-label">Return Policy</label>
+                            <textarea class="form-control" id="return_policy" name="return_policy" rows="6" 
+                                      placeholder="Describe your return and refund policy...">{{ seller_app.return_policy if seller_app else '' }}</textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="return_days" class="form-label">Return Period (Days)</label>
+                                <input type="number" class="form-control" id="return_days" name="return_days" 
+                                       value="{{ seller_app.return_days if seller_app else '7' }}" min="1" max="30">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="refund_method" class="form-label">Refund Method</label>
+                                <select class="form-select" id="refund_method" name="refund_method">
+                                    <option value="Original Payment Method" {{ 'selected' if seller_app and seller_app.refund_method == 'Original Payment Method' else '' }}>Original Payment Method</option>
+                                    <option value="Store Credit" {{ 'selected' if seller_app and seller_app.refund_method == 'Store Credit' else '' }}>Store Credit</option>
+                                    <option value="GCash" {{ 'selected' if seller_app and seller_app.refund_method == 'GCash' else '' }}>GCash</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Return Policy
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Business Documents -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Business Documents (for verification)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Business Registration</label>
+                            <div class="border rounded p-3 text-center">
+                                {% if seller_app and seller_app.business_registration %}
+                                    <i class="fas fa-file-pdf fa-2x text-danger mb-2"></i>
+                                    <p class="mb-1">Business Registration</p>
+                                    <a href="{{ seller_app.business_registration }}" target="_blank" class="btn btn-sm btn-outline-primary">View Document</a>
+                                {% else %}
+                                    <i class="fas fa-upload fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted mb-1">No document uploaded</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Valid ID</label>
+                            <div class="border rounded p-3 text-center">
+                                {% if seller_app and seller_app.valid_id %}
+                                    <i class="fas fa-file-pdf fa-2x text-danger mb-2"></i>
+                                    <p class="mb-1">Valid ID</p>
+                                    <a href="{{ seller_app.valid_id }}" target="_blank" class="btn btn-sm btn-outline-primary">View Document</a>
+                                {% else %}
+                                    <i class="fas fa-upload fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted mb-1">No document uploaded</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('upload_business_documents') }}" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="business_registration" class="form-label">Upload Business Registration</label>
+                                <input type="file" class="form-control" id="business_registration" name="business_registration" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="valid_id" class="form-label">Upload Valid ID</label>
+                                <input type="file" class="form-control" id="valid_id" name="valid_id" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Documents
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Seller Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Seller Info</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_seller_info') }}">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                            <div class="form-text">Email cannot be changed for security reasons.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Contact Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="business_address" class="form-label">Business Address</label>
+                            <textarea class="form-control" id="business_address" name="business_address" rows="3" required>{{ seller_app.business_address if seller_app else user.address }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="gcash_number" class="form-label">GCash Number</label>
+                            <input type="text" class="form-control" id="gcash_number" name="gcash_number" 
+                                   value="{{ seller_app.gcash_number if seller_app else '' }}" placeholder="09XX XXX XXXX">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Update Seller Info
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Change Password / Security Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Change Password / Security Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('change_password') }}">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="current_password" class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="new_password" class="form-label">New Password</label>
+                                <input type="password" class="form-control" id="new_password" name="new_password" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="two_factor" name="two_factor" 
+                                       {{ 'checked' if user.two_factor_enabled else '' }}>
+                                <label class="form-check-label" for="two_factor">
+                                    Enable Two-Factor Authentication
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="email_notifications" name="email_notifications" 
+                                       {{ 'checked' if user.email_notifications else '' }}>
+                                <label class="form-check-label" for="email_notifications">
+                                    Email Notifications for Orders
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-key me-2"></i>Update Security Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Store Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Store Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="border-end">
+                                <h4 class="text-primary">{{ total_products if total_products else 0 }}</h4>
+                                <small class="text-muted">Total Products</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border-end">
+                                <h4 class="text-success">{{ total_orders if total_orders else 0 }}</h4>
+                                <small class="text-muted">Total Orders</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="border-end">
+                                <h4 class="text-info">₱{{ "{:,.2f}".format(total_sales) if total_sales else '0.00' }}</h4>
+                                <small class="text-muted">Total Sales</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <h4 class="text-warning">{{ user.created_at.strftime('%Y') if user and user.created_at else 'N/A' }}</h4>
+                            <small class="text-muted">Member Since</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Store Modal -->
+<div class="modal fade" id="editStoreModal" tabindex="-1" aria-labelledby="editStoreModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                <h5 class="modal-title" id="editStoreModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Store Information
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('update_store_info') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_store_name" class="form-label fw-bold">Store Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_store_name" name="store_name" 
+                                   value="{{ seller_app.store_name if seller_app else '' }}" required
+                                   placeholder="Enter your store name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modal_store_category" class="form-label fw-bold">Store Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="modal_store_category" name="store_category" required>
+                                <option value="">Select Category</option>
+                                <option value="Baby Clothes & Accessories" {{ 'selected' if seller_app and seller_app.store_category == 'Baby Clothes & Accessories' else '' }}>Baby Clothes & Accessories</option>
+                                <option value="Toys & Games" {{ 'selected' if seller_app and seller_app.store_category == 'Toys & Games' else '' }}>Toys & Games</option>
+                                <option value="Educational Materials" {{ 'selected' if seller_app and seller_app.store_category == 'Educational Materials' else '' }}>Educational Materials</option>
+                                <option value="Strollers & Gear" {{ 'selected' if seller_app and seller_app.store_category == 'Strollers & Gear' else '' }}>Strollers & Gear</option>
+                                <option value="Nursery Furniture" {{ 'selected' if seller_app and seller_app.store_category == 'Nursery Furniture' else '' }}>Nursery Furniture</option>
+                                <option value="Safety and Health" {{ 'selected' if seller_app and seller_app.store_category == 'Safety and Health' else '' }}>Safety and Health</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modal_store_description" class="form-label fw-bold">Store Description</label>
+                        <textarea class="form-control" id="modal_store_description" name="store_description" rows="4" 
+                                  placeholder="Tell customers about your store...">{{ seller_app.store_description if seller_app else '' }}</textarea>
+                        <div class="form-text">Help customers understand what makes your store special</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modal_store_logo" class="form-label fw-bold">Store Logo</label>
+                        <input type="file" class="form-control" id="modal_store_logo" name="store_logo" accept="image/*">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle text-info"></i> Upload JPG, PNG, or GIF (Max 2MB). Recommended size: 500×500px
+                        </div>
+                    </div>
+                    
+                    {% if seller_app and seller_app.store_logo %}
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="fas fa-image fa-2x me-3"></i>
+                        <div>
+                            <strong>Current Logo:</strong> You have an existing logo. Upload a new file to replace it, or leave empty to keep current logo.
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-seller-primary">
+                        <i class="fas fa-save me-1"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmRemoveLogo() {
+    return confirm('Are you sure you want to remove your store logo? This action cannot be undone. If you want to upload a new logo, please use the "Store Logo" upload field.');
+}
+</script>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+
+{% endblock %}

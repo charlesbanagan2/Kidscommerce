@@ -1,0 +1,2562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- IMPORTANT: keep  so mobile doesn’t zoom on inputs -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+  <title>Register - Kids Kingdom</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #0b63a8;
+      --primary-dark: #094d82;
+      --primary-light: #e6f0f7;
+      --secondary: #6c757d;
+      --success: #28a745;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --light: #f8f9fa;
+      --dark: #343a40;
+      --white: #ffffff;
+      --gray-100: #f8f9fa;
+      --gray-200: #e9ecef;
+      --gray-300: #dee2e6;
+      --gray-400: #ced4da;
+      --gray-500: #adb5bd;
+      --gray-600: #6c757d;
+      --border-radius: 16px;
+      --box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      --box-shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      background: var(--gray-100);
+      overflow-x: hidden;
+    }
+
+    /* Main container - seamless split layout with 35%/65% ratio */
+    .main-container {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Left Brand Panel - content now at top and centered */
+    .brand-panel {
+      width: 35%;
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 3rem 2rem 2rem 2rem;
+      overflow: hidden;
+    }
+.brand-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Modified background to be more transparent (alpha changed from ~0.9 to 0.5) */
+  background: linear-gradient(160deg, rgba(11, 99, 168, 0.5) 0%, rgba(9, 77, 130, 0.5) 100%);
+  z-index: 1;
+}
+    /* Background image - replace src with your image */
+    .brand-bg-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    .brand-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      color: var(--white);
+      max-width: 320px;
+    }
+
+    /* Logo area - replace src with your logo */
+    .logo-wrapper {
+      margin-bottom: 1.5rem;
+    }
+
+    .logo-wrapper img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand-content h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+      text-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .brand-content p {
+      font-size: 0.9rem;
+      opacity: 0.9;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Brand features now centered */
+    .brand-features {
+      text-align: left;
+      display: inline-block;
+    }
+
+    .brand-features .feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .brand-features .feature i {
+      color: #7dd3fc;
+      font-size: 0.9rem;
+    }
+
+    /* Form Panel - expanded to 65% width with no gap */
+    .form-panel {
+      width: 65%;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 3rem;
+      background: var(--white);
+    }
+
+    .form-wrapper {
+      width: 100%;
+      max-width: 580px;
+    }
+
+    /* Mobile Header (hidden on desktop) */
+    .mobile-header {
+      display: none;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .mobile-header img {
+      width: 70px;
+      height: 70px;
+      object-fit: contain;
+      margin-bottom: 0.5rem;
+    }
+
+    .mobile-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 0;
+    }
+
+    /* Form Header */
+    .form-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-header h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 0.25rem;
+    }
+
+    .form-header p {
+      color: var(--gray-600);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* Role Selector */
+    .role-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .role-option {
+      position: relative;
+      padding: 1.25rem 1rem;
+      border: 2px solid var(--gray-200);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      text-align: center;
+      background: var(--white);
+    }
+
+    .role-option:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .role-option.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      box-shadow: 0 4px 12px rgba(11, 99, 168, 0.15);
+    }
+
+    .role-option input[type="radio"] {
+      display: none;
+    }
+
+    .role-option .role-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .role-option .role-label {
+      font-weight: 600;
+      color: var(--dark);
+      font-size: 0.95rem;
+    }
+
+    .role-option.active .role-label {
+      color: var(--primary);
+    }
+
+    /* Enhanced Stepper with Step Labels */
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      padding: 1rem 0;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: var(--gray-300);
+      z-index: 0;
+    }
+
+    .step-item.active:not(:last-child)::after,
+    .step-item.completed:not(:last-child)::after {
+      background: var(--primary);
+    }
+
+    .step-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+      width: 100%;
+    }
+
+    .step-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+      border: 3px solid var(--white);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .step-item.active .step-circle {
+      background: var(--primary);
+      color: var(--white);
+      transform: scale(1.1);
+      box-shadow: 0 4px 15px rgba(11, 99, 168, 0.4);
+    }
+
+    .step-item.completed .step-circle {
+      background: var(--success);
+      color: var(--white);
+    }
+
+    .step-label {
+      margin-top: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .step-item.active .step-label {
+      color: var(--primary);
+    }
+
+    .step-item.completed .step-label {
+      color: var(--success);
+    }
+
+    /* Form Elements */
+    .form-section-content {
+      display: none;
+    }
+
+    .form-section-content.active {
+      display: block;
+    }
+
+    .form-step {
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .form-step.active {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(15px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .form-label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--dark);
+      margin-bottom: 0.4rem;
+    }
+
+    .form-label.required::after {
+      content: " *";
+      color: var(--danger);
+    }
+
+    .form-control,
+    .form-select {
+      border-radius: 10px;
+      border: 1.5px solid var(--gray-300);
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      background: var(--white);
+    }
+
+    /* Password strength bar */
+    .password-strength {
+      margin-top: 0.5rem;
+    }
+
+    .password-strength-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--gray-200);
+      width: 0%;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+
+    .password-strength-bar.weak {
+      background: var(--danger);
+    }
+
+    .password-strength-bar.medium {
+      background: var(--warning);
+    }
+
+    .password-strength-bar.strong {
+      background: var(--success);
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(11, 99, 168, 0.12);
+    }
+
+    .form-control.is-invalid {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+    }
+
+    .form-text {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-top: 0.25rem;
+    }
+
+    .form-text.error {
+      color: var(--danger);
+    }
+
+    .form-text.success {
+      color: var(--success);
+    }
+
+    /* Password Strength */
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--gray-500);
+      cursor: pointer;
+      padding: 0;
+      z-index: 10;
+    }
+
+    .password-toggle:hover {
+      color: var(--primary);
+    }
+
+    .password-strength {
+      height: 4px;
+      background: var(--gray-200);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .password-strength-bar {
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease, background-color 0.3s ease;
+      border-radius: 2px;
+    }
+
+    /* Terms Box */
+    .terms-section {
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .terms-section-label {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 0.5rem;
+    }
+
+    .terms-scroll-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      animation: bounce 2s infinite;
+    }
+
+    .terms-scroll-indicator.hidden {
+      display: none;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-5px); }
+      60% { transform: translateY(-3px); }
+    }
+
+    .terms-box {
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 1rem;
+      background: var(--gray-100);
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      color: var(--gray-600);
+      line-height: 1.6;
+    }
+
+    .terms-box::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .terms-box::-webkit-scrollbar-track {
+      background: var(--gray-200);
+      border-radius: 3px;
+    }
+
+    .terms-box::-webkit-scrollbar-thumb {
+      background: var(--gray-400);
+      border-radius: 3px;
+    }
+
+    .terms-box::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-500);
+    }
+
+    .terms-box h6 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terms-box h6 i {
+      font-size: 0.9rem;
+    }
+
+    .terms-box p {
+      margin-bottom: 0.5rem;
+    }
+
+    .terms-box ul {
+      margin-bottom: 0.75rem;
+      padding-left: 1.25rem;
+    }
+
+    .terms-box ul li {
+      margin-bottom: 0.3rem;
+    }
+
+    .terms-box strong {
+      color: var(--dark);
+    }
+
+    .terms-checkbox-wrapper {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 0.85rem;
+      background: var(--gray-100);
+      border-radius: 10px;
+      margin-top: 0.75rem;
+      border: 1px solid var(--gray-200);
+      transition: all 0.2s ease;
+    }
+
+    .terms-checkbox-wrapper:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .terms-checkbox-wrapper input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: var(--primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .terms-checkbox-wrapper label {
+      font-size: 0.8rem;
+      color: var(--dark);
+      cursor: pointer;
+      line-height: 1.5;
+    }
+
+    .terms-checkbox-wrapper label a {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .terms-checkbox-wrapper label a:hover {
+      color: var(--primary-dark);
+    }
+
+    /* Submit Wrapper */
+    .submit-wrapper {
+      margin-top: 1rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .submit-wrapper.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.7rem 1.5rem;
+      font-weight: 600;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      transition: all 0.25s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border: none;
+      color: var(--white);
+      box-shadow: 0 4px 15px rgba(11, 99, 168, 0.25);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(11, 99, 168, 0.35);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-outline-secondary {
+      border: 2px solid var(--gray-300);
+      color: var(--dark);
+      background: var(--white);
+    }
+
+    .btn-outline-secondary:hover {
+      background: var(--gray-100);
+      border-color: var(--gray-400);
+    }
+
+    .step-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .step-actions.single {
+      justify-content: flex-end;
+    }
+
+    /* Auth Link */
+    .auth-link {
+      text-align: center;
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--gray-200);
+      font-size: 0.9rem;
+      color: var(--gray-600);
+    }
+
+    .auth-link a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .auth-link a:hover {
+      text-decoration: underline;
+    }
+
+    /* Error Messages */
+    #psgc-error-msg {
+      color: var(--danger);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Row for 2 columns */
+    .row-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .mb-3 {
+      margin-bottom: 0.85rem !important;
+    }
+
+    /* Loading State */
+    .select-loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /* FLASH MESSAGES (server-side errors like duplicate email) */
+    .flash-messages {
+      margin-bottom: 1rem;
+    }
+    .flash-messages .alert {
+      border-radius: 10px;
+      font-size: 0.85rem;
+      padding: 0.75rem 1rem;
+    }
+
+    /* Responsive - tablet and mobile */
+    @media (max-width: 1100px) {
+      .brand-panel {
+        width: 38%;
+      }
+      .form-panel {
+        width: 62%;
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .brand-panel {
+        display: none;
+      }
+
+      .form-panel {
+        width: 100%;
+        min-height: 100vh;
+        padding: 1.5rem;
+      }
+
+      .mobile-header {
+        display: block;
+      }
+
+      .form-wrapper {
+        max-width: 500px;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .form-panel {
+        padding: 1rem;
+      }
+
+      .role-selector {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .role-option {
+        padding: 1rem;
+      }
+
+      .row-2col {
+        grid-template-columns: 1fr;
+      }
+
+      .step-actions {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+      }
+
+      .step-actions .btn {
+        width: 100%;
+      }
+
+      .step-label {
+        font-size: 0.6rem;
+      }
+
+      .step-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+      }
+
+      .form-header h2 {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="main-container">
+    <!-- Brand Panel (Left Side - 35%) -->
+    <div class="brand-panel">
+      <!-- CHANGE: Replace this src with your background image -->
+      <img src="static\uploads\register_bg1.png" alt="Kids Kingdom Background" class="brand-bg-image" id="background-image">
+      
+      <div class="brand-content">
+        <!-- CHANGE: Replace src with your logo -->
+        <div class="logo-wrapper">
+          <img src="static/uploads/logo_ulit.png" alt="Kids Kingdom Logo" id="logo-desktop">
+        </div>
+        
+        <h1>Kids Kingdom</h1>
+        <p>Your trusted marketplace for safe, high-quality products for babies and kids.</p>
+        
+        <div class="brand-features">
+          <div class="feature">
+            <i class="fas fa-check-circle"></i>
+            <span>Curated products from trusted sellers</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-check-circle"></i>
+            <span>Secure payment options</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-check-circle"></i>
+            <span>Fast & reliable delivery</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-check-circle"></i>
+            <span>Excellent customer support</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Panel (Right Side - 65%) -->
+    <div class="form-panel">
+      <div class="form-wrapper">
+        
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+          <!-- CHANGE: Replace src with your logo -->
+<img src="{{ url_for('static', filename='uploads/logo_ulit.png') }}" alt="Kids Kingdom Logo" id="logo-mobile">
+          <h1>Kids Kingdom</h1>
+        </div>
+
+        <!-- FLASH MESSAGES (shows duplicate email error etc.) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-messages">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Form Header -->
+        <div class="form-header">
+          <h2>Create Your Account</h2>
+          <p>Choose your role to get started</p>
+        </div>
+
+        <!-- Role Selector -->
+        <div class="role-selector">
+          <label class="role-option active" data-role="buyer">
+            <input type="radio" name="role_choice" value="buyer" checked>
+            <span class="role-icon">🛒</span>
+            <span class="role-label">Buyer</span>
+          </label>
+          <label class="role-option" data-role="rider">
+            <input type="radio" name="role_choice" value="rider">
+            <span class="role-icon">🏍️</span>
+            <span class="role-label">Rider</span>
+          </label>
+        </div>
+
+        <!-- Registration Form -->
+        <form method="POST" action="/register/start" id="register-form" novalidate enctype="multipart/form-data">
+          <input type="hidden" id="role-input" name="role" value="buyer">
+
+          <!-- ========== BUYER FORM SECTION ========== -->
+          <div class="form-section-content buyer active" data-role="buyer">
+            <!-- Enhanced Stepper with Step Labels -->
+            <div class="stepper" data-role="buyer">
+              <div class="step-item active" data-role="buyer" data-step="1">
+                <div class="step-content">
+                  <div class="step-circle">1</div>
+                  <span class="step-label">Personal Info</span>
+                </div>
+              </div>
+              <div class="step-item" data-role="buyer" data-step="2">
+                <div class="step-content">
+                  <div class="step-circle">2</div>
+                  <span class="step-label">Password</span>
+                </div>
+              </div>
+              <div class="step-item" data-role="buyer" data-step="3">
+                <div class="step-content">
+                  <div class="step-circle">3</div>
+                  <span class="step-label">Address & Terms</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 1: Personal Info -->
+            <div class="form-step buyer-step active" data-role="buyer" data-step="1">
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label for="first_name" class="form-label required">First Name</label>
+                  <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Kids" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z\s\-'.]{0,49}$" oninput="this.value = this.value.replace(/[^A-Za-z\s\-'.]/g, '');">
+                  <small class="form-text">2–50 characters. Letters, spaces, hyphen, apostrophe, period only.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="last_name" class="form-label required">Last Name</label>
+                  <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Kingdom" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z\s\-'.]{0,49}$" oninput="this.value = this.value.replace(/[^A-Za-z\s\-'.]/g, '');">
+                  <small class="form-text">2–50 characters. Letters, spaces, hyphen, apostrophe, period only.</small>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="email" class="form-label required">Email Address</label>
+                <input 
+                  type="email" 
+                  class="form-control {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}{% if 'already registered' in message %}is-invalid{% endif %}{% endfor %}{% endwith %}" 
+                  id="email" 
+                  name="email" 
+                  placeholder="kidskingdom@gmail.com" 
+                  required 
+                  oninput="clearGmailError(this)" onblur="checkGmail(this)">
+                <!-- CLIENT-SIDE (GMAIL ONLY) WARNING -->
+                <div class="form-text error" id="gmail-warning" style="display:none;">Gmail address only required</div>
+                <!-- Server-side success indicator from EmailListVerify -->
+                <div class="form-text success" id="email-verify-ok" style="display:none;">Email verified.</div>
+                <!-- SERVER-SIDE DUPLICATE EMAIL ERROR -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      {% if 'already registered' in message %}
+                        <div class="form-text error" id="duplicate-email-error">
+                          {{ message }}
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+              </div>
+
+
+              <div class="mb-3">
+                <label for="phone" class="form-label required">Phone Number</label>
+                <input type="tel" class="form-control" id="phone" name="phone" placeholder="09123456789" inputmode="numeric" value="09" oninput="handlePhoneInput(this);" required>
+                <small class="form-text">Philippine mobile number only. Must start with 09 and contain exactly 11 digits.</small>
+              </div>
+              <div class="auth-link">
+                Already have an account?
+                <a href="{{ url_for('login') }}">Log in</a>
+              </div>
+
+              <div class="step-actions single">
+                <button type="button" class="btn btn-primary step-next" data-role="buyer">
+                  Next <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Password -->
+            <div class="form-step buyer-step" data-role="buyer" data-step="2">
+              <div class="mb-3">
+                <label for="password" class="form-label required">Password</label>
+                <div class="password-wrapper">
+                  <input type="password" class="form-control" id="password" name="password" placeholder="Create a strong password" required minlength="10" autocomplete="new-password" style="padding-right: 45px;">
+                  <button type="button" class="password-toggle" onclick="togglePassword('password')" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye" id="password-toggle"></i>
+                  </button>
+                </div>
+                <div class="password-strength">
+                  <div class="password-strength-bar" id="buyer-password-strength-bar"></div>
+                </div>
+                <small class="form-text">At least 10 characters with uppercase, lowercase, number, and special character.</small>
+                <small id="password-error-buyer" class="form-text error" style="display:none;"></small>
+              </div>
+
+              <div class="mb-3">
+                <label for="confirm_password" class="form-label required">Confirm Password</label>
+                <div class="password-wrapper">
+                  <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required minlength="10" autocomplete="new-password" style="padding-right: 45px;">
+                  <button type="button" class="password-toggle" onclick="togglePassword('confirm_password')" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye" id="confirm_password-toggle"></i>
+                  </button>
+                </div>
+                <div class="form-text" id="confirm-password-feedback"></div>
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-outline-secondary step-prev" data-role="buyer">
+                  <i class="fas fa-arrow-left me-2"></i> Back
+                </button>
+                <button type="button" class="btn btn-primary step-next" data-role="buyer">
+                  Next <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Address & Terms -->
+            <div class="form-step buyer-step" data-role="buyer" data-step="3">
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label class="form-label required">Region</label>
+                  <select id="region" name="region" class="form-select" required>
+                    <option value="">Select region</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label required">Province</label>
+                  <select id="province" name="province" class="form-select" required disabled>
+                    <option value="">Select region first</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label class="form-label required">City / Municipality</label>
+                  <select id="city" name="city" class="form-select" required disabled>
+                    <option value="">Select province first</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label required">Barangay</label>
+                  <select id="barangay" name="barangay" class="form-select" required disabled>
+                    <option value="">Select city first</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="street_address" class="form-label">Street Address</label>
+                <input type="text" id="street_address" name="street_address" class="form-control" placeholder="House number, street" autocomplete="off" required>
+              </div>
+
+              <input type="hidden" id="address" name="address" required>
+
+              <div class="mb-3">
+                <label for="valid_id" class="form-label required">Valid ID </label>
+                <input type="file" class="form-control" id="valid_id" name="valid_id" accept="image/png,image/jpeg,application/pdf" required>
+                <small class="form-text">Driver's License, Passport, etc. (JPG, PNG, PDF) - Required for account verification</small>
+              </div>
+
+              <!-- Buyer Terms Section -->
+              <div class="terms-section">
+                <div class="terms-section-label">Welcome to Kids Kingdom – Buyer Terms & Privacy</div>
+
+                <div class="terms-scroll-indicator" id="buyer-scroll-indicator">
+                  <i class="fas fa-chevron-down"></i>
+                  <span>Please scroll down to read all terms</span>
+                </div>
+
+                <div id="buyer-terms-box" class="terms-box" data-role="buyer">
+                  <h6><i class="fas fa-file-contract"></i> Welcome to Kids Kingdom – Buyer Terms & Privacy</h6>
+                  <p>
+                    Kids Kingdom is a dedicated online marketplace for parents and guardians who want safe, high-quality
+                    products for babies and kids. By creating a buyer account, you are joining a community focused on
+                    child safety, product quality, and excellent service.
+                  </p>
+
+                  <p><strong>What Kids Kingdom Offers to Buyers</strong></p>
+                  <ul>
+                    <li>Curated products for newborns, toddlers, and children from trusted and vetted sellers.</li>
+                    <li>Standardized product information (age-appropriateness, safety notes, and usage guidelines).</li>
+                    <li>Secure payment options (GCash, cards, and COD where available).</li>
+                    <li>Order tracking and direct communication with riders and support for delivery concerns.</li>
+                  </ul>
+
+                  <p><strong>Your Responsibilities as a Buyer</strong></p>
+                  <ul>
+                    <li>Provide accurate, up-to-date delivery details and contact information.</li>
+                    <li>Review product descriptions and sizing guides carefully before placing orders.</li>
+                    <li>Inspect items upon delivery and report issues within the allowed return period.</li>
+                    <li>Treat riders, support staff, and sellers with courtesy and respect.</li>
+                  </ul>
+
+                  <p><strong>Data Privacy & Protection</strong></p>
+                  <ul>
+                    <li>Kids Kingdom uses your personal data solely for account management, order fulfillment, and customer support.</li>
+                    <li>We do <strong>not</strong> sell your personal information to advertising networks or unrelated third parties.</li>
+                    <li>Limited data (such as name, contact number, and delivery address) is shared only with riders and logistics partners to complete your delivery.</li>
+                    <li>We implement reasonable security safeguards to protect your data from unauthorized access.</li>
+                  </ul>
+
+                  <p><strong>Orders, Cancellations, and Returns</strong></p>
+                  <ul>
+                    <li>Prices are shown in Philippine Peso (PHP) and may change based on promotions or seller updates.</li>
+                    <li>Orders may be cancelled only within the time window indicated in the checkout or order page.</li>
+                    <li>Approved returns and refunds are processed within the timelines disclosed in our Return Policy.</li>
+                    <li>Repeated misuse of cancellation, COD refusal, or fraudulent behavior may result in account review or suspension.</li>
+                  </ul>
+
+                  <p><strong>Acceptance of Buyer Terms</strong></p>
+                  <p>
+                    By checking <em>"I agree to the Terms & Conditions and Privacy Policy"</em> and clicking
+                    <strong>Create Account</strong>, you confirm that:
+                  </p>
+                  <ul>
+                    <li>You have read and understood the Kids Kingdom buyer terms, privacy practices, and policies.</li>
+                    <li>You consent to the collection and processing of your data for the purposes described above.</li>
+                    <li>You are at least 18 years old, or you have the permission and guidance of a parent or guardian.</li>
+                    <li>You agree to use Kids Kingdom responsibly and in good faith.</li>
+                  </ul>
+
+                  <p>
+                    If you do not agree with any part of these terms or our Privacy Policy, please do not proceed with
+                    registration.
+                  </p>
+
+                  <!-- Kids Kingdom Terms & Conditions and Privacy Policy for buyers INSIDE this section at the end -->
+                  <hr style="margin: 1.5rem 0; border-color: var(--gray-300);">
+                  
+                  <h6><i class="fas fa-shield-alt"></i> Kids Kingdom Terms & Conditions and Privacy Policy</h6>
+                  
+                  <p><strong>1. General Terms</strong></p>
+                  <p>
+                    These Terms & Conditions ("Terms") govern your use of the Kids Kingdom platform, including all services, 
+                    features, and content provided through our website and mobile applications. By accessing or using Kids Kingdom, 
+                    you agree to be bound by these Terms and our Privacy Policy.
+                  </p>
+
+                  <p><strong>2. Account Registration</strong></p>
+                  <ul>
+                    <li>You must provide accurate, complete, and current information during registration.</li>
+                    <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+                    <li>You must be at least 18 years old to create an account, or have parental/guardian consent.</li>
+                    <li>Kids Kingdom reserves the right to suspend or terminate accounts that violate these Terms.</li>
+                  </ul>
+
+                  <p><strong>3. Privacy Policy</strong></p>
+                  <ul>
+                    <li>We collect personal information necessary for account creation, order processing, and service delivery.</li>
+                    <li>Your data is processed in accordance with the Data Privacy Act of 2012 (Republic Act No. 10173).</li>
+                    <li>We use industry-standard security measures to protect your personal information.</li>
+                    <li>We may share your information with trusted third parties only as necessary to provide our services.</li>
+                    <li>You have the right to access, correct, or delete your personal data upon request.</li>
+                  </ul>
+
+                  <p><strong>4. User Conduct</strong></p>
+                  <ul>
+                    <li>Users must not engage in fraudulent, abusive, or illegal activities on the platform.</li>
+                    <li>Harassment, discrimination, or harmful behavior toward other users is strictly prohibited.</li>
+                    <li>Users must not attempt to circumvent security measures or access unauthorized areas.</li>
+                  </ul>
+
+                  <p><strong>5. Intellectual Property</strong></p>
+                  <p>
+                    All content, trademarks, logos, and intellectual property on Kids Kingdom are owned by or licensed to 
+                    Kids Kingdom. Unauthorized use, reproduction, or distribution is prohibited.
+                  </p>
+
+                  <p><strong>6. Limitation of Liability</strong></p>
+                  <p>
+                    Kids Kingdom shall not be liable for any indirect, incidental, or consequential damages arising from 
+                    your use of the platform. Our total liability shall not exceed the amount you paid for the specific 
+                    transaction in question.
+                  </p>
+
+                  <p><strong>7. Dispute Resolution</strong></p>
+                  <p>
+                    Any disputes arising from these Terms shall be resolved through good-faith negotiation. If unresolved, 
+                    disputes shall be submitted to arbitration in accordance with Philippine law.
+                  </p>
+
+                  <p><strong>8. Modifications</strong></p>
+                  <p>
+                    Kids Kingdom reserves the right to modify these Terms at any time. Continued use of the platform after 
+                    modifications constitutes acceptance of the updated Terms.
+                  </p>
+
+                  <p><strong>9. Contact Information</strong></p>
+                  <p>
+                    For questions or concerns regarding these Terms or our Privacy Policy, please contact our support team 
+                    through the Kids Kingdom platform or at our official email address.
+                  </p>
+
+                  <p style="margin-top: 1rem; font-style: italic; color: var(--gray-500);">
+                    Last updated: November 2025
+                  </p>
+
+                  <!-- Buyer checkbox lives INSIDE the scrollable terms box and is hidden until scrolled -->
+                  <div class="terms-checkbox-wrapper" id="buyer-terms-wrapper" style="display:flex; margin-top:1rem;">
+                    <input type="checkbox" id="buyer_terms" name="terms" required>
+                    <label for="buyer_terms">
+                      I have read and agree to the Kids Kingdom
+                      <a href="#" onclick="return false;">Terms & Conditions</a> and
+                      <a href="#" onclick="return false;">Privacy Policy</a> for buyers.
+                    </label>
+                  </div>
+                </div>
+
+                <div class="submit-wrapper" id="buyer-submit-wrapper">
+                  <button type="submit" class="btn btn-primary w-100" id="buyer-register-btn">
+                    <i class="fas fa-user-plus me-2"></i> Create Account
+                  </button>
+                </div>
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-outline-secondary step-prev" data-role="buyer">
+                  <i class="fas fa-arrow-left me-2"></i> Back
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== RIDER FORM SECTION ========== -->
+          <div class="form-section-content rider" data-role="rider" aria-hidden="true">
+            <!-- Enhanced Stepper with Step Labels for Rider -->
+            <div class="stepper" data-role="rider">
+              <div class="step-item active" data-role="rider" data-step="1">
+                <div class="step-content">
+                  <div class="step-circle">1</div>
+                  <span class="step-label">Personal Info</span>
+                </div>
+              </div>
+              <div class="step-item" data-role="rider" data-step="2">
+                <div class="step-content">
+                  <div class="step-circle">2</div>
+                  <span class="step-label">Password</span>
+                </div>
+              </div>
+              <div class="step-item" data-role="rider" data-step="3">
+                <div class="step-content">
+                  <div class="step-circle">3</div>
+                  <span class="step-label">Vehicle & Terms</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 1: Personal Info -->
+            <div class="form-step rider-step active" data-role="rider" data-step="1">
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label for="rider_first_name" class="form-label required">First Name</label>
+                  <input type="text" class="form-control" id="rider_first_name" name="rider_first_name" placeholder="Kids" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z\s\-'.]{0,49}$" oninput="this.value = this.value.replace(/[^A-Za-z\s\-'.]/g, '');">
+                  <small class="form-text">2–50 characters. Letters, spaces, hyphen, apostrophe, period only.</small>
+                </div>
+                <div class="mb-3">
+                  <label for="rider_last_name" class="form-label required">Last Name</label>
+                  <input type="text" class="form-control" id="rider_last_name" name="rider_last_name" placeholder="Kingdom" required minlength="2" maxlength="50" pattern="^[A-Za-z][A-Za-z\s\-'.]{0,49}$" oninput="this.value = this.value.replace(/[^A-Za-z\s\-'.]/g, '');">
+                  <small class="form-text">2–50 characters. Letters, spaces, hyphen, apostrophe, period only.</small>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="rider_email" class="form-label required">Email Address</label>
+                <input type="email" class="form-control" id="rider_email" name="rider_email" placeholder="kidskingdom@gmail.com" required oninput="clearGmailError(this)" onblur="checkGmail(this)">
+                <div class="form-text error" id="gmail-warning-rider" style="display:none;">Gmail address only required</div>
+                <div class="form-text success" id="email-verify-ok-rider" style="display:none;">Email verified.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="rider_phone" class="form-label required">Phone Number</label>
+                <input type="tel" class="form-control" id="rider_phone" name="rider_phone" placeholder="09123456789" inputmode="numeric" value="09" oninput="handlePhoneInput(this);" required>
+                <small class="form-text">Philippine mobile number only. Must start with 09 and contain exactly 11 digits.</small>
+              </div>
+              <div class="auth-link">
+                Already have an account?
+                <a href="{{ url_for('login') }}">Log in</a>
+              </div>
+
+              <div class="step-actions single">
+                <button type="button" class="btn btn-primary step-next" data-role="rider">
+                  Next <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Password -->
+            <div class="form-step rider-step" data-role="rider" data-step="2">
+              <div class="mb-3">
+                <label for="rider_password" class="form-label required">Password</label>
+                <div class="password-wrapper">
+                  <input type="password" class="form-control" id="rider_password" name="rider_password" placeholder="Create a strong password" required minlength="10" autocomplete="new-password" style="padding-right: 45px;">
+                  <button type="button" class="password-toggle" onclick="togglePassword('rider_password')" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye" id="rider_password-toggle"></i>
+                  </button>
+                </div>
+                <div class="password-strength">
+                  <div class="password-strength-bar" id="rider-password-strength-bar"></div>
+                </div>
+                <small class="form-text">At least 10 characters with uppercase, lowercase, number, and special character.</small>
+                <small id="password-error-rider" class="form-text error" style="display:none;"></small>
+              </div>
+
+              <div class="mb-3">
+                <label for="rider_confirm_password" class="form-label required">Confirm Password</label>
+                <div class="password-wrapper">
+                  <input type="password" class="form-control" id="rider_confirm_password" name="rider_confirm_password" placeholder="Confirm your password" required minlength="10" autocomplete="new-password" style="padding-right: 45px;">
+                  <button type="button" class="password-toggle" onclick="togglePassword('rider_confirm_password')" aria-label="Toggle password visibility">
+                    <i class="fas fa-eye" id="rider_confirm_password-toggle"></i>
+                  </button>
+                </div>
+                <div class="form-text" id="rider-confirm-password-feedback"></div>
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-outline-secondary step-prev" data-role="rider">
+                  <i class="fas fa-arrow-left me-2"></i> Back
+                </button>
+                <button type="button" class="btn btn-primary step-next" data-role="rider">
+                  Next <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Vehicle Info, Address & Terms -->
+            <div class="form-step rider-step" data-role="rider" data-step="3">
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label for="rider_vehicle_type" class="form-label required">Vehicle Type</label>
+                  <select id="rider_vehicle_type" name="rider_vehicle_type" class="form-select" required>
+                    <option value="">Select vehicle type</option>
+                    <option value="motorcycle">Motorcycle</option>
+                    <option value="bicycle">Bicycle</option>
+                    <option value="e-bike">E-Bike</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="rider_vehicle_number" class="form-label required">Plate Number</label>
+                  <input type="text" class="form-control" id="rider_vehicle_number" name="rider_vehicle_number" placeholder="ABC-1234" required pattern="^[A-Z]{3}-\d{4}$" maxlength="8" oninput="this.value = this.value.toUpperCase();">
+                  <div class="form-text" id="rider-plate-feedback"></div>
+                </div>
+              </div>
+
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label class="form-label required">Region</label>
+                  <select id="rider_region" name="rider_region" class="form-select" required>
+                    <option value="">Select region</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label required">Province</label>
+                  <select id="rider_province" name="rider_province" class="form-select" required disabled>
+                    <option value="">Select region first</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row-2col">
+                <div class="mb-3">
+                  <label class="form-label required">City / Municipality</label>
+                  <select id="rider_city" name="rider_city" class="form-select" required disabled>
+                    <option value="">Select province first</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label required">Barangay</label>
+                  <select id="rider_barangay" name="rider_barangay" class="form-select" required disabled>
+                    <option value="">Select city first</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="rider_street" class="form-label">Street Address</label>
+                <input type="text" id="rider_street" name="rider_street_address" class="form-control" placeholder="House number, street" autocomplete="off" required>
+              </div>
+
+              <input type="hidden" id="rider_address" name="rider_address" required>
+
+              <div class="mb-3">
+                <label for="rider_valid_id" class="form-label required">Driver's License</label>
+                <input type="file" class="form-control" id="rider_valid_id" name="rider_valid_id" accept="image/png,image/jpeg,application/pdf" required>
+                <small class="form-text">Upload a clear photo or scan of your driver's license (JPG, PNG, PDF)</small>
+              </div>
+
+              <div id="psgc-error-msg"></div>
+
+              <!-- Rider Terms Section -->
+              <div class="terms-section">
+                <div class="terms-section-label">Rider Terms & Privacy Policy</div>
+
+                <div class="terms-scroll-indicator" id="rider-scroll-indicator">
+                  <i class="fas fa-chevron-down"></i>
+                  <span>Please scroll down to read all terms</span>
+                </div>
+
+                <div id="rider-terms-box" class="terms-box" data-role="rider">
+                  <h6><i class="fas fa-motorcycle"></i> Welcome to Kids Kingdom – Rider Terms & Privacy</h6>
+                  <p>
+                    Kids Kingdom is a trusted online marketplace for safe, high-quality products for babies and kids.
+                    As a rider, you play a crucial role in ensuring timely and careful delivery of orders to our customers.
+                  </p>
+
+                  <p><strong>What Kids Kingdom Expects from Riders</strong></p>
+                  <ul>
+                    <li>Deliver orders promptly and handle packages with care.</li>
+                    <li>Maintain professional conduct with customers and support staff.</li>
+                    <li>Keep your vehicle in good working condition and follow traffic regulations.</li>
+                    <li>Protect customer data and privacy at all times.</li>
+                  </ul>
+
+                  <p><strong>Your Benefits as a Rider</strong></p>
+                  <ul>
+                    <li>Flexible working hours and delivery schedules.</li>
+                    <li>Competitive compensation per delivery.</li>
+                    <li>Be part of a trusted community serving families.</li>
+                    <li>Access to support and training resources.</li>
+                  </ul>
+
+                  <p><strong>Privacy and Data Protection</strong></p>
+                  <ul>
+                    <li>We only collect necessary information for delivery operations.</li>
+                    <li>Your personal data is encrypted and stored securely.</li>
+                    <li>We never share your data with third parties without consent.</li>
+                    <li>You can request data deletion at any time.</li>
+                  </ul>
+
+                  <p><strong>Important Reminders</strong></p>
+                  <ul>
+                    <li>Always verify order details before pickup.</li>
+                    <li>Report any issues immediately to support.</li>
+                    <li>Maintain professional appearance and behavior.</li>
+                    <li>Follow all local traffic and delivery regulations.</li>
+                  </ul>
+
+                  <p style="margin-top: 1rem; font-style: italic; color: var(--gray-500);">
+                    Last updated: November 2025
+                  </p>
+
+                  <!-- Rider checkbox -->
+                  <div class="terms-checkbox-wrapper" id="rider-terms-wrapper" style="display:flex; margin-top:1rem;">
+                    <input type="checkbox" id="rider_terms" name="rider_terms" required>
+                    <label for="rider_terms">
+                      I have read and agree to the Kids Kingdom
+                      <a href="#" onclick="return false;">Terms & Conditions</a> and
+                      <a href="#" onclick="return false;">Privacy Policy</a> for riders.
+                    </label>
+                  </div>
+                </div>
+
+                <div class="submit-wrapper" id="rider-submit-wrapper">
+                  <button type="submit" class="btn btn-primary w-100" id="rider-register-btn">
+                    <i class="fas fa-motorcycle me-2"></i> Create Account
+                  </button>
+                </div>
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-outline-secondary step-prev" data-role="rider">
+                  <i class="fas fa-arrow-left me-2"></i> Back
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // PSGC Dynamic Address Script (Business Address)
+      const PSGC = {
+          regions: 'https://psgc.gitlab.io/api/regions/',
+          provincesForRegion: code => `https://psgc.gitlab.io/api/regions/${encodeURIComponent(code)}/provinces/`,
+          citiesForProvince: code => `https://psgc.gitlab.io/api/provinces/${encodeURIComponent(code)}/cities-municipalities/`,
+          barangaysForCity: code => `https://psgc.gitlab.io/api/cities-municipalities/${encodeURIComponent(code)}/barangays/`
+      };
+
+      function initAddressDropdowns() {
+        // Initialize address dropdowns for both buyer and rider
+        initializeAddressFields('', 'region', 'province', 'city', 'barangay');
+        initializeAddressFields('rider_', 'rider_region', 'rider_province', 'rider_city', 'rider_barangay');
+      }
+
+      function initializeAddressFields(prefix, regionId, provinceId, cityId, barangayId) {
+        const regionSelect = document.getElementById(regionId);
+        const provinceSelect = document.getElementById(provinceId);
+        const citySelect = document.getElementById(cityId);
+        const barangaySelect = document.getElementById(barangayId);
+
+        if (!regionSelect) return;
+
+        // Load regions on page load
+        loadRegions(regionSelect, provinceSelect, citySelect, barangayId, prefix);
+
+        // Handle region change
+        regionSelect.addEventListener('change', function() {
+          const regionCode = this.value;
+          if (regionCode) {
+            loadProvinces(regionCode, provinceSelect, citySelect, barangayId, prefix);
+          } else {
+            resetDropdowns([provinceSelect, citySelect, barangaySelect]);
+          }
+        });
+
+        // Handle province change
+        provinceSelect.addEventListener('change', function() {
+          const provinceCode = this.value;
+          if (provinceCode) {
+            loadCities(provinceCode, citySelect, barangayId, prefix);
+          } else {
+            resetDropdowns([citySelect, barangaySelect]);
+          }
+        });
+
+        // Handle city change
+        citySelect.addEventListener('change', function() {
+          const cityCode = this.value;
+          if (cityCode) {
+            loadBarangays(cityCode, barangayId, prefix);
+          } else {
+            resetDropdowns([barangaySelect]);
+          }
+        });
+      }
+
+      // Cache for address data to avoid repeated API calls
+      var addressCache = {
+        regions: null,
+        provinces: {},
+        cities: {},
+        barangays: {}
+      };
+
+      function loadRegions(regionSelect, provinceSelect, citySelect, barangayId, prefix) {
+        // Show loading state
+        regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+        
+        // Use cache if available
+        if (addressCache.regions) {
+          populateRegions(regionSelect, provinceSelect, citySelect, barangayId, addressCache.regions);
+          return;
+        }
+        
+        // Add timeout to prevent hanging
+        var timeout = setTimeout(function() {
+          regionSelect.innerHTML = '<option value="">Loading timeout. Please refresh.</option>';
+        }, 8000); // 8 second timeout
+        
+        fetch(PSGC.regions)
+          .then(response => {
+            clearTimeout(timeout);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            // Cache the data
+            addressCache.regions = data;
+            populateRegions(regionSelect, provinceSelect, citySelect, barangayId, data);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            console.error('Error loading regions:', error);
+            console.error('URL attempted:', PSGC.regions);
+            regionSelect.innerHTML = '<option value="">Error loading regions. Check console.</option>';
+          });
+      }
+
+      function populateRegions(regionSelect, provinceSelect, citySelect, barangayId, data) {
+        regionSelect.innerHTML = '<option value="">Select region</option>';
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(region => {
+            regionSelect.innerHTML += `<option value="${region.code}">${region.name}</option>`;
+          });
+        } else {
+          regionSelect.innerHTML = '<option value="">No regions available</option>';
+        }
+        resetDropdowns([provinceSelect, citySelect, document.getElementById(barangayId)]);
+      }
+
+      function loadProvinces(regionCode, provinceSelect, citySelect, barangayId, prefix) {
+        provinceSelect.disabled = true;
+        
+        // Use cache if available
+        if (addressCache.provinces[regionCode]) {
+          populateProvinces(regionCode, provinceSelect, citySelect, barangayId, addressCache.provinces[regionCode]);
+          return;
+        }
+        
+        // Show loading state
+        provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+        
+        // Add timeout to prevent hanging
+        var timeout = setTimeout(function() {
+          provinceSelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+          provinceSelect.disabled = false;
+        }, 8000); // 8 second timeout
+        
+        fetch(PSGC.provincesForRegion(regionCode))
+          .then(response => {
+            clearTimeout(timeout);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            // Cache the data
+            addressCache.provinces[regionCode] = data;
+            populateProvinces(regionCode, provinceSelect, citySelect, barangayId, data);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            console.error('Error loading provinces:', error);
+            provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+            provinceSelect.disabled = false;
+          });
+      }
+
+      function populateProvinces(regionCode, provinceSelect, citySelect, barangayId, data) {
+        provinceSelect.innerHTML = '<option value="">Select province</option>';
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(province => {
+            provinceSelect.innerHTML += `<option value="${province.code}">${province.name}</option>`;
+          });
+        } else {
+          provinceSelect.innerHTML = '<option value="">No provinces found</option>';
+        }
+        provinceSelect.disabled = false;
+        resetDropdowns([citySelect, document.getElementById(barangayId)]);
+      }
+
+      function loadCities(provinceCode, citySelect, barangayId, prefix) {
+        citySelect.disabled = true;
+        
+        // Use cache if available
+        if (addressCache.cities[provinceCode]) {
+          populateCities(provinceCode, citySelect, barangayId, addressCache.cities[provinceCode]);
+          return;
+        }
+        
+        // Show loading state
+        citySelect.innerHTML = '<option value="">Loading cities...</option>';
+        
+        // Add timeout to prevent hanging
+        var timeout = setTimeout(function() {
+          citySelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+          citySelect.disabled = false;
+        }, 8000); // 8 second timeout
+        
+        fetch(PSGC.citiesForProvince(provinceCode))
+          .then(response => {
+            clearTimeout(timeout);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            // Cache the data
+            addressCache.cities[provinceCode] = data;
+            populateCities(provinceCode, citySelect, barangayId, data);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            console.error('Error loading cities:', error);
+            citySelect.innerHTML = '<option value="">Error loading cities</option>';
+            citySelect.disabled = false;
+          });
+      }
+
+      function populateCities(provinceCode, citySelect, barangayId, data) {
+        citySelect.innerHTML = '<option value="">Select city</option>';
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(city => {
+            citySelect.innerHTML += `<option value="${city.code}">${city.name}</option>`;
+          });
+        } else {
+          citySelect.innerHTML = '<option value="">No cities found</option>';
+        }
+        citySelect.disabled = false;
+        resetDropdowns([document.getElementById(barangayId)]);
+      }
+
+      function loadBarangays(cityCode, barangaySelect, prefix) {
+        // Debug logging
+        console.log('loadBarangays called with:', { cityCode, barangaySelect, prefix });
+        
+        // Get the correct barangay select element
+        var actualBarangaySelect = document.getElementById(barangaySelect);
+        if (!actualBarangaySelect) {
+          console.error('Barangay select element not found:', barangaySelect);
+          return;
+        }
+        
+        console.log('Found barangay select element:', actualBarangaySelect);
+        actualBarangaySelect.disabled = true;
+        
+        // Use cache if available
+        if (addressCache.barangays[cityCode]) {
+          console.log('Using cached barangays for city:', cityCode);
+          populateBarangays(cityCode, actualBarangaySelect, addressCache.barangays[cityCode]);
+          return;
+        }
+        
+        // Show loading state
+        actualBarangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+        console.log('Fetching barangays from API for city:', cityCode);
+        
+        // Add timeout to prevent hanging
+        var timeout = setTimeout(function() {
+          console.error('Barangay loading timeout for city:', cityCode);
+          actualBarangaySelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+          actualBarangaySelect.disabled = false;
+        }, 10000); // 10 second timeout
+        
+        fetch(PSGC.barangaysForCity(cityCode))
+          .then(response => {
+            clearTimeout(timeout);
+            console.log('Barangay API response status:', response.status);
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Barangay data received:', data);
+            // Cache the data
+            addressCache.barangays[cityCode] = data;
+            populateBarangays(cityCode, actualBarangaySelect, data);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            console.error('Error loading barangays:', error);
+            actualBarangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
+            actualBarangaySelect.disabled = false;
+          });
+      }
+
+      function populateBarangays(cityCode, barangaySelect, data) {
+        barangaySelect.innerHTML = '<option value="">Select barangay</option>';
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(barangay => {
+            barangaySelect.innerHTML += `<option value="${barangay.code}">${barangay.name}</option>`;
+          });
+        } else {
+          barangaySelect.innerHTML = '<option value="">No barangays found</option>';
+        }
+        barangaySelect.disabled = false;
+        
+        // Add event listener to update address when barangay is selected
+        barangaySelect.addEventListener('change', function() {
+          // Trigger address building based on which form this is
+          if (barangaySelect.id === 'barangay') {
+            buildBuyerAddress();
+          } else if (barangaySelect.id === 'rider_barangay') {
+            buildRiderAddress();
+          }
+        });
+      }
+
+      function resetDropdowns(dropdowns) {
+        dropdowns.forEach(dropdown => {
+          if (dropdown) {
+            dropdown.innerHTML = '<option value="">Select previous first</option>';
+            dropdown.disabled = true;
+          }
+        });
+      }
+
+      // Helper that enables/disables form controls based on active role.
+      function updateDisabledFields(activeRole) {
+        document.querySelectorAll('.form-section-content').forEach(function(section) {
+          var role = section.getAttribute('data-role');
+          var isActive = (role === activeRole);
+          // Keep aria-hidden in sync for accessibility
+          section.classList.toggle('active', isActive);
+          section.setAttribute('aria-hidden', !isActive);
+          // Find all controls inside
+          var controls = section.querySelectorAll('input, select, textarea, button');
+          controls.forEach(function(ctrl) {
+            // We should NOT disable the role radio buttons (outside sections), skip if control is inside role-selector
+            if (section.closest('.role-selector')) return;
+            // For file inputs and other controls, toggling disabled is enough to opt-out of native validation and submission
+            ctrl.disabled = !isActive;
+          });
+        });
+        // Also set the dropdowns (region/province etc) disabled states properly if active role has them enabled
+        // (They are individually managed elsewhere, so no further action needed)
+      }
+
+      // role switching: show buyer or rider form and update hidden role input
+      document.addEventListener('DOMContentLoaded', function () {
+        initAddressDropdowns();
+
+        // ensure only active role controls are enabled at load
+        updateDisabledFields('buyer');
+
+        // ----- ROLE SWITCHING -----
+        document.querySelectorAll('.role-option').forEach(function (option) {
+          option.addEventListener('click', function () {
+            var role = this.getAttribute('data-role');
+
+            // toggle active style on the role cards
+            document.querySelectorAll('.role-option').forEach(function (o) {
+              o.classList.remove('active');
+            });
+            this.classList.add('active');
+
+            // update hidden role field
+            var roleInput = document.getElementById('role-input');
+            if (roleInput) {
+              roleInput.value = role;
+            }
+
+            // show the correct form section and disable others
+            document.querySelectorAll('.form-section-content').forEach(function (section) {
+              if (section.getAttribute('data-role') === role) {
+                section.classList.add('active');
+              } else {
+                section.classList.remove('active');
+              }
+            });
+
+            // IMPORTANT FIX:
+            // disable inputs that belong to the inactive role so browser native validation
+            // doesn't block submission (hidden elements still participate in constraint validation).
+            updateDisabledFields(role);
+          });
+        });
+
+        // ----- STEP NAVIGATION (BUYER & RIDER) -----
+        function showStep(role, step) {
+          // toggle step content
+          document.querySelectorAll('.form-step[data-role="' + role + '"]').forEach(function (el) {
+            if (parseInt(el.getAttribute('data-step'), 10) === step) {
+              el.classList.add('active');
+            } else {
+              el.classList.remove('active');
+            }
+          });
+
+          // update stepper circles
+          document.querySelectorAll('.stepper[data-role="' + role + '"] .step-item').forEach(function (item) {
+            var itemStep = parseInt(item.getAttribute('data-step'), 10);
+            item.classList.remove('active');
+            item.classList.remove('completed');
+            if (itemStep < step) {
+              item.classList.add('completed');
+            } else if (itemStep === step) {
+              item.classList.add('active');
+            }
+          });
+        }
+
+        function validateCurrentStep(role, step, isMovingForward) {
+          var currentStep = document.querySelector('.form-step[data-role="' + role + '"][data-step="' + step + '"]');
+          if (!currentStep) return true;
+
+          var fields = currentStep.querySelectorAll('input, select, textarea');
+          var valid = true;
+          var firstEmptyField = null;
+
+          fields.forEach(function (field) {
+            // skip disabled controls
+            if (field.disabled) return;
+
+            var isPasswordField = field.id && (field.id.includes('password') || field.id.includes('confirm_password'));
+            var isFileField = field.type === 'file';
+            var isPhoneField = field.id && field.id.includes('phone');
+
+            if (field.hasAttribute('required')) {
+              if (isPhoneField) {
+                var phonePattern = /^09\d{9}$/;
+                if (!field.value || !phonePattern.test(field.value)) {
+                  valid = false;
+                  field.classList.add('is-invalid');
+                  if (!firstEmptyField) firstEmptyField = field;
+                  return;
+                }
+              } else if (isFileField) {
+                if (!field.files || field.files.length === 0) {
+                  valid = false;
+                  field.classList.add('is-invalid');
+                  if (!firstEmptyField) firstEmptyField = field;
+                  return;
+                }
+              } else if (!field.value || field.value.trim() === '') {
+                // For password fields, only enforce when moving to final step
+                if (!isPasswordField) {
+                  valid = false;
+                  field.classList.add('is-invalid');
+                  if (!firstEmptyField) firstEmptyField = field;
+                } else if (isPasswordField && step === 2 && isMovingForward) {
+                  valid = false;
+                  field.classList.add('is-invalid');
+                  if (!firstEmptyField) firstEmptyField = field;
+                }
+                return;
+              }
+            }
+
+            // additional validity check
+            if (field.value && field.value.trim() !== '' && !field.checkValidity()) {
+              valid = false;
+              field.classList.add('is-invalid');
+              if (!firstEmptyField) firstEmptyField = field;
+              return;
+            }
+
+            // password checks
+            if (isPasswordField && field.value && field.value.trim() !== '') {
+              // confirm password handling
+              if (field.id.includes('confirm_password')) {
+                var passwordFieldId = field.id.startsWith('rider_') ? 'rider_password' : 'password';
+                var passwordField = document.getElementById(passwordFieldId);
+                var confirmFeedbackId = field.id.startsWith('rider_') ? 'rider-confirm-password-feedback' : 'confirm-password-feedback';
+                var confirmFeedback = document.getElementById(confirmFeedbackId);
+                if (passwordField) {
+                  if (field.value === passwordField.value) {
+                    field.classList.remove('is-invalid');
+                    if (confirmFeedback) {
+                      confirmFeedback.textContent = 'Passwords matched';
+                      confirmFeedback.style.color = '#28a745';
+                      confirmFeedback.style.display = 'block';
+                    }
+                  } else {
+                    valid = false;
+                    field.classList.add('is-invalid');
+                    if (confirmFeedback) {
+                      confirmFeedback.textContent = 'Password do not match';
+                      confirmFeedback.style.color = '#dc3545';
+                      confirmFeedback.style.display = 'block';
+                    }
+                    if (!firstEmptyField) firstEmptyField = field;
+                  }
+                }
+              } else {
+                // main password field -> run strength check
+                var roleKey = field.id.startsWith('rider_') ? 'rider' : 'buyer';
+                var ok = checkPasswordStrength(field.value, roleKey);
+                if (!ok) {
+                  valid = false;
+                  field.classList.add('is-invalid');
+                  if (!firstEmptyField) firstEmptyField = field;
+                }
+              }
+            }
+
+          });
+
+          if (!valid && firstEmptyField) {
+            setTimeout(function() { firstEmptyField.focus(); }, 100);
+          }
+
+          return valid;
+        }
+
+        // Next buttons
+        document.querySelectorAll('.step-next').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            var role = this.getAttribute('data-role');
+            if (!role) return;
+
+            var activeStepEl = document.querySelector('.form-step[data-role="' + role + '"].active');
+            if (!activeStepEl) return;
+
+            var currentStep = parseInt(activeStepEl.getAttribute('data-step'), 10) || 1;
+
+            // Special case: Step 1 -> ensure email is fully validated (including server) before moving on.
+            if (currentStep === 1) {
+              var emailField = document.getElementById(role === 'rider' ? 'rider_email' : 'email');
+              if (emailField) {
+                // disable Next while verifying to avoid double clicks
+                var selfBtn = this;
+                var prevDisabled = selfBtn.disabled;
+                selfBtn.disabled = true;
+                try {
+                  var emailOk = await checkEmailServer(emailField);
+                  if (!emailOk) {
+                    emailField.focus();
+                    return;
+                  }
+                } finally {
+                  selfBtn.disabled = prevDisabled;
+                }
+              }
+            }
+
+            // validate current step before moving on
+            if (!validateCurrentStep(role, currentStep, true)) {
+              return;
+            }
+
+            var nextStep = currentStep + 1;
+            var nextStepEl = document.querySelector('.form-step[data-role="' + role + '"][data-step="' + nextStep + '"]');
+            if (nextStepEl) {
+              showStep(role, nextStep);
+            }
+          });
+        });
+
+        // Previous buttons
+        document.querySelectorAll('.step-prev').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var role = this.getAttribute('data-role');
+            if (!role) return;
+
+            var activeStepEl = document.querySelector('.form-step[data-role="' + role + '"].active');
+            if (!activeStepEl) return;
+
+            var currentStep = parseInt(activeStepEl.getAttribute('data-step'), 10) || 1;
+            var prevStep = currentStep - 1;
+            if (prevStep < 1) return;
+
+            // Validate current step before moving back (but don't show red borders for password fields)
+            validateCurrentStep(role, currentStep, false);
+
+            var prevStepEl = document.querySelector('.form-step[data-role="' + role + '"][data-step="' + prevStep + '"]');
+            if (prevStepEl) {
+              showStep(role, prevStep);
+            }
+          });
+        });
+
+        // Buyer terms scroll handling: show checkbox once fully read
+        var buyerTermsBox = document.getElementById('buyer-terms-box');
+        var buyerTermsWrapper = document.getElementById('buyer-terms-wrapper');
+        var buyerScrollIndicator = document.getElementById('buyer-scroll-indicator');
+        var buyerSubmitWrapper = document.getElementById('buyer-submit-wrapper');
+
+        if (buyerTermsBox && buyerTermsWrapper) {
+          buyerTermsBox.addEventListener('scroll', function onScroll() {
+            var scrollBottom = buyerTermsBox.scrollTop + buyerTermsBox.clientHeight;
+            var threshold = buyerTermsBox.scrollHeight - 24; // small buffer
+
+            if (scrollBottom >= threshold) {
+              // show checkbox
+              buyerTermsWrapper.style.display = 'flex';
+
+              // hide scroll hint
+              if (buyerScrollIndicator) {
+                buyerScrollIndicator.classList.add('hidden');
+              }
+
+              // reveal submit area
+              if (buyerSubmitWrapper) {
+                buyerSubmitWrapper.classList.add('visible');
+              }
+
+              // run only once
+              buyerTermsBox.removeEventListener('scroll', onScroll);
+            }
+          });
+        }
+
+        // Rider terms scroll handling: show checkbox once fully read
+        var riderTermsBox = document.getElementById('rider-terms-box');
+        var riderTermsWrapper = document.getElementById('rider-terms-wrapper');
+        var riderScrollIndicator = document.getElementById('rider-scroll-indicator');
+        var riderSubmitWrapper = document.getElementById('rider-submit-wrapper');
+
+        if (riderTermsBox && riderTermsWrapper) {
+          riderTermsBox.addEventListener('scroll', function onScroll() {
+            var scrollBottom = riderTermsBox.scrollTop + riderTermsBox.clientHeight;
+            var threshold = riderTermsBox.scrollHeight - 24; // small buffer
+
+            if (scrollBottom >= threshold) {
+              // show checkbox
+              riderTermsWrapper.style.display = 'flex';
+
+              // hide scroll hint
+              if (riderScrollIndicator) {
+                riderScrollIndicator.classList.add('hidden');
+              }
+
+              // reveal submit area
+              if (riderSubmitWrapper) {
+                riderSubmitWrapper.classList.add('visible');
+              }
+
+              // run only once
+              riderTermsBox.removeEventListener('scroll', onScroll);
+            }
+          });
+        }
+
+        // Build addresses & attach change listeners (buyer)
+        function buildBuyerAddress() {
+          var regionSel = document.getElementById('region');
+          var provSel   = document.getElementById('province');
+          var citySel   = document.getElementById('city');
+          var brgySel   = document.getElementById('barangay');
+          var streetInp = document.getElementById('street_address');
+          var hidden    = document.getElementById('address');
+
+          if (!hidden) return;
+
+          var street   = streetInp ? (streetInp.value || '').trim() : '';
+          var regionTx = (regionSel && regionSel.selectedIndex > 0) ? (regionSel.options[regionSel.selectedIndex].text || '').trim() : '';
+          var provTx   = (provSel && provSel.selectedIndex > 0)   ? (provSel.options[provSel.selectedIndex].text || '').trim()   : '';
+          var cityTx   = (citySel && citySel.selectedIndex > 0)   ? (citySel.options[citySel.selectedIndex].text || '').trim()   : '';
+          var brgyTx   = (brgySel && brgySel.selectedIndex > 0)   ? (brgySel.options[brgySel.selectedIndex].text || '').trim()   : '';
+
+          var parts = [regionTx, provTx, cityTx, brgyTx, street].filter(function (p) { return p; });
+          hidden.value = parts.join(', ');
+        }
+
+        function buildRiderAddress() {
+          var regionSel = document.getElementById('rider_region');
+          var provSel   = document.getElementById('rider_province');
+          var citySel   = document.getElementById('rider_city');
+          var brgySel   = document.getElementById('rider_barangay');
+          var streetInp = document.getElementById('rider_street');
+          var hidden    = document.getElementById('rider_address');
+
+          if (!hidden) return;
+
+          var street   = streetInp ? (streetInp.value || '').trim() : '';
+          var regionTx = (regionSel && regionSel.selectedIndex > 0) ? (regionSel.options[regionSel.selectedIndex].text || '').trim() : '';
+          var provTx   = (provSel && provSel.selectedIndex > 0)   ? (provSel.options[provSel.selectedIndex].text || '').trim()   : '';
+          var cityTx   = (citySel && citySel.selectedIndex > 0)   ? (citySel.options[citySel.selectedIndex].text || '').trim()   : '';
+          var brgyTx   = (brgySel && brgySel.selectedIndex > 0)   ? (brgySel.options[brgySel.selectedIndex].text || '').trim()   : '';
+
+          var parts = [regionTx, provTx, cityTx, brgyTx, street].filter(function (p) { return p; });
+          hidden.value = parts.join(', ');
+        }
+
+        ['region', 'province', 'city', 'barangay'].forEach(function (id) {
+          var sel = document.getElementById(id);
+          if (sel) sel.addEventListener('change', buildBuyerAddress);
+        });
+        var buyerStreet = document.getElementById('street_address');
+        if (buyerStreet) buyerStreet.addEventListener('input', buildBuyerAddress);
+
+        ['rider_region', 'rider_province', 'rider_city', 'rider_barangay', 'rider_street'].forEach(function (id) {
+          var sel = document.getElementById(id);
+          if (sel) {
+            sel.addEventListener('change', buildRiderAddress);
+            sel.addEventListener('input', buildRiderAddress);
+          }
+        });
+        var riderStreet = document.getElementById('rider_street');
+        if (riderStreet) riderStreet.addEventListener('input', buildRiderAddress);
+
+        // Final form submit guard: ensure only active role's fields are submitted and validated
+        var registerForm = document.getElementById('register-form');
+        if (registerForm) {
+          // Prevent Enter key from submitting form when not on final step
+          registerForm.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              var roleInput = document.getElementById('role-input');
+              var role = (roleInput && roleInput.value) ? roleInput.value : 'buyer';
+              var activeStepEl = document.querySelector('.form-step[data-role="' + role + '"].active');
+              var currentStep = activeStepEl ? parseInt(activeStepEl.getAttribute('data-step'), 10) : 1;
+              
+              // If not on step 3, treat Enter as "Next" button click
+              if (currentStep < 3) {
+                e.preventDefault();
+                var nextBtn = document.querySelector('.step-next[data-role="' + role + '"]');
+                if (nextBtn) nextBtn.click();
+                return;
+              }
+            }
+          });
+          
+          registerForm.addEventListener('submit', function (e) {
+            // Make sure only active role's controls are enabled to avoid browser blocking validation due to hidden required controls
+            var roleInput = document.getElementById('role-input');
+            var role = (roleInput && roleInput.value) ? roleInput.value : 'buyer';
+            updateDisabledFields(role); // ensure correct disabled states before native validation
+
+            // Validate each step in order; jump back to the first invalid step
+            for (var step = 1; step <= 3; step++) {
+              // For step 2 -> isMovingForward true so password gets validated properly
+              var isMovingForward = step !== 2;
+              var stepValid = validateCurrentStep(role, step, isMovingForward);
+              if (!stepValid) {
+                e.preventDefault();
+                showStep(role, step);
+                return;
+              }
+            }
+
+            // final phone number validation
+            var phoneField = document.getElementById(role === 'rider' ? 'rider_phone' : 'phone');
+            if (phoneField) {
+              var phoneValue = phoneField.value;
+              var phonePattern = /^09\d{9}$/;
+              if (!phonePattern.test(phoneValue)) {
+                e.preventDefault();
+                var phoneError = document.createElement('div');
+                phoneError.className = 'alert alert-danger';
+                phoneError.innerHTML = '<strong>Phone number must be exactly 11 digits starting with 09</strong>';
+                phoneError.style.marginTop = '10px';
+                phoneField.parentNode.insertBefore(phoneError, phoneField.nextSibling);
+                showStep(role, 1);
+                phoneField.focus();
+                setTimeout(function() {
+                  if (phoneError.parentNode) phoneError.parentNode.removeChild(phoneError);
+                }, 5000);
+                return;
+              }
+            }
+            // Allow native submit to proceed (server-side will perform final checks)
+          });
+        }
+      });
+
+      // force phone/contact inputs to start with 09 and be exactly 11 digits
+      function handlePhoneInput(el) {
+        if (!el) return;
+        var value = el.value.replace(/[^0-9]/g, '');
+        
+        // Always ensure it starts with 09 and keep it as default
+        if (!value.startsWith('09')) {
+          value = '09' + value.replace(/^0+/, '');
+        }
+        
+        // Limit to 11 digits (including the 09 prefix)
+        value = value.slice(0, 11);
+        
+        // Update the input value
+        el.value = value;
+        
+        // Clear any custom validity while typing
+        el.setCustomValidity('');
+        el.classList.remove('is-invalid');
+        
+        // Validate when user has entered digits (09 is already there)
+        if (value.length >= 2) {
+          var phonePattern = /^09\d{9}$/;
+          if (value.length === 11 && phonePattern.test(value)) {
+            el.setCustomValidity('');
+            el.classList.remove('is-invalid');
+          } else if (value.length === 11) {
+            el.setCustomValidity('Phone number must be exactly 11 digits starting with 09');
+            el.classList.add('is-invalid');
+          }
+        }
+      }
+
+      // clear Gmail error while the user is typing
+      function clearGmailError(el) {
+        if (!el) return;
+
+        var isRider = el.id && el.id.indexOf('rider_') === 0;
+        var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
+        var warning = document.getElementById(warningId);
+
+        el.setCustomValidity('');
+        if (warning) {
+          warning.style.display = 'none';
+        }
+        // hide success badge when user edits
+        var okId = isRider ? 'email-verify-ok-rider' : 'email-verify-ok';
+        var okEl = document.getElementById(okId);
+        if (okEl) { okEl.style.display = 'none'; }
+      }
+
+      // call server to validate email (duplicate / disposable / non-existing) using /api/check-email
+      // Returns a Promise<boolean>: true = OK to proceed, false = invalid.
+      function checkEmailServer(el) {
+        return new Promise(function(resolve) {
+          if (!el) return resolve(true);
+          var value = (el.value || '').trim();
+          if (!value) return resolve(true);
+
+          var isRider = el.id && el.id.indexOf('rider_') === 0;
+          var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
+          var warning = document.getElementById(warningId);
+          var okId = isRider ? 'email-verify-ok-rider' : 'email-verify-ok';
+          var okEl = document.getElementById(okId);
+          var role = isRider ? 'rider' : 'buyer';
+
+          fetch('/api/check-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: value, role: role })
+          })
+          .then(function(res){ return res.json().catch(function(){ return { ok: true }; }); })
+.then(function(data){
+            if (!data || typeof data.ok === 'undefined') {
+              // Inconclusive – do not block the user; final server-side check still runs.
+              el.setCustomValidity('');
+              if (okEl) okEl.style.display = 'none';
+              if (unavailEl) unavailEl.style.display = 'none';
+              return resolve(true);
+            }
+            if (!data.ok) {
+              var msg = data.message || 'Please enter a valid email address.';
+              el.setCustomValidity(msg);
+              if (warning) {
+                warning.textContent = msg;
+                warning.style.display = 'block';
+              }
+              if (okEl) okEl.style.display = 'none';
+              // report validity so browser shows tooltip if needed
+              if (typeof el.reportValidity === 'function') {
+                el.reportValidity();
+              }
+              resolve(false);
+            } else {
+              el.setCustomValidity('');
+              if (warning) {
+                warning.style.display = 'none';
+              }
+              // Show success for 'ok' and 'skipped' statuses; neutral otherwise
+              if (okEl) {
+                if (data.provider_status && (data.provider_status.toLowerCase() === 'ok' || data.provider_status.toLowerCase() === 'skipped')) {
+                  if (data.provider_status.toLowerCase() === 'skipped') {
+                    okEl.textContent = 'Email format validated';
+                  } else {
+                    okEl.textContent = 'Email verified (ok)';
+                  }
+                  okEl.style.display = 'block';
+                } else {
+                  okEl.style.display = 'none';
+                }
+              }
+              // If provider is unavailable, block and show error below the field
+              if (data.provider_status && data.provider_status.toLowerCase().startsWith('unavailable')) {
+                var msg = 'Email verification is temporarily unavailable. Please try again later.';
+                el.setCustomValidity(msg);
+                if (warning) { warning.textContent = msg; warning.style.display = 'block'; }
+                if (typeof el.reportValidity === 'function') { el.reportValidity(); }
+                return resolve(false);
+              }
+              resolve(true);
+            }
+          })
+          .catch(function(){
+            // On network/API error, do not block the user here; final server validation will still run.
+            el.setCustomValidity('');
+            resolve(true);
+          });
+        });
+      }
+
+      // validate that email is a proper Gmail address and show/hide warning text + server check
+      function checkGmail(el) {
+        if (!el) return;
+
+        var value = (el.value || '').trim();
+        var isRider = el.id && el.id.indexOf('rider_') === 0;
+        var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
+        var warning = document.getElementById(warningId);
+        var gmailPattern = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
+        // default: hide warning and clear custom validity
+        if (warning) {
+          warning.style.display = 'none';
+        }
+
+        if (!value) {
+          el.setCustomValidity('');
+          return;
+        }
+
+        if (!gmailPattern.test(value)) {
+          var msg = 'Please enter a valid Gmail address (example@gmail.com).';
+          el.setCustomValidity(msg);
+          if (warning) {
+            warning.textContent = msg;
+            warning.style.display = 'block';
+          }
+        } else {
+          // Pattern is OK: now call server to check for disposable / non-existing / duplicate
+          el.setCustomValidity('');
+          checkEmailServer(el);
+        }
+      }
+
+      // password strength checker
+      function checkPasswordStrength(password, role) {
+        var barId = role + '-password-strength-bar';
+        var bar = document.getElementById(barId);
+        var feedbackId = (role === 'buyer' ? 'password-error-buyer' : 'password-error-rider');
+        var feedback = document.getElementById(feedbackId);
+        
+        // hide strength bar and feedback when no password is entered
+        if (!password) {
+          if (bar) {
+            bar.style.width = '0%';
+            bar.className = 'password-strength-bar';
+          }
+          if (feedback) {
+            feedback.textContent = '';
+            feedback.style.display = 'none';
+          }
+          return false;
+        }
+
+        var lengthOk = password.length >= 10;
+        var hasUpper = /[A-Z]/.test(password);
+        var hasLower = /[a-z]/.test(password);
+        var hasNumber = /[0-9]/.test(password);
+        var hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/?]/.test(password);
+
+        var strength = 0;
+        if (lengthOk) strength++;
+        if (hasUpper) strength++;
+        if (hasLower) strength++;
+        if (hasNumber) strength++;
+        if (hasSpecial) strength++;
+
+        var strengthPercent = (strength / 5) * 100;
+
+        // update strength bar and feedback - show red when not full strength
+        if (bar) {
+          bar.style.width = strengthPercent + '%';
+          bar.className = 'password-strength-bar';
+          
+          // Show red for weak/medium, green only for strong
+          if (strength < 5) {
+            bar.classList.add('weak');
+          } else {
+            // Full strength - green
+            bar.classList.remove('weak');
+            bar.classList.add('strong');
+          }
+        }
+
+        // Show feedback only when requirements are not met
+        if (feedback) {
+          if (strength < 5) {
+            feedback.textContent = 'Password must meet all requirements';
+            feedback.style.color = '#dc3545';
+            feedback.style.display = 'block';
+          } else {
+            feedback.textContent = '';
+            feedback.style.display = 'none';
+          }
+        }
+
+        return strength >= 4; // true if strong enough
+      }
+
+      // global password visibility toggle (used by eye icons)
+      function togglePassword(fieldId) {
+        var field = document.getElementById(fieldId);
+        var icon = document.getElementById(fieldId + '-toggle');
+        if (!field || !icon) return;
+
+        if (field.type === 'password') {
+          field.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          field.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      }
+
+      // attach password listeners
+      ['password', 'confirm_password', 'rider_password', 'rider_confirm_password'].forEach(function (fieldId) {
+        var field = document.getElementById(fieldId);
+        if (field) {
+          field.addEventListener('input', function () {
+            var role = fieldId.startsWith('rider_') ? 'rider' : 'buyer';
+            // Only check password strength for main password fields, not confirm fields
+            if (!fieldId.includes('confirm')) {
+              checkPasswordStrength(this.value, role);
+            }
+            // Clear error styling when user starts typing
+            field.classList.remove('is-invalid');
+
+            // Real-time password matching validation for confirm password fields
+            if (fieldId.includes('confirm')) {
+              var passwordFieldId = role === 'rider' ? 'rider_password' : 'password';
+              var passwordField = document.getElementById(passwordFieldId);
+              var confirmFeedbackId = role === 'rider' ? 'rider-confirm-password-feedback' : 'confirm-password-feedback';
+              var confirmFeedback = document.getElementById(confirmFeedbackId);
+
+              if (passwordField && confirmFeedback) {
+                if (!this.value) {
+                  confirmFeedback.textContent = '';
+                  confirmFeedback.style.display = 'none';
+                  field.classList.remove('is-invalid');
+                } else if (this.value === passwordField.value) {
+                  confirmFeedback.textContent = 'Passwords matched';
+                  confirmFeedback.style.color = '#28a745';
+                  confirmFeedback.style.display = 'block';
+                  field.classList.remove('is-invalid');
+                } else {
+                  confirmFeedback.textContent = 'Password do not match';
+                  confirmFeedback.style.color = '#dc3545';
+                  confirmFeedback.style.display = 'block';
+                  field.classList.add('is-invalid');
+                }
+              }
+            } else {
+              var confirmFeedbackId = role === 'rider' ? 'rider-confirm-password-feedback' : 'confirm-password-feedback';
+              var confirmFeedback = document.getElementById(confirmFeedbackId);
+              if (confirmFeedback) {
+                confirmFeedback.textContent = '';
+                confirmFeedback.style.display = 'none';
+              }
+              var confirmFieldId = role === 'rider' ? 'rider_confirm_password' : 'confirm_password';
+              var confirmField = document.getElementById(confirmFieldId);
+              if (confirmField) confirmField.classList.remove('is-invalid');
+            }
+          });
+        }
+      });
+
+      // Clear red borders from all input fields when user starts typing
+      document.addEventListener('DOMContentLoaded', function() {
+        var allFields = document.querySelectorAll('input, select, textarea');
+        allFields.forEach(function(field) {
+          if (field.id && (field.id.includes('password') || field.id.includes('confirm'))) {
+            return;
+          }
+          field.addEventListener('input', function() {
+            field.classList.remove('is-invalid');
+          });
+          if (field.tagName === 'SELECT') {
+            field.addEventListener('change', function() {
+              field.classList.remove('is-invalid');
+            });
+          }
+        });
+      });
+
+      // Remove all existing error messages on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        var allErrorMessages = document.querySelectorAll('.alert-danger');
+        allErrorMessages.forEach(function(errorMsg) {
+          errorMsg.remove();
+        });
+      });
+
+      // Function to remove error messages immediately
+      function removeErrorMessages() {
+        var errorMessages = document.querySelectorAll('.alert-danger');
+        errorMessages.forEach(function(errorMsg) {
+          errorMsg.remove();
+        });
+      }
+    </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

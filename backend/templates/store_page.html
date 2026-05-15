@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}{{ seller_app.store_name if seller_app and seller_app.store_name else seller.first_name ~ ' Store' }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Store Banner -->
+    <div class="card mb-4 shadow-sm">
+        <div class="row g-0 align-items-center">
+            <div class="col-md-9">
+                {# Resolve logo URL (supports absolute and static-relative paths) #}
+                {% set logo_src = None %}
+                {% if seller_app and seller_app.store_logo %}
+                    {% if seller_app.store_logo.startswith('/') %}
+                        {% set logo_src = seller_app.store_logo %}
+                    {% else %}
+                        {% set logo_src = url_for('static', filename=seller_app.store_logo) %}
+                    {% endif %}
+                {% endif %}
+
+                <div class="store-banner kids-hero">
+                    {% if logo_src %}
+                        <img src="{{ logo_src }}" alt="{{ seller_app.store_name }}" class="kids-hero__logo">
+                    {% else %}
+                        <div class="kids-hero__fallback px-4">
+                            <h3 class="fw-bold mb-1">{{ seller_app.store_name if seller_app and seller_app.store_name else seller.first_name ~ ' ' ~ seller.last_name }}</h3>
+                            <p class="mb-0 text-muted">{{ seller_app.store_description if seller_app and seller_app.store_description else "Welcome to our store. Browse great items from this seller." }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3 d-flex flex-column align-items-end pe-3">
+                <div class="mt-3">
+                    <form method="POST" action="{{ url_for('follow_store', seller_id=seller.id) }}" style="display:inline;">
+                        {% if is_following %}
+                            <button type="submit" class="btn btn-danger mb-2">Unfollow</button>
+                        {% else %}
+                            <button type="submit" class="btn btn-outline-primary mb-2">Follow Store</button>
+                        {% endif %}
+                    </form>
+
+                    <div class="text-muted small">
+                        {% if store_rating and store_rating > 0 %}
+                            <i class="fas fa-star text-warning" aria-hidden="true"></i>
+                            <span class="me-2">{{ '%.1f'|format(store_rating) }}</span>
+                        {% else %}
+                            <i class="far fa-star text-muted" aria-hidden="true"></i>
+                            <span class="me-2 text-muted">No ratings yet</span>
+                        {% endif %}
+
+                        <i class="fas fa-users ms-1 me-1" aria-hidden="true"></i>
+                        <span>{{ followers_count | default(0) | comma }} follower{{ 's' if (followers_count | int) != 1 else '' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Info & Categories -->
+    <div class="row mb-4">
+        <!-- Sidebar removed per request -->
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <h3 class="mb-0">{{ seller_app.store_name if seller_app and seller_app.store_name else seller.first_name ~ ' ' ~ seller.last_name }}</h3>
+                    <small class="text-muted">All products from this store</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('shop') }}" class="btn btn-outline-secondary btn-sm">Browse All Products</a>
+                </div>
+            </div>
+
+            <div class="store-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                <input type="search" class="form-control form-control-sm store-filter" placeholder="Search in this store..." style="max-width: 260px;">
+                <div class="ms-auto btn-group btn-group-sm" role="group" aria-label="View density">
+                    <button type="button" class="btn btn-light js-density active" data-density="compact" title="Compact view">Compact</button>
+                    <button type="button" class="btn btn-light js-density" data-density="comfort" title="Comfortable view">Comfort</button>
+                </div>
+            </div>
+
+            {# Products grid: each card has data-category attribute for client-side filtering #}
+            <div class="product-grid is-compact" id="storeProductsGrid">
+                {% if products %}
+                    <div class="pgrid">
+                        {% for product in products %}
+                        <div class="p-card" data-category="{{ product.category.id if product.category else '' }}">
+                          <a href="{{ url_for('product_detail', product_id=product.id) }}" class="p-card__link" title="{{ product.name }}">
+                            {% if product.image_filename %}
+                              <div class="p-card__media">
+                                <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}" alt="{{ product.name }}">
+                                {% set available_stock = get_available_stock(product.id) %}
+                                {% if available_stock <= 0 %}
+                                <div class="product-out-of-stock">
+                                  <span>Out of Stock</span>
+                                </div>
+                                {% endif %}
+                              </div>
+                            {% else %}
+                              <div class="p-card__media">
+                                <div class="p-card__ph"><i class="fas fa-image"></i></div>
+                              </div>
+                            {% endif %}
+
+                            <div class="p-card__body">
+                              <div class="p-card__title" title="{{ product.name }}">{{ product.name }}</div>
+                              <div class="p-card__price-row">
+                                <span class="p-card__price">₱{{ '%.2f'|format(product.price) }}</span>
+                              </div>
+                              <ul class="p-card__features">
+                                <li><i class="fas fa-tags"></i> {{ product.category.name if product.category else 'General' }}</li>
+                                {% if product.featured %}<li><i class="fas fa-star"></i> Featured</li>{% endif %}
+                              </ul>
+                            </div>
+
+                            <div class="p-card__footer">
+                              {% set available_stock = get_available_stock(product.id) %}
+                              {% if available_stock > 0 %}
+                                <span class="badge bg-success-subtle text-success border-success p-card__stock" data-product-id="{{ product.id }}">In stock ({{ available_stock }})</span>
+                              {% else %}
+                                <span class="badge bg-danger-subtle text-danger border-danger p-card__stock" data-product-id="{{ product.id }}">Out of Stock</span>
+                              {% endif %}
+                            </div>
+                          </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="col-12 text-center py-5 text-muted">
+                        <i class="fas fa-store fa-4x mb-3"></i>
+                        <h4>No products available in this store</h4>
+                        <p>Please check again later or browse other stores.</p>
+                        <a href="{{ url_for('shop') }}" class="btn btn-primary">Go to Shop</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.store-banner {
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    background-position: center;
+    background-size: cover;
+    overflow: hidden;
+}
+
+/* Kids-themed store hero */
+.kids-hero{ position:relative; min-height:220px; background:#ffffff; display:flex; align-items:center; padding:22px; overflow:hidden; }
+.kids-hero__logo{ width:152px; height:152px; border-radius:999px; background:#fff; border:4px solid rgba(255,255,255,.9); padding:14px; object-fit:cover; box-shadow:0 12px 28px rgba(15,23,42,.18); position:relative; z-index:1; }
+.kids-hero__fallback{ position:relative; z-index:1; }
+@media (max-width: 575.98px){ .kids-hero{ min-height:180px; padding:16px; } .kids-hero__logo{ width:120px; height:120px; padding:10px; } }
+</style>
+
+<style>
+/* Product grid cards (shared with shop) */
+.pgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+.p-card{ position:relative; display:flex; flex-direction:column; border:1px solid #e5e7eb; border-radius:12px; background:#fff; overflow:hidden; box-shadow:0 6px 16px rgba(15,23,42,0.05); }
+.p-card__share{ position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:50%; border:1px solid #e5e7eb; background:#fff; display:flex; align-items:center; justify-content:center; color:#6b7280; z-index:2; }
+.p-card__link{ display:flex; flex-direction:column; height:100%; color:inherit; text-decoration:none; transition: transform 0.2s ease; }
+.p-card:hover .p-card__link{ transform: translateY(-2px); }
+.p-card__media{ display:block; aspect-ratio:4/3; background:#f8fafc; overflow:hidden; }
+.p-card__media img{ width:100%; height:100%; object-fit:cover; transition: transform .25s ease; display:block; }
+.p-card:hover .p-card__media img{ transform: scale(1.04); }
+.p-card__ph{ width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#9ca3af; }
+.p-card__body{ padding:8px 10px; display:flex; flex-direction:column; gap:.25rem; }
+.p-card__title{ font-weight:600; color:#111827; text-decoration:none; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.2em; font-size:.95rem; }
+.p-card__price-row{ display:flex; align-items:center; justify-content:flex-start; gap:.5rem; }
+.p-card__price{ color:#ff6a00; font-weight:700; text-decoration:none; }
+.p-card__features{ list-style:none; padding:0; margin:.25rem 0 0; display:flex; flex-wrap:wrap; gap:.5rem 1rem; color:#6b7280; font-size:.82rem; }
+.p-card__features i{ color:#9ca3af; margin-right:.35rem; }
+.p-card__footer{ margin-top:auto; padding:8px 10px 10px; display:flex; align-items:center; justify-content:space-between; gap:.5rem; border-top:1px solid #f1f3f6; }
+.p-card__stock{ font-size:.72rem; }
+@media (max-width:575.98px){ .pgrid{ grid-template-columns:repeat(2, 1fr); } }
+/* Compact density */
+.product-grid.is-compact .pgrid{ grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; }
+.product-grid.is-compact .p-card__media{ aspect-ratio: 1 / 1; }
+
+/* Out of Stock Label on Product Images */
+.p-card__media {
+    position: relative;
+}
+
+.product-image-sold-out {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.product-image-sold-out span {
+    display: block;
+}
+</style>
+
+<script>
+/*
+ Client-side category filtering for the store page.
+ No backend changes required: clicking a category will hide products not in that category.
+*/
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryLinks = document.querySelectorAll('[data-store-category]');
+    const productCards = document.querySelectorAll('#storeProductsGrid .p-card');
+    const gridEl = document.getElementById('storeProductsGrid');
+    const filterInput = document.querySelector('.store-filter');
+
+    function setActiveCategoryLink(activeEl) {
+        categoryLinks.forEach(el => el.classList.remove('active'));
+        if (activeEl) activeEl.classList.add('active');
+    }
+
+    // Existing category filtering (sidebar removed, but keep logic if present)
+    categoryLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const catId = this.getAttribute('data-store-category');
+            setActiveCategoryLink(this);
+
+            if (!catId || catId === 'all') {
+                productCards.forEach(c => c.style.display = '');
+                return;
+            }
+
+            productCards.forEach(c => {
+                if (c.dataset.category === catId) c.style.display = '';
+                else c.style.display = 'none';
+            });
+        });
+    });
+
+    // In-store search filter (client-side)
+    if (filterInput){
+        filterInput.addEventListener('input', function(){
+            const q = this.value.trim().toLowerCase();
+            productCards.forEach(c => {
+                const title = c.querySelector('.p-card__title')?.textContent.toLowerCase() || '';
+                c.style.display = !q || title.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    // Density toggle
+    document.querySelectorAll('.js-density').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.js-density').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            if (btn.dataset.density === 'compact') gridEl.classList.add('is-compact');
+            else gridEl.classList.remove('is-compact');
+        });
+    });
+
+    // Add to cart for store page cards
+    async function addToCartAjax(productId, btn) {
+        if (!productId) return;
+        const original = btn.innerHTML;
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            const res = await fetch('/add-to-cart-ajax/' + productId, { method:'POST', headers: { 'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify({}) });
+            if (res.redirected) { window.location.href = res.url; return; }
+            const contentType = res.headers.get('content-type') || '';
+            const data = contentType.includes('application/json') ? await res.json() : null;
+            if (data && data.success) { /* optionally notify */ }
+        } finally { btn.disabled = false; btn.innerHTML = original; }
+    }
+
+    // Delegated handlers for add/share
+    document.body.addEventListener('click', function(ev){
+        const addBtn = ev.target.closest('.js-add-related');
+        if (addBtn){ ev.preventDefault(); addToCartAjax(addBtn.getAttribute('data-product-id'), addBtn); return; }
+        const shareBtn = ev.target.closest('.js-share-card');
+        if (shareBtn){ ev.preventDefault(); const path = shareBtn.getAttribute('data-url')||location.pathname; const url = path.startsWith('http')?path:(location.origin+path); const title = shareBtn.getAttribute('data-title')||document.title; if (navigator.share){ navigator.share({title,url}).catch(()=>{});} else if (navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(url).catch(()=>{});} }
+    });
+
+    // Real-time stock updates
+    if (typeof socket !== 'undefined') {
+        socket.on('product_stock_update', function(data) {
+            const productId = data.product_id;
+            const newStock = data.available_stock;
+            
+            // Update product cards in store grid
+            const stockBadges = document.querySelectorAll(`[data-product-id="${productId}"]`);
+            stockBadges.forEach(badge => {
+                if (newStock > 0) {
+                    badge.className = 'badge bg-success-subtle text-success border-success p-card__stock';
+                    badge.textContent = `In stock (${newStock})`;
+                } else {
+                    badge.className = 'badge bg-danger-subtle text-danger border-danger p-card__stock';
+                    badge.textContent = 'Out of Stock';
+                }
+            });
+            
+            // Update sold out labels on product images
+            const productCards = document.querySelectorAll('.p-card');
+            productCards.forEach(card => {
+                const link = card.querySelector(`a[href*="${productId}"]`);
+                if (link) {
+                    const soldOutLabel = card.querySelector('.product-image-sold-out');
+                    if (newStock <= 0 && !soldOutLabel) {
+                        // Add out of stock label
+                        const media = card.querySelector('.p-card__media');
+                        if (media) {
+                            const label = document.createElement('div');
+                            label.className = 'product-image-sold-out';
+                            label.innerHTML = '<span>Out of Stock</span>';
+                            media.appendChild(label);
+                        }
+                    } else if (newStock > 0 && soldOutLabel) {
+                        // Remove out of stock label
+                        soldOutLabel.remove();
+                    }
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

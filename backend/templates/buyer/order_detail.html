@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Details - Kids & Baby Store</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      color: #1e293b;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .header-title i {
+      color: #3b82f6;
+      font-size: 32px;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .btn-back:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+
+    /* Main Content */
+    .content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* Order Header */
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 1px solid #f0f0f0;
+      margin-bottom: 16px;
+    }
+
+    .header-left h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #212121;
+      margin: 0 0 4px 0;
+    }
+
+    .order-date {
+      font-size: 14px;
+      color: #9e9e9e;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.pending {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+
+    .status-badge.processing,
+    .status-badge.to_ship,
+    .status-badge.in_transit {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .status-badge.delivered {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .status-badge.cancelled {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+
+    /* Cards */
+    .order-info-card,
+    .tracking-card,
+    .shipping-card,
+    .items-card,
+    .summary-card,
+    .notes-card {
+      background: white;
+      border: 1px solid #f0f0f0;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    /* Order Info Card */
+    .order-info-card {
+      padding: 16px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .label {
+      font-size: 14px;
+      color: #757575;
+    }
+
+    .value {
+      font-size: 14px;
+      color: #212121;
+      font-weight: 500;
+    }
+
+    .value.total {
+      font-size: 16px;
+      color: #ff5722;
+      font-weight: 600;
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #212121;
+    }
+
+    .section-header i {
+      color: #757575;
+      font-size: 16px;
+    }
+
+    /* Tracking Card */
+    .tracking-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #212121;
+    }
+
+    .tracking-header i {
+      color: #2196f3;
+    }
+
+    .tracking-content {
+      padding: 16px;
+    }
+
+    .tracking-number {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tracking-number code {
+      background: #f5f5f5;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #212121;
+    }
+
+    .track-btn {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #2196f3;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.3s ease;
+    }
+
+    .track-btn:hover {
+      background: #1976d2;
+    }
+
+    /* Shipping Card */
+    .shipping-content {
+      padding: 16px;
+    }
+
+    .shipping-section {
+      margin-bottom: 20px;
+    }
+
+    .shipping-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .shipping-section h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #212121;
+      margin: 0 0 8px 0;
+    }
+
+    .shipping-section p {
+      font-size: 14px;
+      color: #757575;
+      margin: 0 0 4px 0;
+      line-height: 1.4;
+    }
+
+    /* Items Card */
+    .items-list {
+      padding: 0;
+    }
+
+    .item-row {
+      padding: 16px;
+      border-bottom: 1px solid #f5f5f5;
+    }
+
+    .item-row:last-child {
+      border-bottom: none;
+    }
+
+    .item-image {
+      width: 100%;
+      height: 200px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .item-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .no-image {
+      color: #bdbdbd;
+      font-size: 48px;
+    }
+
+    .item-content {
+      display: flex;
+      gap: 12px;
+    }
+
+    .item-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #212121;
+      margin: 0 0 4px 0;
+      line-height: 1.3;
+    }
+
+    .item-variant,
+    .item-quantity {
+      font-size: 12px;
+      color: #757575;
+      margin-bottom: 2px;
+    }
+
+    .item-price {
+      text-align: right;
+      flex-shrink: 0;
+      min-width: 100px;
+    }
+
+    .unit-price {
+      font-size: 12px;
+      color: #757575;
+      margin-bottom: 2px;
+    }
+
+    .subtotal {
+      font-size: 14px;
+      font-weight: 600;
+      color: #212121;
+    }
+
+    /* Summary Card */
+    .summary-content {
+      padding: 16px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+
+    .summary-row.total {
+      border-top: 1px solid #f0f0f0;
+      margin-top: 8px;
+      padding-top: 12px;
+      font-weight: 600;
+      color: #212121;
+    }
+
+    .summary-row.total span:last-child {
+      color: #ff5722;
+      font-size: 16px;
+    }
+
+    /* Notes Card */
+    .notes-content {
+      padding: 16px;
+    }
+
+    .notes-content p {
+      font-size: 14px;
+      color: #757575;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .content {
+        padding: 0 12px;
+      }
+
+      .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .item-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .item-image {
+        width: 100%;
+        height: 200px;
+      }
+
+      .item-price {
+        text-align: left;
+        margin-top: 8px;
+      }
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+
+    .modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-dialog {
+      background: white;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      padding: 16px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #6b7280;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 16px;
+    }
+
+    .modal-footer {
+      padding: 16px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .form-check {
+      margin-bottom: 6px;
+    }
+
+    .form-check-input {
+      margin-right: 6px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #374151;
+      font-size: 13px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .header-title {
+        font-size: 20px;
+      }
+      
+      .content {
+        padding: 0 10px;
+      }
+      
+      .items-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">
+        <i class="fas fa-box"></i>
+        <span>Order Details</span>
+      </div>
+      <a href="{{ url_for('my_orders') }}" class="btn-back">
+        <i class="fas fa-arrow-left"></i>
+        Back to Orders
+      </a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      <!-- Order Header -->
+      <div class="order-header">
+        <div class="header-left">
+          <h1>Order #{{ order.id }}</h1>
+          <span class="order-date">{{ order.created_at.strftime('%B %d, %Y') }}</span>
+        </div>
+        <div class="header-right">
+          <span class="status-badge {{ order.status }}">{{ order.status.replace('_', ' ').title() }}</span>
+        </div>
+      </div>
+
+      <!-- Order Info -->
+      <div class="order-info-card">
+        <div class="info-row">
+          <span class="label">Total Amount</span>
+          <span class="value total">₱{{ "%.2f"|format(order.total_amount) }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Payment Method</span>
+          <span class="value">{{ order.payment_method|title }}</span>
+        </div>
+        {% if order.payment_status %}
+        <div class="info-row">
+          <span class="label">Payment Status</span>
+          <span class="value">{{ order.payment_status.title() }}</span>
+        </div>
+        {% endif %}
+        <div class="info-row">
+          <span class="label">Estimated Delivery</span>
+          <span class="value">{{ estimated_delivery.strftime('%B %d, %Y') if order.status in ['pending', 'processing', 'to_ship'] else 'Delivered' if order.status == 'delivered' else 'Processing' }}</span>
+        </div>
+      </div>
+
+      <!-- Tracking Info -->
+      {% if order.tracking_number %}
+      <div class="tracking-card">
+        <div class="tracking-header">
+          <i class="fas fa-truck"></i>
+          <span>Tracking Information</span>
+        </div>
+        <div class="tracking-content">
+          <div class="tracking-number">
+            <span class="label">Tracking Number:</span>
+            <code>{{ order.tracking_number }}</code>
+          </div>
+          <a href="{{ url_for('track_order', tracking_number=order.tracking_number) }}" class="track-btn" target="_blank">
+            Track Order
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Delivery Proof -->
+      {% if order.proof_photo_url %}
+      <div class="shipping-card">
+        <div class="section-header">
+          <i class="fas fa-camera"></i>
+          <span>Delivery Proof</span>
+        </div>
+        <div class="shipping-content">
+          <div class="shipping-section">
+            <img src="{{ url_for('static', filename='uploads/' + order.proof_photo_url) }}" alt="Delivery Proof" style="width: 100%; max-width: 400px; border-radius: 8px; cursor: pointer;" onclick="showImageModal('{{ url_for('static', filename='uploads/' + order.proof_photo_url) }}')"/>
+            <p style="margin-top: 8px; font-size: 12px; color: #757575;">Click image to view full size</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Shipping Information -->
+      <div class="shipping-card">
+        <div class="section-header">
+          <i class="fas fa-shipping-fast"></i>
+          <span>Shipping Information</span>
+        </div>
+        <div class="shipping-content">
+          <div class="shipping-section">
+            <h4>Shipping Address</h4>
+            <p>{{ order.shipping_address or 'Not provided' }}</p>
+          </div>
+          <div class="shipping-section">
+            <h4>Contact Information</h4>
+            <p>{{ order.buyer.email }}</p>
+            {% if order.buyer.phone %}
+            <p>{{ order.buyer.phone }}</p>
+            {% endif %}
+          </div>
+          {% if order.tracking_number %}
+          <div class="shipping-section">
+            <h4>Tracking Number</h4>
+            <p>{{ order.tracking_number }}</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Order Items -->
+      <div class="items-card">
+        <div class="section-header">
+          <i class="fas fa-shopping-bag"></i>
+          <span>Order Items ({{ order.items|length }})</span>
+        </div>
+        <div class="items-list">
+          {% for item in order.items %}
+          <div class="item-row">
+            <div class="item-image">
+              {% if item.product and item.product.image_filename %}
+              <img src="{{ url_for('static', filename='uploads/' + item.product.image_filename) }}" alt="{{ item.product.name }}">
+              {% else %}
+              <div class="no-image">
+                <i class="fas fa-image"></i>
+              </div>
+              {% endif %}
+            </div>
+            <div class="item-content">
+              <div class="item-details">
+                <h4 class="item-name">{{ item.product.name if item.product else 'Product Not Available' }}</h4>
+                {% if item.variant %}
+                <div class="item-variant">Variant: {{ item.variant }}</div>
+                {% endif %}
+                <div class="item-quantity">Qty: {{ item.quantity }}</div>
+              </div>
+              <div class="item-price">
+                <div class="unit-price">₱{{ "%.2f"|format(item.price_at_time) }} each</div>
+                <div class="subtotal">₱{{ "%.2f"|format(item.price_at_time * item.quantity) }}</div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="summary-card">
+        <div class="section-header">
+          <i class="fas fa-receipt"></i>
+          <span>Order Summary</span>
+        </div>
+        <div class="summary-content">
+          <div class="summary-row">
+            <span>Subtotal</span>
+            <span>₱{{ "%.2f"|format(order.total_amount) }}</span>
+          </div>
+          <div class="summary-row">
+            <span>Shipping Fee</span>
+            <span>₱0.00</span>
+          </div>
+          <div class="summary-row">
+            <span>Tax</span>
+            <span>₱0.00</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total</span>
+            <span>₱{{ "%.2f"|format(order.total_amount) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery Notes -->
+      {% if order.delivery_notes %}
+      <div class="notes-card">
+        <div class="section-header">
+          <i class="fas fa-sticky-note"></i>
+          <span>Delivery Notes</span>
+        </div>
+        <div class="notes-content">
+          <p>{{ order.delivery_notes }}</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Cancel Modal -->
+  <div class="modal" id="cancelModal">
+    <div class="modal-dialog">
+      <form method="POST" action="{{ url_for('cancel_order', order_id=order.id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Cancel Order</h5>
+          <button type="button" class="modal-close" onclick="closeCancelModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">Select your reason(s):</p>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered by mistake" id="r1">
+            <label class="form-check-label" for="r1">Ordered by mistake</label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Change of mind" id="r2">
+            <label class="form-check-label" for="r2">Change of mind</label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Found a cheaper alternative" id="r3">
+            <label class="form-check-label" for="r3">Found a cheaper alternative</label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered the wrong item" id="r4">
+            <label class="form-check-label" for="r4">Ordered the wrong item</label>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Seller has not processed my order" id="r5">
+            <label class="form-check-label" for="r5">Seller has not processed my order</label>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Other reason (optional)</label>
+            <input type="text" class="form-control" name="cancel_other" placeholder="Type your reason">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">Keep Order</button>
+          <button type="submit" class="btn btn-danger">Submit Cancellation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function showImageModal(imageUrl) {
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+      modal.innerHTML = `<img src="${imageUrl}" style="max-width:90%;max-height:90%;border-radius:8px;"/>`;
+      modal.onclick = () => modal.remove();
+      document.body.appendChild(modal);
+    }
+
+    function showCancelModal() {
+      document.getElementById('cancelModal').classList.add('show');
+    }
+
+    function closeCancelModal() {
+      document.getElementById('cancelModal').classList.remove('show');
+    }
+
+    // Validate cancel form
+    document.querySelector('#cancelModal form').addEventListener('submit', function(e) {
+      const reasons = document.querySelectorAll('input[name="cancel_reasons"]:checked');
+      const otherReason = document.querySelector('input[name="cancel_other"]').value.trim();
+      
+      if (!reasons.length && !otherReason) {
+          e.preventDefault();
+          // Inline error instead of alert
+          const errorEl = document.querySelector('.cancel-error') || (() => {
+            const el = document.createElement('div');
+            el.className = 'alert alert-danger mt-2 mb-0 cancel-error';
+            el.style.fontSize = '0.875rem';
+            form.appendChild(el);
+            return el;
+          })();
+          errorEl.textContent = '⚠️ Please select at least one reason or provide an “Other reason” to cancel the order.';
+          errorEl.style.display = 'block';
+          errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return false;
+        }
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('cancelModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeCancelModal();
+      }
+    });
+  </script>
+</body>
+</html>

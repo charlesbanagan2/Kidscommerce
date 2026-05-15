@@ -1,0 +1,1121 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<style>
+/* Default styling - no theme overrides */
+
+
+    .profile-page {
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 40px rgba(79, 70, 229, 0.3);
+    }
+
+    .profile-header h2 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    .profile-card {
+        background: white;
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .profile-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-card .card-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid var(--border-color);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .profile-card .card-header h5 {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .profile-card .card-header h5 i {
+        color: var(--primary-color);
+        font-size: 1.1rem;
+    }
+
+    .profile-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .avatar-section {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    .avatar-img {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .avatar-upload {
+        flex: 1;
+    }
+
+    .avatar-upload input[type="file"] {
+        border-radius: 10px;
+        border: 2px dashed var(--border-color);
+        padding: 0.5rem 0.75rem;
+        background: white;
+        cursor: pointer;
+        width: 100%;
+        height: auto;
+        min-height: 42px;
+        line-height: 1.5;
+    }
+
+    .avatar-upload input[type="file"]:hover {
+        border-color: var(--primary-color);
+        background: #f8fafc;
+    }
+
+    .avatar-upload input[type="file"]:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        outline: none;
+    }
+
+    .avatar-upload input[type="file"]::file-selector-button {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 0.4rem 1rem;
+        margin-right: 1rem;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .avatar-upload input[type="file"]::file-selector-button:hover {
+        background: linear-gradient(135deg, var(--primary-hover) 0%, #6d28d9 100%);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 1.5px solid var(--border-color);
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-control:read-only {
+        background-color: #f8fafc;
+        color: #64748b;
+    }
+
+    .form-control.is-valid {
+        border-color: var(--success-color);
+        background-image: none;
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--danger-color);
+        background-image: none;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, var(--primary-hover) 0%, #6d28d9 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+    }
+
+    .btn-outline-primary {
+        border: 2px solid var(--primary-color);
+        color: var(--primary-color);
+        border-radius: 10px;
+        padding: 0.65rem 1.25rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+
+    .btn-warning {
+        background: linear-gradient(135deg, var(--warning-color) 0%, #d97706 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        color: white;
+    }
+
+    .btn-warning:hover {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        color: white;
+    }
+
+    .info-alert {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: none;
+        border-left: 4px solid var(--info-color);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        color: #1e40af;
+    }
+
+    .info-alert i {
+        color: var(--info-color);
+    }
+
+    .address-card {
+        background: white;
+        border: 1.5px solid var(--border-color);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+
+    .address-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.1);
+    }
+
+    .address-card .card-body {
+        padding: 1.25rem;
+    }
+
+    .address-card .card-title {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .badge-default {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1.5px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+
+    .stats-card:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+
+    .stats-card h4 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .stats-card small {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .stats-primary h4 { color: var(--primary-color); }
+    .stats-success h4 { color: var(--success-color); }
+    .stats-info h4 { color: var(--info-color); }
+    .stats-warning h4 { color: var(--warning-color); }
+
+    .modal-content {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        color: var(--dark-color);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--border-color);
+        padding: 1rem 1.5rem;
+    }
+
+    .structured-address {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        border: 1.5px solid var(--border-color);
+    }
+
+    .structured-address h6 {
+        color: var(--dark-color);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .structured-address h6 i {
+        color: var(--primary-color);
+    }
+
+    .form-text {
+        color: #64748b;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .phone-feedback {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+
+    .dropdown-menu {
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 0.5rem;
+    }
+
+    .dropdown-item {
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .dropdown-item:hover {
+        background: #f1f5f9;
+    }
+
+    .dropdown-item.text-danger:hover {
+        background: #fef2f2;
+    }
+
+    @media (max-width: 768px) {
+        .profile-page {
+            padding: 1rem 0;
+        }
+
+        .profile-header {
+            padding: 1.5rem;
+            border-radius: 0;
+            margin-left: -12px;
+            margin-right: -12px;
+            margin-top: -1rem;
+        }
+
+        .avatar-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .avatar-upload {
+            width: 100%;
+        }
+
+        .stats-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+
+<div class="profile-page">
+    <div class="container">
+        {% include 'partials/_back_bar.html' %}
+        
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2><i class="fas fa-user-circle me-2"></i>My Profile</h2>
+                    <p>Manage your account settings and preferences</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <!-- Removed Kids Kingdom Member badge -->
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <!-- Personal Information -->
+                <div class="profile-card">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h5><i class="fas fa-user"></i>Personal Information</h5>
+                        <small class="text-muted"><i class="fas fa-camera me-1"></i>Profile photo shown in header, orders, and checkout</small>
+                    </div>
+                    <div class="card-body">
+                        <!-- Avatar Section -->
+                        <div class="avatar-section">
+                            <img src="{{ navbar_avatar_url }}?t={{ range(1000000, 9999999) | random }}" alt="avatar" class="avatar-img" id="profile-avatar" onerror="this.src='/static/user_avatar.png'">
+                            <div class="avatar-upload">
+                                <form class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2" method="POST" action="{{ url_for('upload_avatar') }}" enctype="multipart/form-data">
+                                    <input type="file" name="avatar" id="avatar-input" accept="image/png,image/jpeg" class="form-control" required>
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="fas fa-upload me-1"></i>Upload
+                                    </button>
+                                </form>
+                                <small class="text-muted d-block mt-2"><i class="fas fa-info-circle me-1"></i>Accepted formats: PNG, JPEG. Max size: 5MB</small>
+                            </div>
+                        </div>
+
+                        <!-- Profile Form -->
+                        <form method="POST" action="{{ url_for('update_profile') }}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                                <div class="form-text"><i class="fas fa-lock me-1"></i>Email cannot be changed for security reasons.</div>
+                            </div>
+                            <!-- Phone validation for Philippine mobile only (09XXXXXXXXX) -->
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone }}" pattern="^09[0-9]{9}$" minlength="11" maxlength="11" placeholder="09123456789" required>
+                                <div class="form-text"><i class="fas fa-mobile-alt me-1"></i>Enter Philippine mobile number starting with 09 (e.g., 09123456789)</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Default Address <span class="text-muted">(Optional)</span></label>
+                                <textarea
+                                    class="form-control"
+                                    id="address"
+                                    name="address"
+                                    rows="3"
+                                    readonly>{{ user.address }}</textarea>
+                            </div>
+                            <div class="d-flex flex-column flex-sm-row align-items-start gap-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>Update Profile
+                                </button>
+                                <small class="text-muted align-self-sm-center">
+                                    <i class="fas fa-lightbulb me-1 text-warning"></i>
+                                    Tip: You can update individual fields without changing other information.
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Additional Addresses -->
+                <div class="profile-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-map-marked-alt"></i>Additional Addresses</h5>
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                            <i class="fas fa-plus me-1"></i>Add Address
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        {% if addresses %}
+                            <div class="row g-3">
+                                {% for address in addresses %}
+                                    <div class="col-md-6">
+                                        <div class="address-card">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="card-title">
+                                                            {{ address.label }}
+                                                            {% if address.is_default %}
+                                                                <span class="badge-default ms-2">Default</span>
+                                                            {% endif %}
+                                                        </h6>
+                                                        <p class="card-text small text-muted mb-0 profile-address-text">{{ address.full_address }}</p>
+                                                    </div>
+                                                    <div class="dropdown">
+                                                        <button class="btn btn-sm btn-outline-secondary rounded-circle" data-bs-toggle="dropdown" style="width: 32px; height: 32px; padding: 0;">
+                                                            <i class="fas fa-ellipsis-v"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu dropdown-menu-end">
+                                                            <li>
+                                                                <button type="button" class="dropdown-item address-edit-btn" data-address-id="{{ address.id }}">
+                                                                    <i class="fas fa-edit me-2 text-primary"></i>Edit
+                                                                </button>
+                                                            </li>
+                                                            <li><a class="dropdown-item text-danger" href="{{ url_for('delete_address', address_id=address.id) }}"><i class="fas fa-trash me-2"></i>Delete</a></li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted mb-0">No additional addresses added yet.</p>
+                                <small class="text-muted">Click "Add Address" to save your shipping locations.</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Account Security -->
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-shield-alt"></i>Account Security</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('change_password') }}">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="current_password" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="new_password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-key me-2"></i>Change Password
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Account Statistics -->
+                <div class="profile-card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar"></i>Account Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-6 col-md-3">
+                                <div class="stats-card stats-primary">
+                                    <h4>{{ user.orders|length }}</h4>
+                                    <small>Total Orders</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stats-card stats-success">
+                                    <h4>{{ user.wishlist_items|length }}</h4>
+                                    <small>Wishlist Items</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stats-card stats-info">
+                                    <h4>{{ user.addresses|length }}</h4>
+                                    <small>Saved Addresses</small>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stats-card stats-warning">
+                                    <h4>{{ user.created_at.strftime('%Y') if user and user.created_at else 'N/A' }}</h4>
+                                    <small>Member Since</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Address Modal (Professional PSGC Dropdowns) -->
+<div class="modal fade" id="addAddressModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_address') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-map-marker-alt me-2 text-primary"></i>Add New Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Address Label Field -->
+                    <div class="mb-3">
+                        <label for="label_type" class="form-label">Address Label</label>
+                        <select class="form-select" id="label_type" required>
+                            <option value="">Select Address Type</option>
+                            <option value="Home">Home</option>
+                            <option value="Work">Work</option>
+                            <option value="Office">Office</option>
+                            <option value="School">School</option>
+                            <option value="Custom">Custom Label</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Custom Label Input (Hidden by default) -->
+                    <div class="mb-3" id="custom_label_div" style="display: none;">
+                        <label for="custom_label" class="form-label">Custom Label Name</label>
+                        <input type="text" class="form-control" id="custom_label" placeholder="e.g., Parents' House, Warehouse">
+                    </div>
+                    
+                    <!-- Hidden field to store final label -->
+                    <input type="hidden" id="label" name="label">
+
+                    <!-- Structured Address -->
+                    <div class="structured-address mb-3">
+                        <h6><i class="fas fa-map"></i>Structured Address Details</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small">Region</label>
+                                <select id="addr_region" class="form-select">
+                                    <option value="">Region</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Province</label>
+                                <select id="addr_province" class="form-select" disabled>
+                                    <option value="">Province</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">City / Municipality</label>
+                                <select id="addr_city" class="form-select" disabled>
+                                    <option value="">City / Municipality</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Barangay</label>
+                                <select id="addr_barangay" class="form-select" disabled>
+                                    <option value="">Barangay</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Street / Building / Unit</label>
+                                <input type="text" id="addr_street" class="form-control" placeholder="Street / Building / Unit">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">ZIP Code (optional)</label>
+                                <input type="text" id="addr_zip" class="form-control" placeholder="ZIP Code">
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-3">
+                            <i class="fas fa-info-circle me-1"></i>Select Region, Province, City/Municipality, Barangay for a standardized address.
+                        </small>
+                    </div>
+
+                    <!-- Final Composed Address -->
+                    <div class="mb-3">
+                        <label for="full_address" class="form-label">Complete Address (Auto-generated)</label>
+                        <textarea class="form-control" id="full_address" name="full_address" rows="3" placeholder="Final composed address will appear here" readonly required></textarea>
+                    </div>
+
+                    <!-- Hidden backend fields -->
+                    <input type="hidden" name="region" id="hidden_region">
+                    <input type="hidden" name="province" id="hidden_province">
+                    <input type="hidden" name="city" id="hidden_city">
+                    <input type="hidden" name="barangay" id="hidden_barangay">
+                    <input type="hidden" name="street_address" id="hidden_street">
+                    <input type="hidden" name="latitude" id="hidden_latitude">
+                    <input type="hidden" name="longitude" id="hidden_longitude">
+
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="is_default" name="is_default">
+                        <label class="form-check-label" for="is_default">
+                            Set as default shipping address
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Add Address</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- PSGC Dynamic Script for Additional Addresses ONLY -->
+<script>
+/* DO NOT change other code. This block powers the professional dropdowns in the Add Address modal. */
+const PSGC = {
+  regions: 'https://psgc.gitlab.io/api/regions/',
+  provincesForRegion: code => `https://psgc.gitlab.io/api/regions/${encodeURIComponent(code)}/provinces/`,
+  citiesForProvince: code => `https://psgc.gitlab.io/api/provinces/${encodeURIComponent(code)}/cities-municipalities/`,
+  barangaysForCity: code => `https://psgc.gitlab.io/api/cities-municipalities/${encodeURIComponent(code)}/barangays/`
+};
+
+(function(){
+    const modalEl   = document.getElementById('addAddressModal');
+    const streetInp = document.getElementById('addr_street');
+    const regionSel = document.getElementById('addr_region');
+    const provSel   = document.getElementById('addr_province');
+    const citySel   = document.getElementById('addr_city');
+    const brgySel   = document.getElementById('addr_barangay');
+    const zipInp    = document.getElementById('addr_zip');
+    const finalTxt  = document.getElementById('full_address');
+
+    // Hidden inputs for backend
+    const hidRegion   = document.getElementById('hidden_region');
+    const hidProvince = document.getElementById('hidden_province');
+    const hidCity     = document.getElementById('hidden_city');
+    const hidBarangay = document.getElementById('hidden_barangay');
+    const hidStreet   = document.getElementById('hidden_street');
+
+    async function fetchJSON(url){
+        try{
+            const r = await fetch(url);
+            if(!r.ok) throw new Error('Network error');
+            return await r.json();
+        }catch(e){
+            console.warn('PSGC fetch failed:', e);
+            return [];
+        }
+    }
+
+    function optionize(sel, items, placeholder){
+        sel.innerHTML = `<option value="">${placeholder}</option>`;
+        items.forEach(item=>{
+            const code = item.code || item.psgcCode || item.regionCode || item.provinceCode || item.cityMunCode || item.cityMunicipalityCode || item.barangayCode || item.brgyCode;
+            const name = item.name || item.regionName || item.provinceName || item.cityMunName || item.cityName || item.barangayName || item.barangay;
+            if(code && name){
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
+    function buildAddress(){
+        const street   = streetInp.value.trim();
+        const regionTx = regionSel.options[regionSel.selectedIndex]?.text || '';
+        const provTx   = provSel.options[provSel.selectedIndex]?.text || '';
+        const cityTx   = citySel.options[citySel.selectedIndex]?.text || '';
+        const brgyTx   = brgySel.options[brgySel.selectedIndex]?.text || '';
+        const zipTx    = zipInp.value.trim();
+
+        const parts = [street, brgyTx, cityTx, provTx, regionTx, zipTx].filter(Boolean);
+        finalTxt.value = parts.join(', ');
+
+        hidStreet.value   = street;
+        hidRegion.value   = regionTx;
+        hidProvince.value = provTx;
+        hidCity.value     = cityTx;
+        hidBarangay.value = brgyTx;
+    }
+
+    // Address label dropdown handler
+    const labelTypeSelect = document.getElementById('label_type');
+    const customLabelDiv = document.getElementById('custom_label_div');
+    const customLabelInput = document.getElementById('custom_label');
+    const labelHidden = document.getElementById('label');
+    const formEl = modalEl ? modalEl.querySelector('form') : null;
+    const defaultFormAction = formEl ? formEl.getAttribute('action') : null;
+    
+    labelTypeSelect.addEventListener('change', function() {
+        if (this.value === 'Custom') {
+            customLabelDiv.style.display = 'block';
+            customLabelInput.required = true;
+            labelHidden.value = '';
+        } else {
+            customLabelDiv.style.display = 'none';
+            customLabelInput.required = false;
+            customLabelInput.value = '';
+            labelHidden.value = this.value;
+        }
+    });
+    
+    // Update hidden label when custom label changes
+    customLabelInput.addEventListener('input', function() {
+        labelHidden.value = this.value;
+    });
+
+    modalEl.addEventListener('shown.bs.modal', async ()=>{
+        if(regionSel.options.length <= 1){
+            const regions = await fetchJSON(PSGC.regions);
+            optionize(regionSel, regions, 'Region');
+        }
+        buildAddress();
+        
+        // If not in edit mode, reset label and fields
+        if (!modalEl.dataset.editing) {
+            labelTypeSelect.value = '';
+            customLabelDiv.style.display = 'none';
+            customLabelInput.value = '';
+            labelHidden.value = '';
+            streetInp.value = '';
+            zipInp.value = '';
+            optionize(provSel, [], 'Province');
+            optionize(citySel, [], 'City / Municipality');
+            optionize(brgySel, [], 'Barangay');
+            provSel.disabled = true;
+            citySel.disabled = true;
+            brgySel.disabled = true;
+        }
+    });
+
+    regionSel.addEventListener('change', async ()=>{
+        buildAddress();
+        const code = regionSel.value;
+        provSel.disabled = !code;
+        citySel.disabled = true;
+        brgySel.disabled = true;
+        optionize(provSel, [], 'Province');
+        optionize(citySel, [], 'City / Municipality');
+        optionize(brgySel, [], 'Barangay');
+        if(!code) return;
+        const provinces = await fetchJSON(PSGC.provincesForRegion(code));
+        optionize(provSel, provinces, 'Province');
+    });
+
+    provSel.addEventListener('change', async ()=>{
+        buildAddress();
+        const code = provSel.value;
+        citySel.disabled = !code;
+        brgySel.disabled = true;
+        optionize(citySel, [], 'City / Municipality');
+        optionize(brgySel, [], 'Barangay');
+        if(!code) return;
+        const cities = await fetchJSON(PSGC.citiesForProvince(code));
+        optionize(citySel, cities, 'City / Municipality');
+    });
+
+    citySel.addEventListener('change', async ()=>{
+        buildAddress();
+        const code = citySel.value;
+        brgySel.disabled = !code;
+        optionize(brgySel, [], 'Barangay');
+        if(!code) return;
+        const barangays = await fetchJSON(PSGC.barangaysForCity(code));
+        optionize(brgySel, barangays, 'Barangay');
+    });
+
+    brgySel.addEventListener('change', buildAddress);
+    streetInp.addEventListener('input', buildAddress);
+    zipInp.addEventListener('input', buildAddress);
+
+    // ----- Edit address support using the same modal -----
+    async function loadAddressForEdit(addressId) {
+        if (!formEl) return;
+        try {
+            const r = await fetch(`/api/get-address/${addressId}`);
+            const data = await r.json();
+            if (!data.success) return;
+            const a = data.address;
+
+            // Switch form action to edit route
+            formEl.setAttribute('action', `/edit-address/${addressId}`);
+            modalEl.dataset.editing = '1';
+
+            // Label
+            labelHidden.value = a.label || '';
+            const predefined = ['Home','Work','Office','School'];
+            if (predefined.includes(a.label)) {
+                labelTypeSelect.value = a.label;
+                customLabelDiv.style.display = 'none';
+                customLabelInput.value = '';
+            } else if (a.label) {
+                labelTypeSelect.value = 'Custom';
+                customLabelDiv.style.display = 'block';
+                customLabelInput.value = a.label;
+            } else {
+                labelTypeSelect.value = '';
+                customLabelDiv.style.display = 'none';
+                customLabelInput.value = '';
+            }
+
+            // Street & ZIP (ZIP not stored, so leave blank)
+            streetInp.value = a.street || '';
+            zipInp.value = '';
+
+            // Preselect region/province/city/barangay by name match if possible
+            // For now, just load regions and leave selects for user to re-choose if needed
+            if (regionSel.options.length <= 1) {
+                const regions = await fetchJSON(PSGC.regions);
+                optionize(regionSel, regions, 'Region');
+            }
+            provSel.disabled = true;
+            citySel.disabled = true;
+            brgySel.disabled = true;
+            optionize(provSel, [], 'Province');
+            optionize(citySel, [], 'City / Municipality');
+            optionize(brgySel, [], 'Barangay');
+
+            // Set full_address and hidden backend fields
+            finalTxt.value = a.full_address || '';
+            hidStreet.value   = a.street || '';
+            hidRegion.value   = a.region || '';
+            hidProvince.value = a.province || '';
+            hidCity.value     = a.city || '';
+            hidBarangay.value = a.barangay || '';
+
+            buildAddress();
+        } catch (e) {
+            console.warn('Failed to load address for edit', e);
+        }
+    }
+
+    // Attach click handlers to Edit buttons
+    document.querySelectorAll('.address-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function(){
+            const id = this.getAttribute('data-address-id');
+            if (!id) return;
+            if (formEl && defaultFormAction) {
+                formEl.setAttribute('action', defaultFormAction);
+            }
+            modalEl.dataset.editing = '';
+            loadAddressForEdit(id).then(() => {
+                const bsModal = new bootstrap.Modal(modalEl);
+                bsModal.show();
+            });
+        });
+    });
+
+    // When modal is hidden, reset to add mode
+    modalEl.addEventListener('hidden.bs.modal', () => {
+        if (formEl && defaultFormAction) {
+            formEl.setAttribute('action', defaultFormAction);
+        }
+        modalEl.dataset.editing = '';
+        labelTypeSelect.value = '';
+        customLabelDiv.style.display = 'none';
+        customLabelInput.value = '';
+        labelHidden.value = '';
+        streetInp.value = '';
+        zipInp.value = '';
+        optionize(provSel, [], 'Province');
+        optionize(citySel, [], 'City / Municipality');
+        optionize(brgySel, [], 'Barangay');
+        provSel.disabled = true;
+        citySel.disabled = true;
+        brgySel.disabled = true;
+        finalTxt.value = '';
+        hidStreet.value   = '';
+        hidRegion.value   = '';
+        hidProvince.value = '';
+        hidCity.value     = '';
+        hidBarangay.value = '';
+    });
+})();
+
+// Phone validation for Philippine mobile numbers (09XXXXXXXXX)
+(function() {
+    const phoneInput = document.getElementById('phone');
+    if (!phoneInput) return;
+    
+    // Force input to start with 09 and only allow digits
+    phoneInput.addEventListener('input', function(e) {
+        let value = this.value.replace(/[^0-9]/g, '');
+        
+        // Ensure it starts with 09
+        if (value.length >= 1 && value[0] !== '0') {
+            value = '09' + value;
+        }
+        if (value.length >= 2 && value.substring(0, 2) !== '09') {
+            value = '09' + value.substring(2);
+        }
+        
+        // Limit to 11 digits
+        if (value.length > 11) {
+            value = value.substring(0, 11);
+        }
+        
+        this.value = value;
+        
+        // Remove existing validation messages
+        let feedback = this.parentElement.querySelector('.phone-feedback');
+        if (!feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'phone-feedback';
+            this.parentElement.appendChild(feedback);
+        }
+        
+        // Validate Philippine mobile number
+        if (value.length === 0) {
+            feedback.textContent = '';
+            feedback.className = 'phone-feedback';
+            this.classList.remove('is-valid', 'is-invalid');
+        } else if (value.length < 11) {
+            feedback.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Phone number must be 11 digits (' + value.length + '/11)';
+            feedback.className = 'phone-feedback text-danger';
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+        } else if (value.length === 11 && /^09[0-9]{9}$/.test(value)) {
+            feedback.innerHTML = '<i class="fas fa-check-circle me-1"></i>Valid Philippine mobile number';
+            feedback.className = 'phone-feedback text-success';
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        } else {
+            feedback.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Invalid format. Must start with 09';
+            feedback.className = 'phone-feedback text-danger';
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+        }
+    });
+})();
+
+// Avatar preview on file selection to show image before upload
+(function() {
+    const avatarInput = document.getElementById('avatar-input');
+    const avatarImg = document.getElementById('profile-avatar');
+    
+    if (avatarInput && avatarImg) {
+        avatarInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    avatarImg.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+})();
+
+// Convert numeric PSGC codes in stored addresses to human-readable names on display
+(function() {
+    const defaultAddrEl = document.getElementById('address');
+    const extraAddrEls = document.querySelectorAll('.profile-address-text');
+
+    if (!defaultAddrEl && extraAddrEls.length === 0) return;
+
+    const PSGC_BASE = 'https://psgc.gitlab.io/api';
+
+    async function fetchJSON(url) {
+        try {
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('Network error');
+            return await r.json();
+        } catch (e) {
+            console.warn('PSGC display fetch failed', e);
+            return null;
+        }
+    }
+
+    async function convertAddress(text) {
+        if (!text) return text;
+        const parts = text.split(',').map(p => p.trim()).filter(Boolean);
+        if (parts.length < 5) return text;
+
+        const street = parts[0];
+        const brgyCode   = parts[1];
+        const cityCode   = parts[2];
+        const provCode   = parts[3];
+        const regionCode = parts[4];
+
+        // If any of these are not mostly digits, assume it's already human-readable
+        const codeLike = v => /^[0-9]{6,9}$/.test(v);
+        if (!codeLike(brgyCode) || !codeLike(cityCode) || !codeLike(provCode) || !codeLike(regionCode)) {
+            return text;
+        }
+
+        const [brgy, city, prov, region] = await Promise.all([
+            fetchJSON(`${PSGC_BASE}/barangays/${encodeURIComponent(brgyCode)}/`),
+            fetchJSON(`${PSGC_BASE}/cities-municipalities/${encodeURIComponent(cityCode)}/`),
+            fetchJSON(`${PSGC_BASE}/provinces/${encodeURIComponent(provCode)}/`),
+            fetchJSON(`${PSGC_BASE}/regions/${encodeURIComponent(regionCode)}/`)
+        ]);
+
+        const brgyName   = brgy && (brgy.barangayName || brgy.name || brgy.barangay) || brgyCode;
+        const cityName   = city && (city.cityMunName || city.cityName || city.name) || cityCode;
+        const provName   = prov && (prov.provinceName || prov.name) || provCode;
+        const regionName = region && (region.regionName || region.name) || regionCode;
+
+        const outParts = [street, brgyName, cityName, provName, regionName].filter(Boolean);
+        return outParts.join(', ');
+    }
+
+    async function applyConversions() {
+        if (defaultAddrEl && defaultAddrEl.value) {
+            defaultAddrEl.value = await convertAddress(defaultAddrEl.value);
+        }
+        for (const el of extraAddrEls) {
+            const orig = el.textContent || '';
+            if (!orig.trim()) continue;
+            const converted = await convertAddress(orig.trim());
+            el.textContent = converted;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', applyConversions);
+})();
+</script>
+{% endblock %}

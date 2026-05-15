@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buyer Orders</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Buyer Orders</div>
+    <div class="buyer" id="buyerLabel"></div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" id="tabs">
+      <button data-tab="TO_PAY" class="tab active">To Pay <span class="badge" id="count-TO_PAY">0</span></button>
+      <button data-tab="TO_SHIP" class="tab">To Ship <span class="badge" id="count-TO_SHIP">0</span></button>
+      <button data-tab="TO_RECEIVE" class="tab">To Receive / Out for Delivery <span class="badge" id="count-TO_RECEIVE">0</span></button>
+      <button data-tab="COMPLETED" class="tab">Completed <span class="badge" id="count-COMPLETED">0</span></button>
+      <button data-tab="RETURN_REFUND" class="tab">Return / Refund <span class="badge" id="count-RETURN_REFUND">0</span></button>
+      <button data-tab="CANCELLED" class="tab">Cancelled <span class="badge" id="count-CANCELLED">0</span></button>
+    </nav>
+
+    <section id="list" class="list"></section>
+  </main>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toasts"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script defer src="/app.js"></script>
+</body>
+</html>

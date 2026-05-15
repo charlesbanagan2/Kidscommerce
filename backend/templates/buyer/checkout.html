@@ -1,0 +1,1365 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - Kids & Baby Store{% endblock %}
+
+{% block head %}
+<style>
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+    }
+}
+
+/* Coupon Styles */
+.coupon-visual {
+    min-width: 80px;
+    text-align: center;
+    position: relative;
+}
+
+.coupon-visual::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: -6px;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    border: 2px solid #0b63a8;
+}
+
+.coupon-visual::before {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    right: -6px;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    border: 2px solid #0b63a8;
+}
+
+.list-group-item {
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+    border-radius: 8px !important;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.05) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.list-group-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.apply-coupon-btn {
+    transition: all 0.2s ease;
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.75rem !important;
+    border-radius: 20px !important;
+}
+
+.apply-coupon-btn:hover {
+    background-color: #0b63a8;
+    color: white !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .coupon-visual {
+        min-width: 70px;
+        padding: 0.75rem !important;
+    }
+    
+    .coupon-visual::after,
+    .coupon-visual::before {
+        display: none;
+    }
+}
+
+/* Animation for coupon application */
+@keyframes couponApplied {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.coupon-applied {
+    animation: couponApplied 0.5s ease-in-out;
+}
+
+/* Enhanced form controls */
+.form-control:focus, .form-select:focus {
+    border-color: #0b63a8;
+    box-shadow: 0 0 0 0.25rem rgba(11, 99, 168, 0.15);
+}
+
+/* Custom scrollbar for coupon list */
+#couponList {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #0b63a8 #f1f1f1;
+}
+
+#couponList::-webkit-scrollbar {
+    width: 6px;
+}
+
+#couponList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#couponList::-webkit-scrollbar-thumb {
+    background-color: #0b63a8;
+    border-radius: 10px;
+}
+
+/* Badge styles */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Alert styles */
+.alert {
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.alert-dismissible .btn-close {
+    padding: 0.5rem 0.5rem;
+    background-size: 0.6em;
+}
+
+/* Input group styles */
+.input-group-text {
+    background-color: #fff;
+    border-right: none;
+}
+
+.input-group .form-control:not(:first-child) {
+    border-left: none;
+}
+
+.input-group .form-control:focus {
+    border-color: #ced4da;
+    box-shadow: none;
+}
+
+/* Button hover effect */
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-weight: 600;
+}
+
+/* Utility classes */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Animation for new coupons */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.coupon-enter {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .coupon-visual {
+        min-width: 60px;
+    }
+    
+    .coupon-details {
+        padding: 0.75rem !important;
+    }
+
+    .newly-added-address {
+        animation: pulse 1.5s ease-in-out;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container py-4">
+        <!-- Progress Indicator -->
+        <div class="row mb-4">
+            <div class="col-lg-10 mx-auto">
+                <div class="d-flex align-items-center justify-content-center">
+                    <div class="d-flex align-items-center justify-content-between flex-grow-1">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success rounded-circle">1</span>
+                            <span class="text-success ms-2">Cart</span>
+                        </div>
+                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-primary rounded-circle">2</span>
+                            <span class="text-primary ms-2">Checkout</span>
+                        </div>
+                        <div class="flex-grow-1 mx-3" style="height: 2px; background: #ddd;"></div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-secondary rounded-circle">3</span>
+                            <span class="text-muted ms-2">Payment</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <form method="POST" action="{{ url_for('process_order') }}">
+            <input type="hidden" name="selected_cart_item_ids" value="{{ selected_cart_item_ids or '' }}">
+            <div class="row">
+                <!-- Order Summary -->
+                <div class="col-lg-10 mx-auto">
+                    <div class="card sticky-top">
+                        <div class="card-header">
+                            <h5 class="mb-0">Order Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Shipping Address Section -->
+        <div class="mb-2">
+                            <!-- Hidden address selection for functionality -->
+                            <div class="mb-2">
+                                <input type="hidden" id="address_select" name="address_id" value="{% if default_address %}{{ default_address.id }}{% endif %}">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <h6 class="fw-semibold mb-0 me-2">Delivery Address</h6>
+                                        <span class="badge bg-primary">Default</span>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editAddressModal" id="btn-edit-address">
+                                        <i class="fas fa-edit me-1"></i>Change
+                                    </button>
+                                </div>
+                                <div class="bg-light rounded p-2">
+                                    <p class="mb-0" id="selected-address-display-summary">
+                                        {% if default_address %}{{ default_address.full_address }}{% else %}{{ user.address }}{% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Cart Items -->
+                        <div class="mb-4">
+                            <h6 class="fw-semibold mb-3">Order Items</h6>
+                            {% for item in cart_items %}
+                                <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image_filename %}
+                                            <img src="{{ url_for('static', filename='uploads/' + item.product.image_filename) }}" class="rounded me-3" style="width: 70px; height: 70px; object-fit: cover;" alt="{{ item.product.name }}">
+                                        {% else %}
+                                            <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px;">
+                                                <i class="fas fa-image text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0 small">{{ item.product.name }}</h6>
+                                            <small class="text-muted">Qty: {{ item.quantity }}</small>
+                                        </div>
+                                    </div>
+                                    <span class="fw-bold">₱{{ "%.2f"|format(item.product.price * item.quantity) }}</span>
+                                </div>
+                            {% endfor %}
+                            
+                            <!-- Totals -->
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal</span>
+                                <span>₱{{ "%.2f"|format(total) }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Coupon Section -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label small fw-semibold text-uppercase text-muted mb-0">Discount Code</label>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#availableCoupons"
+                                        aria-expanded="false"
+                                        id="viewCouponsBtn">
+                                    <i class="fas fa-tag me-1"></i>
+                                    <span class="view-text">View Coupons</span>
+                                    <span class="hide-text d-none">Hide Coupons</span>
+                                </button>
+                            </div>
+                            
+                            <!-- Available Coupons Dropdown -->
+                            <div class="collapse mb-3" id="availableCoupons">
+                                <div class="card border-0 shadow-sm mb-3">
+                                    <div class="card-header bg-light py-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="small fw-semibold">Available Coupons</span>
+                                            <span class="badge bg-primary rounded-pill" id="couponCount">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="list-group list-group-flush" id="couponList">
+                                            {% for coupon in available_coupons %}
+                                            <div class="list-group-item list-group-item-action coupon-item" data-code="{{ coupon.code }}">
+                                                <div class="d-flex w-100 justify-content-between">
+                                                    <h6 class="mb-1">{{ coupon.code }}</h6>
+                                                    <small>{{ coupon.discount_value }}% off</small>
+                                                </div>
+                                                <p class="mb-1">{{ coupon.description }}</p>
+                                                <small>Min. spend ₱{{ coupon.min_order_amount }}</small>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Coupon Input Group -->
+                            <div class="input-group input-group-lg mb-2">
+                                <span class="input-group-text bg-white">
+                                    <i class="fas fa-ticket-alt text-muted"></i>
+                                </span>
+                                <input type="text"
+                                       id="couponCodeInput"
+                                       name="coupon_code"
+                                       class="form-control form-control-lg"
+                                       value="{{ coupon_code or '' }}"
+                                       placeholder="Enter promo code"
+                                       autocomplete="off"
+                                       aria-label="Enter promo code">
+                                <button type="button" class="btn btn-primary" id="applyCouponBtn">
+                                    <i class="fas fa-check me-1"></i>Apply
+                                </button>
+                            </div>
+                            
+                            <!-- Coupon Status Messages -->
+                            <div id="couponMessage" class="small">
+                                {% if coupon_error %}
+                                    <div class="alert alert-danger alert-dismissible fade show py-1 px-2 mb-0" role="alert">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-exclamation-circle me-2"></i>
+                                            <div>{{ coupon_error }}</div>
+                                        </div>
+                                        <button type="button" class="btn-close p-1" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                {% elif discount_amount and discount_amount > 0 %}
+                                    <div class="alert alert-success alert-dismissible fade show py-1 px-2 mb-0" role="alert">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <i class="fas fa-check-circle me-2"></i>
+                                                <strong>Coupon Applied!</strong> You saved <strong>₱{{ "%.2f"|format(discount_amount) }}</strong>
+                                            </div>
+                                            <a href="{{ url_for('checkout', ids=selected_cart_item_ids) }}" class="text-danger ms-2" title="Remove coupon">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted small d-flex align-items-center">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span>Enter a code or select from available coupons above</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Applied Coupon Display (if any) -->
+                            {% if applied_coupon %}
+                            <div class="mt-2">
+                                <div class="alert alert-success py-1 px-2 mb-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            <strong>{{ applied_coupon.code }}</strong> applied successfully!
+                                        </div>
+                                        <a href="{{ url_for('checkout', ids=selected_cart_item_ids) }}" class="text-danger">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                        </div>
+                        
+                        <!-- Discount Display -->
+                        <div class="d-flex justify-content-between mb-2" id="discountRow" style="display: none;">
+                            <span class="text-success">
+                                <i class="fas fa-tag me-1"></i>Discount
+                            </span>
+                            <span class="text-success" id="discountAmount">-₱0.00</span>
+                        </div>
+                        
+                        <!-- Delivery Fee (Province-based) -->
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>
+                                <i class="fas fa-shipping-fast me-1"></i>Delivery Fee
+                                {% if default_address and default_address.province %}
+                                    <small class="text-muted">({{ default_address.province }})</small>
+                                {% endif %}
+                            </span>
+                            <span id="deliveryFee" class="fw-bold text-primary">₱{{ "%.2f"|format(delivery_fee|default(36.0)) }}</span>
+                        </div>
+                        
+                        <hr>
+                        <div class="d-flex justify-content-between mb-4">
+                            <strong>Total</strong>
+                            <strong class="text-primary fs-5" id="grandTotalDisplay">₱{{ "%.2f"|format(grand_total) }}</strong>
+                        </div>
+                        
+                        <!-- Payment Method -->
+                        <div class="mb-4">
+                            <h6 class="fw-semibold mb-3">Payment Method</h6>
+                            <div class="d-flex flex-column gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="cod" value="cod" checked>
+                                    <label class="form-check-label d-flex align-items-center" for="cod">
+                                        <i class="fas fa-money-bill-wave me-2"></i>Cash on Delivery (COD)
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="gcash" value="gcash">
+                                    <label class="form-check-label d-flex align-items-center" for="gcash">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/GCash_logo.svg/1200px-GCash_logo.svg.png" class="me-2" alt="GCash" style="height: 20px; filter: grayscale(100%);">
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="card" value="card">
+                                    <label class="form-check-label d-flex align-items-center" for="card">
+                                        <i class="fas fa-credit-card me-2"></i>Credit/Debit Card
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Delivery Fee Info -->
+                        <div class="alert alert-info small mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Delivery Fee:</strong> Calculated based on your province location.
+                            {% if default_address and default_address.province %}
+                                <br><small>{{ default_address.province }} delivery: ₱{{ "%.2f"|format(delivery_fee|default(36.0)) }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Estimated Delivery -->
+                        <div class="alert alert-info small mb-4">
+                            <i class="fas fa-truck me-2"></i>Estimated delivery: 3-5 business days
+                        </div>
+                        
+                        <!-- Place Order Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>Place Order
+                            </button>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('cart') }}" class="text-decoration-none">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Cart
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    
+</div>
+
+<!-- Edit Address Modal -->
+<div class="modal fade" id="editAddressModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" id="editAddressForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Shipping Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Address Label Dropdown -->
+                    <div class="mb-3">
+                        <label for="edit_label_type" class="form-label">Address Label</label>
+                        <select class="form-select" id="edit_label_type" required>
+                            <option value="">Select Address Type</option>
+                            <option value="Home">🏠 Home</option>
+                            <option value="Work">💼 Work</option>
+                            <option value="Office">🏢 Office</option>
+                            <option value="School">🎓 School</option>
+                            <option value="Custom">✏️ Custom Label</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Custom Label Input -->
+                    <div class="mb-3" id="edit_custom_label_div" style="display: none;">
+                        <label for="edit_custom_label" class="form-label">Custom Label Name</label>
+                        <input type="text" class="form-control" id="edit_custom_label" placeholder="e.g., Parents' House, Warehouse">
+                    </div>
+                    
+                    <!-- Hidden field for final label -->
+                    <input type="hidden" id="edit_label" name="label">
+
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="fw-semibold mb-3">Address Details (PSGC Standard)</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small">Street / Building / Unit</label>
+                                <input type="text" id="edit_street" name="street" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Region</label>
+                                <select id="edit_region" class="form-select">
+                                    <option value="">Select Region</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Province</label>
+                                <select id="edit_province" class="form-select" disabled>
+                                    <option value="">Select Province</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">City / Municipality</label>
+                                <select id="edit_city" class="form-select" disabled>
+                                    <option value="">Select City/Municipality</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Barangay</label>
+                                <select id="edit_barangay" class="form-select" disabled>
+                                    <option value="">Select Barangay</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_full_address" class="form-label">Complete Address (Auto-generated)</label>
+                        <textarea class="form-control" id="edit_full_address" name="full_address" rows="3" readonly required></textarea>
+                    </div>
+
+                    <input type="hidden" name="region" id="edit_hidden_region">
+                    <input type="hidden" name="province" id="edit_hidden_province">
+                    <input type="hidden" name="city" id="edit_hidden_city">
+                    <input type="hidden" name="barangay" id="edit_hidden_barangay">
+                    <input type="hidden" name="return_to" value="checkout">
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="edit_is_default" name="is_default">
+                        <label class="form-check-label" for="edit_is_default">
+                            Set as default address
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Address</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Address Modal -->
+<div class="modal fade" id="addAddressModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('add_address') }}" id="addAddressForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Shipping Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Address Label Dropdown -->
+                    <div class="mb-3">
+                        <label for="add_label_type" class="form-label">Address Label</label>
+                        <select class="form-select" id="add_label_type" required>
+                            <option value="">Select Address Type</option>
+                            <option value="Home">🏠 Home</option>
+                            <option value="Work">💼 Work</option>
+                            <option value="Office">🏢 Office</option>
+                            <option value="School">🎓 School</option>
+                            <option value="Custom">✏️ Custom Label</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Custom Label Input -->
+                    <div class="mb-3" id="add_custom_label_div" style="display: none;">
+                        <label for="add_custom_label" class="form-label">Custom Label Name</label>
+                        <input type="text" class="form-control" id="add_custom_label" placeholder="e.g., Parents' House, Warehouse">
+                    </div>
+                    
+                    <!-- Hidden field for final label -->
+                    <input type="hidden" id="add_label" name="label">
+
+                    <div class="border rounded p-3 mb-3">
+                        <h6 class="fw-semibold mb-3">Address Details (PSGC Standard)</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small">Street / Building / Unit</label>
+                                <input type="text" id="add_street" name="street" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Region</label>
+                                <select id="add_region" class="form-select">
+                                    <option value="">Select Region</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Province</label>
+                                <select id="add_province" class="form-select" disabled>
+                                    <option value="">Select Province</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">City / Municipality</label>
+                                <select id="add_city" class="form-select" disabled>
+                                    <option value="">Select City/Municipality</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Barangay</label>
+                                <select id="add_barangay" class="form-select" disabled>
+                                    <option value="">Select Barangay</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="add_full_address" class="form-label">Complete Address (Auto-generated)</label>
+                        <textarea class="form-control" id="add_full_address" name="full_address" rows="3" readonly required></textarea>
+                    </div>
+
+                    <input type="hidden" name="region" id="add_hidden_region">
+                    <input type="hidden" name="province" id="add_hidden_province">
+                    <input type="hidden" name="city" id="add_hidden_city">
+                    <input type="hidden" name="barangay" id="add_hidden_barangay">
+                    <input type="hidden" name="street_address" id="add_hidden_street">
+                    <input type="hidden" name="return_to" value="checkout">
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="add_is_default" name="is_default">
+                        <label class="form-check-label" for="add_is_default">
+                            Set as default address
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Address</button>
+                </div>
+            </form>
+</div>
+</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- PSGC Dynamic Address Script -->
+<script>
+const PSGC = {
+  regions: 'https://psgc.gitlab.io/api/regions/',
+  provincesForRegion: code => `https://psgc.gitlab.io/api/regions/${encodeURIComponent(code)}/provinces/`,
+  citiesForProvince: code => `https://psgc.gitlab.io/api/provinces/${encodeURIComponent(code)}/cities-municipalities/`,
+  barangaysForCity: code => `https://psgc.gitlab.io/api/cities-municipalities/${encodeURIComponent(code)}/barangays/`
+};
+
+// Address label dropdown handlers
+function setupLabelDropdown(prefix) {
+    const labelTypeSelect = document.getElementById(`${prefix}_label_type`);
+    const customLabelDiv = document.getElementById(`${prefix}_custom_label_div`);
+    const customLabelInput = document.getElementById(`${prefix}_custom_label`);
+    const labelHidden = document.getElementById(`${prefix}_label`);
+    
+    if (!labelTypeSelect) return;
+    
+    labelTypeSelect.addEventListener('change', function() {
+        if (this.value === 'Custom') {
+            customLabelDiv.style.display = 'block';
+            customLabelInput.required = true;
+            labelHidden.value = '';
+        } else {
+            customLabelDiv.style.display = 'none';
+            customLabelInput.required = false;
+            customLabelInput.value = '';
+            labelHidden.value = this.value;
+        }
+    });
+    
+    customLabelInput?.addEventListener('input', function() {
+        labelHidden.value = this.value;
+    });
+}
+
+// Initialize label dropdowns for both modals
+setupLabelDropdown('add');
+setupLabelDropdown('edit');
+
+// Toggle view/hide text on coupon dropdown
+const viewCouponsBtn = document.getElementById('viewCouponsBtn');
+if (viewCouponsBtn) {
+    viewCouponsBtn.addEventListener('click', function() {
+        const viewText = this.querySelector('.view-text');
+        const hideText = this.querySelector('.hide-text');
+        viewText.classList.toggle('d-none');
+        hideText.classList.toggle('d-none');
+    });
+}
+
+// Load available coupons when the dropdown is shown
+document.getElementById('availableCoupons')?.addEventListener('shown.bs.collapse', function() {
+    const couponList = document.getElementById('couponList');
+    const couponCount = document.getElementById('couponCount');
+    
+    // Show loading state
+    couponList.innerHTML = `
+        <div class="list-group-item">
+            <div class="d-flex align-items-center justify-content-center py-3">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="small text-muted">Loading available coupons...</span>
+            </div>
+        </div>`;
+    
+    // Fetch available coupons
+    fetch('/api/available-coupons')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(payload => {
+            const data = payload?.coupons || [];
+            if (!data || data.length === 0) {
+                couponList.innerHTML = `
+                    <div class="list-group-item">
+                        <div class="text-center py-3">
+                            <i class="fas fa-ticket-alt fa-2x text-muted mb-2"></i>
+                            <p class="mb-0 small text-muted">No active coupons available at this time.</p>
+                            <p class="small text-muted mb-0">Check back later for special offers!</p>
+                        </div>
+                    </div>`;
+                if (couponCount) couponCount.textContent = '0';
+                return;
+            }
+            
+            // Update coupon count
+            if (couponCount) couponCount.textContent = data.length;
+            
+            // Generate coupon list items
+            couponList.innerHTML = data.map(coupon => {
+                const validUntil = new Date(coupon.valid_until);
+                const today = new Date();
+                const isExpiringSoon = (validUntil - today) < (7 * 24 * 60 * 60 * 1000); // Within 7 days
+                
+                return `
+                <div class="list-group-item p-0 border-0" data-code="${coupon.code}">
+                    <div class="d-flex align-items-stretch h-100">
+                        <!-- Coupon Visual -->
+                        <div class="coupon-visual bg-primary bg-opacity-10 d-flex flex-column align-items-center justify-content-center p-3 border-end border-2 border-dashed border-primary">
+                            <div class="text-primary fw-bold mb-1">
+                                ${coupon.discount_type === 'percent' ? 
+                                    `${coupon.discount_value}%` : 
+                                    `₱${parseFloat(coupon.discount_value).toFixed(2)}`}
+                            </div>
+                            <div class="text-uppercase text-primary small fw-bold">OFF</div>
+                        </div>
+                        
+                        <!-- Coupon Details -->
+                        <div class="flex-grow-1 p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="mb-0 fw-bold">${coupon.code}</h6>
+                                <span class="badge ${isExpiringSoon ? 'bg-warning text-dark' : 'bg-success'} small">
+                                    ${isExpiringSoon ? 'Expiring Soon' : 'Active'}
+                                </span>
+                            </div>
+                            
+                            <p class="small text-muted mb-2">${coupon.description || 'Special discount on your purchase'}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="coupon-valid small">
+                                    <i class="far fa-clock me-1"></i>
+                                    <span>Valid until ${validUntil.toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                            
+                            ${coupon.min_order_amount ? `
+                                <div class="mt-2 small text-muted">
+                                    <i class="fas fa-shopping-cart me-1"></i>
+                                    Min. order: ₱${parseFloat(coupon.min_order_amount).toFixed(2)}
+                                </div>` : ''
+                            }
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            // Clicking a coupon should just fill the input (Apply button does the apply)
+            document.querySelectorAll('#couponList .list-group-item').forEach(item => {
+                item.style.cursor = 'pointer';
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const code = this.getAttribute('data-code');
+                    const input = document.getElementById('couponCodeInput');
+                    if (input && code) {
+                        input.value = code;
+                        input.focus();
+                    }
+                });
+            });
+        })
+        .catch(error => {
+            console.error('Error loading coupons:', error);
+            couponList.innerHTML = `
+                <div class="list-group-item">
+                    <div class="alert alert-warning mb-0" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <div>
+                                <div class="fw-bold">Unable to load coupons</div>
+                                <div class="small">Please check your connection and try again.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        });
+});
+
+// Handle coupon input Enter key submit
+const couponInput = document.getElementById('couponCodeInput');
+if (couponInput) {
+    couponInput.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const code = this.value.trim();
+            if (!code) return;
+
+            // Build target URL to checkout with coupon_code
+            const url = new URL(window.location.pathname, window.location.origin);
+            const existingParams = new URLSearchParams(window.location.search);
+            existingParams.forEach((value, key) => {
+                if (!url.searchParams.has(key)) {
+                    url.searchParams.set(key, value);
+                }
+            });
+            url.searchParams.set('coupon_code', code.toUpperCase().replace(/\s+/g, ''));
+            window.location.href = url.toString();
+        }
+    });
+}
+
+// Address selection change handler
+document.getElementById('address_select')?.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const fullAddress = selectedOption.getAttribute('data-full-address');
+    document.getElementById('selected-address-display').textContent = fullAddress || 'No address selected';
+});
+
+// Edit address button handler
+document.getElementById('btn-edit-address')?.addEventListener('click', async function() {
+    const addressSelect = document.getElementById('address_select');
+    const addressId = addressSelect.value;
+    
+    if (!addressId) {
+        alert('Please select an address to edit');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/get-address/${addressId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const addr = data.address;
+            
+            // Set label - check if it's a predefined one or custom
+            const editLabelType = document.getElementById('edit_label_type');
+            const predefinedLabels = ['Home', 'Work', 'Office', 'School'];
+            
+            if (predefinedLabels.includes(addr.label)) {
+                editLabelType.value = addr.label;
+                document.getElementById('edit_label').value = addr.label;
+            } else {
+                editLabelType.value = 'Custom';
+                document.getElementById('edit_custom_label_div').style.display = 'block';
+                document.getElementById('edit_custom_label').value = addr.label;
+                document.getElementById('edit_custom_label').required = true;
+                document.getElementById('edit_label').value = addr.label;
+            }
+            
+            document.getElementById('edit_street').value = addr.street;
+            document.getElementById('edit_is_default').checked = addr.is_default;
+            
+            // Set form action
+            document.getElementById('editAddressForm').action = `/edit-address/${addr.id}`;
+            
+            // Load regions and try to pre-select
+            await initEditModal(addr);
+        }
+    } catch (error) {
+        console.error('Error loading address:', error);
+        alert('Failed to load address details');
+    }
+});
+
+async function fetchJSON(url) {
+    try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('Network error');
+        return await r.json();
+    } catch (e) {
+        console.warn('PSGC fetch failed:', e);
+        return [];
+    }
+}
+
+function optionize(sel, items, placeholder) {
+    sel.innerHTML = `<option value="">${placeholder}</option>`;
+    items.forEach(item => {
+        const code = item.code || item.psgcCode || item.regionCode || item.provinceCode || item.cityMunCode || item.cityMunicipalityCode || item.barangayCode || item.brgyCode;
+        const name = item.name || item.regionName || item.provinceName || item.cityMunName || item.cityName || item.barangayName || item.barangay;
+        if (code && name) {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        }
+    });
+}
+
+function buildAddress(prefix) {
+    const streetInp = document.getElementById(`${prefix}_street`);
+    const regionSel = document.getElementById(`${prefix}_region`);
+    const provSel = document.getElementById(`${prefix}_province`);
+    const citySel = document.getElementById(`${prefix}_city`);
+    const brgySel = document.getElementById(`${prefix}_barangay`);
+    const finalTxt = document.getElementById(`${prefix}_full_address`);
+    
+    const street = streetInp.value.trim();
+    const regionTx = regionSel.options[regionSel.selectedIndex]?.text || '';
+    const provTx = provSel.options[provSel.selectedIndex]?.text || '';
+    const cityTx = citySel.options[citySel.selectedIndex]?.text || '';
+    const brgyTx = brgySel.options[brgySel.selectedIndex]?.text || '';
+    
+    const parts = [street, brgyTx, cityTx, provTx, regionTx].filter(Boolean);
+    finalTxt.value = parts.join(', ');
+    
+    // Update hidden fields
+    document.getElementById(`${prefix}_hidden_region`).value = regionTx;
+    document.getElementById(`${prefix}_hidden_province`).value = provTx;
+    document.getElementById(`${prefix}_hidden_city`).value = cityTx;
+    document.getElementById(`${prefix}_hidden_barangay`).value = brgyTx;
+    if (prefix === 'add') {
+        document.getElementById('add_hidden_street').value = street;
+    }
+}
+
+function setupPSGCDropdowns(prefix) {
+    const regionSel = document.getElementById(`${prefix}_region`);
+    const provSel = document.getElementById(`${prefix}_province`);
+    const citySel = document.getElementById(`${prefix}_city`);
+    const brgySel = document.getElementById(`${prefix}_barangay`);
+    const streetInp = document.getElementById(`${prefix}_street`);
+    
+    regionSel.addEventListener('change', async () => {
+        buildAddress(prefix);
+        const code = regionSel.value;
+        provSel.disabled = !code;
+        citySel.disabled = true;
+        brgySel.disabled = true;
+        optionize(provSel, [], 'Select Province');
+        optionize(citySel, [], 'Select City/Municipality');
+        optionize(brgySel, [], 'Select Barangay');
+        if (!code) return;
+        const provinces = await fetchJSON(PSGC.provincesForRegion(code));
+        optionize(provSel, provinces, 'Select Province');
+    });
+    
+    provSel.addEventListener('change', async () => {
+        buildAddress(prefix);
+        const code = provSel.value;
+        citySel.disabled = !code;
+        brgySel.disabled = true;
+        optionize(citySel, [], 'Select City/Municipality');
+        optionize(brgySel, [], 'Select Barangay');
+        if (!code) return;
+        const cities = await fetchJSON(PSGC.citiesForProvince(code));
+        optionize(citySel, cities, 'Select City/Municipality');
+    });
+    
+    citySel.addEventListener('change', async () => {
+        buildAddress(prefix);
+        const code = citySel.value;
+        brgySel.disabled = !code;
+        optionize(brgySel, [], 'Select Barangay');
+        if (!code) return;
+        const barangays = await fetchJSON(PSGC.barangaysForCity(code));
+        optionize(brgySel, barangays, 'Select Barangay');
+    });
+    
+    brgySel.addEventListener('change', () => buildAddress(prefix));
+    streetInp.addEventListener('input', () => buildAddress(prefix));
+}
+
+async function initEditModal(addr) {
+    const regions = await fetchJSON(PSGC.regions);
+    optionize(document.getElementById('edit_region'), regions, 'Select Region');
+    // Note: Pre-selecting based on text names would require reverse lookup, complex for this implementation
+    // For now, user must re-select from dropdowns
+}
+
+async function initAddModal() {
+    const regions = await fetchJSON(PSGC.regions);
+    optionize(document.getElementById('add_region'), regions, 'Select Region');
+    
+    // Reset label dropdown
+    document.getElementById('add_label_type').value = '';
+    document.getElementById('add_custom_label_div').style.display = 'none';
+    document.getElementById('add_custom_label').value = '';
+    document.getElementById('add_label').value = '';
+}
+
+// Initialize Add Modal
+document.getElementById('addAddressModal').addEventListener('shown.bs.modal', initAddModal);
+
+// Setup PSGC dropdowns for both modals
+setupPSGCDropdowns('add');
+setupPSGCDropdowns('edit');
+
+// Reload page after adding address to update the list
+document.getElementById('addAddressForm').addEventListener('submit', function() {
+    // Add a flag to reload after form submission
+    sessionStorage.setItem('reloadCheckout', 'true');
+});
+
+document.getElementById('editAddressForm').addEventListener('submit', function() {
+    sessionStorage.setItem('reloadCheckout', 'true');
+});
+
+// Check if we should reload (after redirect back from add/edit)
+if (sessionStorage.getItem('reloadCheckout') === 'true') {
+    sessionStorage.removeItem('reloadCheckout');
+    location.reload();
+}
+
+// Highlight newly added address and show success notification
+(function() {
+    const newAddressId = "{{ new_address_id or '' }}";
+    if (!newAddressId) {
+        return;
+    }
+
+    // Add visual feedback for newly added address
+    const addressSelect = document.getElementById('address_select');
+    if (addressSelect) {
+        // Find the newly added address option
+        const newAddressOption = addressSelect.querySelector(`option[value="${newAddressId}"]`);
+        if (newAddressOption) {
+            // Highlight the new address option briefly
+            addressSelect.classList.add('border-success', 'border-2');
+            setTimeout(() => {
+                addressSelect.classList.remove('border-success', 'border-2');
+            }, 2000);
+            
+            // Show success message with address details
+            const addressText = newAddressOption.textContent;
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Address Added Successfully!</strong>
+                <p class="mb-0 small mt-1">Your new address "${addressText.split(' - ')[0]}" is now selected for delivery.</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert after the address selection div
+            const addressDiv = addressSelect.closest('.mb-3');
+            addressDiv.parentNode.insertBefore(successDiv, addressDiv.nextSibling);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                const alert = document.querySelector('.alert-success');
+                if (alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+            
+            // Auto-expand the addresses accordion to show the new address
+            const addressesCollapse = document.getElementById('collapseAddresses');
+            if (addressesCollapse) {
+                const bsCollapse = new bootstrap.Collapse(addressesCollapse, {
+                    show: true
+                });
+                
+                // Scroll to the newly added address card smoothly
+                setTimeout(() => {
+                    const newAddressCard = document.querySelector('.newly-added-address');
+                    if (newAddressCard) {
+                        newAddressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        
+                        // Add a subtle pulse animation
+                        newAddressCard.style.animation = 'pulse 1s ease-in-out';
+                    }
+                }, 400);
+            }
+        }
+    }
+})();
+
+// Show success notification for edited addresses
+(function() {
+    const editedAddressId = "{{ edited_address_id or '' }}";
+    if (!editedAddressId) {
+        return;
+    }
+
+    const addressSelect = document.getElementById('address_select');
+    if (addressSelect) {
+        // Highlight the dropdown briefly
+        addressSelect.classList.add('border-info', 'border-2');
+        setTimeout(() => {
+            addressSelect.classList.remove('border-info', 'border-2');
+        }, 2000);
+        
+        // Show success message
+        const successDiv = document.createElement('div');
+        successDiv.className = 'alert alert-info alert-dismissible fade show mt-2';
+        successDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Address Updated Successfully!</strong>
+            <p class="mb-0 small mt-1">Your changes have been saved.</p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const addressDiv = addressSelect.closest('.mb-3');
+        addressDiv.parentNode.insertBefore(successDiv, addressDiv.nextSibling);
+        
+        setTimeout(() => {
+            const alert = document.querySelector('.alert-info');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 4000);
+    }
+})();
+
+// Manual coupon application when Apply button is clicked
+document.addEventListener('DOMContentLoaded', function() {
+    // Don't add sample coupons - only show real ones
+    // addSampleCoupons(); // REMOVED - no more fake coupons
+    
+    // Handle Apply button click
+    const applyCouponBtn = document.getElementById('applyCouponBtn');
+    if (applyCouponBtn) {
+        applyCouponBtn.addEventListener('click', function() {
+            const couponInput = document.getElementById('couponCodeInput');
+            const couponCode = couponInput.value.trim();
+            
+            if (couponCode) {
+                // Apply coupon directly without checking sample coupons
+                applyCouponManually(couponCode, 0); // Will validate on server
+            } else {
+                // Show error for empty input
+                const couponMessage = document.getElementById('couponMessage');
+                if (couponMessage) {
+                    couponMessage.innerHTML = `
+                        <div class="alert alert-warning alert-dismissible fade show py-1 px-2 mb-0" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <div>Please enter a coupon code</div>
+                            </div>
+                            <button type="button" class="btn-close p-1" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                }
+            }
+        });
+    }
+    
+    // Handle coupon list item clicks - just fill the input, don't apply
+    const couponList = document.getElementById('couponList');
+    if (couponList) {
+        couponList.addEventListener('click', function(e) {
+            const couponItem = e.target.closest('.coupon-item');
+            if (couponItem) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const couponCode = couponItem.getAttribute('data-code');
+                
+                if (couponCode) {
+                    const couponInput = document.getElementById('couponCodeInput');
+                    if (couponInput) {
+                        couponInput.value = couponCode;
+                        couponInput.focus();
+                    }
+                }
+            }
+        });
+    }
+    
+    // Coupon list is loaded on demand when the collapse is opened.
+    
+    // Function to apply coupon manually (when Apply button is clicked)
+    function applyCouponManually(couponCode, discountAmount) {
+        console.log('Applying coupon manually:', couponCode, discountAmount); // Debug log
+        
+        const couponInput = document.getElementById('couponCodeInput');
+        const couponMessage = document.getElementById('couponMessage');
+        
+        // Show loading state briefly
+        if (couponMessage) {
+            couponMessage.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span class="visually-hidden">Applying...</span>
+                    </div>
+                    <span class="small text-muted">Applying coupon...</span>
+                </div>
+            `;
+        }
+        
+        // Apply coupon after short delay
+        setTimeout(() => {
+            // Update total display
+            const totalElement = document.querySelector('.text-primary.fs-5');
+            let currentTotal = 0;
+            let newTotal = 0;
+            
+            if (totalElement) {
+                // Extract current total
+                const totalText = totalElement.textContent.replace('₱', '').replace(',', '');
+                currentTotal = parseFloat(totalText) || 0;
+                
+                // Check if this is a 100% discount (covers entire order)
+                const originalSubtotal = parseFloat('{{ total|default(0) }}');
+                const isFullDiscount = discountAmount >= originalSubtotal;
+                
+                // Calculate new total - if 100% discount, waive shipping fee
+                if (isFullDiscount) {
+                    newTotal = 0; // Free order - no shipping fee
+                } else {
+                    newTotal = Math.max(0, currentTotal - discountAmount);
+                }
+                
+                console.log('Updating total from', currentTotal, 'to', newTotal, 'Full discount:', isFullDiscount); // Debug log
+                
+                // Update total display with animation
+                totalElement.style.transition = 'all 0.3s ease';
+                totalElement.style.color = '#28a745';
+                totalElement.textContent = `₱${newTotal.toFixed(2)}`;
+                
+                // Add strikethrough effect to show discount
+                if (discountAmount > 0) {
+                    const originalTotal = document.createElement('span');
+                    originalTotal.className = 'text-muted text-decoration-line-through small me-2';
+                    originalTotal.textContent = `₱${currentTotal.toFixed(2)}`;
+                    totalElement.parentNode.insertBefore(originalTotal, totalElement);
+                }
+            }
+            
+            // Show success message
+            if (couponMessage) {
+                couponMessage.innerHTML = `
+                    <div class="alert alert-success alert-dismissible fade show py-1 px-2 mb-0" role="alert">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Coupon Applied!</strong> You saved <strong>₱${discountAmount.toFixed(2)}</strong>
+                            </div>
+                            <a href="#" class="text-danger" onclick="removeCoupon(); return false;" title="Remove coupon">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Close coupon dropdown
+            const couponCollapse = document.getElementById('availableCoupons');
+            if (couponCollapse) {
+                const bsCollapse = bootstrap.Collapse.getInstance(couponCollapse);
+                if (bsCollapse) {
+                    bsCollapse.hide();
+                }
+            }
+            
+            // Update button text
+            const viewCouponsBtn = document.getElementById('viewCouponsBtn');
+            if (viewCouponsBtn) {
+                const viewText = viewCouponsBtn.querySelector('.view-text');
+                const hideText = viewCouponsBtn.querySelector('.hide-text');
+                if (viewText) viewText.classList.remove('d-none');
+                if (hideText) hideText.classList.add('d-none');
+            }
+            
+        }, 500); // Short delay for visual feedback
+    }
+    
+    // Function to remove coupon
+    window.removeCoupon = function() {
+        const couponInput = document.getElementById('couponCodeInput');
+        const couponMessage = document.getElementById('couponMessage');
+        const totalElement = document.querySelector('.text-primary.fs-5');
+        
+        if (couponInput) {
+            couponInput.value = '';
+        }
+        
+        if (couponMessage) {
+            couponMessage.innerHTML = `
+                <div class="text-muted small d-flex align-items-center">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <span>Enter a code or select from available coupons above</span>
+                </div>
+            `;
+        }
+        
+        // Reset total display (remove strikethrough and restore original)
+        if (totalElement) {
+            totalElement.style.color = '';
+            const strikethrough = totalElement.parentNode.querySelector('.text-decoration-line-through');
+            if (strikethrough) {
+                strikethrough.remove();
+            }
+        }
+        
+        return false;
+    };
+    
+    // Initialize with no coupons available
+    showNoCouponsAvailable();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+# Huwag i-upload ang mga secrets
+*.env
+supabase.env
+.env
+
+# Huwag i-upload ang mga backup files
+*.backup
+*.backup.*
+app.py.backup*
+*.txt
+*.sql
+
+# Huwag i-upload ang mga heavy folders
+.venv/
+__pycache__/
+node_modules/

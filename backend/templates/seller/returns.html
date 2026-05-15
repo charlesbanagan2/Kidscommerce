@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+{% block title %}Returns & Refunds - Seller Dashboard{% endblock %}
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Enhanced Returns & Refunds Styles */
+.returns-container {
+  min-height: 100vh;
+  padding-top: 0;
+}
+
+.returns-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.stat-card.pending::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.stat-card.approved::before { background: linear-gradient(90deg, #10b981, #059669); }
+.stat-card.completed::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+.stat-card.total::before { background: linear-gradient(90deg, #8b5cf6, #7c3aed); }
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.stat-card.pending .stat-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.stat-card.approved .stat-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.stat-card.completed .stat-icon { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.stat-card.total .stat-icon { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: #2c3e50;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tabs-section {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.nav-tabs {
+  border: none;
+  margin-bottom: 2rem;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  border-radius: 12px 12px 0 0;
+  color: #6c757d;
+  font-weight: 600;
+  padding: 1rem 1.5rem;
+  margin-right: 0.5rem;
+  background: #f8f9fa;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.nav-tabs .nav-link:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.data-table-container {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.table-modern {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.table-modern thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  border: none;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table-modern tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.table-modern tbody tr:hover {
+  background-color: rgba(102, 126, 234, 0.05);
+}
+
+.table-modern tbody td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f3f4;
+  vertical-align: middle;
+}
+
+.product-image {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #f1f3f4;
+}
+
+.badge-modern {
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-modern {
+  border-radius: 25px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.no-data-state {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+}
+
+.no-data-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .tabs-section,
+  .data-table-container {
+    padding: 1rem;
+  }
+
+  .table-modern thead th,
+  .table-modern tbody td {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .product-image {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 576px) {
+  .returns-header {
+    padding: 1rem 0;
+  }
+
+  .stat-card {
+    padding: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .nav-tabs .nav-link {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+</style>
+
+<div class="returns-container">
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <div class="col-md-3 col-lg-2 sidebar-column">
+        {% set active_page = 'returns' %}
+        {% include 'seller/_sidebar.html' %}
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-9 col-lg-10 main-content-column">
+        <!-- Enhanced Header -->
+        <div class="returns-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h1 class="mb-2 fw-bold text-dark" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-undo me-3 text-primary"></i>Returns & Refunds</h1>
+              <p class="text-muted mb-0 fs-5">Manage return requests and view completed refunds</p>
+            </div>
+            <!-- Removed Back to Dashboard button -->
+            
+          </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+          <div class="stat-card total">
+            <div class="stat-icon">
+              <i class="fas fa-list"></i>
+            </div>
+            <div class="stat-value">{{ total_requests }}</div>
+            <div class="stat-label">Total Requests</div>
+          </div>
+
+          <div class="stat-card pending">
+            <div class="stat-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value">{{ pending_requests }}</div>
+            <div class="stat-label">Pending Review</div>
+          </div>
+
+          <div class="stat-card approved">
+            <div class="stat-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-value">{{ approved_requests }}</div>
+            <div class="stat-label">Approved</div>
+          </div>
+
+          <div class="stat-card completed">
+            <div class="stat-icon">
+              <i class="fas fa-check-double"></i>
+            </div>
+            <div class="stat-value">{{ completed_count }}</div>
+            <div class="stat-label">Completed</div>
+          </div>
+        </div>
+
+        <!-- Tabs Section -->
+        <div class="tabs-section">
+          <ul class="nav nav-tabs" id="returnsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                <i class="fas fa-clock me-2"></i>Pending Requests
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab">
+                <i class="fas fa-check-circle me-2"></i>Completed Returns
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content">
+            <!-- Pending Requests Tab -->
+            <div class="tab-pane fade show active" id="pending" role="tabpanel">
+              {% if requests %}
+              <div class="table-responsive">
+                <table class="table-modern">
+                  <thead>
+                    <tr>
+                      <th>RR #</th>
+                      <th>Order #</th>
+                      <th>Product</th>
+                      <th>Buyer</th>
+                      <th>Qty</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in requests %}
+                    <tr>
+                      <td class="fw-bold text-primary">RR-{{ r.id }}</td>
+                      <td class="fw-bold">#{{ r.order_id }}</td>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          {% if r.order_item.product.image_filename %}
+                          <img src="{{ url_for('static', filename='uploads/' + r.order_item.product.image_filename) }}"
+                               alt="{{ r.order_item.product.name }}"
+                               class="product-image me-3">
+                          {% endif %}
+                          <div>
+                            <div class="fw-semibold">{{ r.order_item.product.name }}</div>
+                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time) }}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="fw-semibold">{{ r.buyer.first_name }} {{ r.buyer.last_name }}</td>
+                      <td class="text-center">
+                        <span class="badge badge-modern bg-light text-dark">{{ r.quantity }}</span>
+                      </td>
+                      <td class="text-center">
+                        {% if r.status == 'submitted' %}
+                          <span class="badge badge-modern bg-warning">Submitted</span>
+                        {% elif r.status == 'seller_reviewing' %}
+                          <span class="badge badge-modern bg-primary">Under Review</span>
+                        {% elif r.status == 'waiting_rider_pickup' %}
+                          <span class="badge badge-modern bg-info">Waiting Rider</span>
+                        {% elif r.status == 'rider_to_seller' %}
+                          <span class="badge badge-modern bg-info">Rider Pickup</span>
+                        {% elif r.status == 'item_received_by_seller' %}
+                          <span class="badge badge-modern bg-success">Item Received</span>
+                        {% elif r.status == 'refund_processing' %}
+                          <span class="badge badge-modern bg-primary">Processing Refund</span>
+                        {% elif r.status == 'refunded' %}
+                          <span class="badge badge-modern bg-success">Refunded</span>
+                        {% elif r.status == 'rejected' %}
+                          <span class="badge badge-modern bg-danger">Rejected</span>
+                        {% else %}
+                          <span class="badge badge-modern bg-secondary">{{ r.status.replace('_',' ')|title }}</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="fw-semibold">{{ r.created_at.strftime('%b %d, %Y') }}</div>
+                        <small class="text-muted">{{ r.created_at.strftime('%I:%M %p') }}</small>
+                      </td>
+                      <td>
+                        <a href="{{ url_for('seller_return_detail', return_id=r.id) }}" class="btn btn-modern btn-primary btn-sm">
+                          <i class="fas fa-eye me-1"></i>Review
+                        </a>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="no-data-state">
+                <i class="fas fa-inbox"></i>
+                <h4 class="mt-3">No Pending Requests</h4>
+                <p>No return or refund requests are currently pending your review.</p>
+              </div>
+              {% endif %}
+            </div>
+
+            <!-- Completed Returns Tab -->
+            <div class="tab-pane fade" id="completed" role="tabpanel">
+              {% if completed_returns %}
+              <div class="table-responsive">
+                <table class="table-modern">
+                  <thead>
+                    <tr>
+                      <th>RR #</th>
+                      <th>Order #</th>
+                      <th>Product</th>
+                      <th>Buyer</th>
+                      <th>Qty</th>
+                      <th>Status</th>
+                      <th>Completed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in completed_returns %}
+                    <tr>
+                      <td class="fw-bold text-primary">RR-{{ r.id }}</td>
+                      <td class="fw-bold">#{{ r.order_id }}</td>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          {% if r.order_item.product.image_filename %}
+                          <img src="{{ url_for('static', filename='uploads/' + r.order_item.product.image_filename) }}"
+                               alt="{{ r.order_item.product.name }}"
+                               class="product-image me-3">
+                          {% endif %}
+                          <div>
+                            <div class="fw-semibold">{{ r.order_item.product.name }}</div>
+                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time) }}</small>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="fw-semibold">{{ r.buyer.first_name }} {{ r.buyer.last_name }}</td>
+                      <td class="text-center">
+                        <span class="badge badge-modern bg-light text-dark">{{ r.quantity }}</span>
+                      </td>
+                      <td class="text-center">
+                        {% if r.status == 'completed' %}
+                          <span class="badge badge-modern bg-success">Completed</span>
+                        {% elif r.status == 'refunded' %}
+                          <span class="badge badge-modern bg-success">Refunded</span>
+                        {% else %}
+                          <span class="badge badge-modern bg-secondary">{{ r.status.replace('_',' ')|title }}</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="fw-semibold">{{ r.updated_at.strftime('%b %d, %Y') }}</div>
+                        <small class="text-muted">{{ r.updated_at.strftime('%I:%M %p') }}</small>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="no-data-state">
+                <i class="fas fa-check-circle"></i>
+                <h4 class="mt-3">No Completed Returns</h4>
+                <p>No return requests have been completed yet.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+{% endblock %}

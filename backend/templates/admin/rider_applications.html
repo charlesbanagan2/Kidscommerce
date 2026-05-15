@@ -1,0 +1,239 @@
+{% extends "admin_base.html" %}
+{% block title %}Rider Applications - Admin{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'rider_applications' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Rider Applications</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-users me-2"></i>View All Users
+        </a>
+    </div>
+</div>
+
+<div class="container px-0">
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">Rider Applications</h5>
+                <small class="text-muted">Review rider applications and approve or reject delivery partners.</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-users me-2"></i> View All Users
+                </a>
+                <span class="badge bg-primary rounded-pill">{{ applications|length }} Applications</span>
+            </div>
+        </div>
+
+        <div class="card-body">
+          <div class="card-body">
+            {% if applications %}
+              <div class="list-group list-group-flush">
+                {% for app in applications %}
+                  <div class="list-group-item px-0 py-3">
+                    <div class="row g-3 align-items-center">
+                      
+                      <!-- Rider Info Column -->
+                      <div class="col-lg-8">
+                        <div class="d-flex align-items-start gap-3">
+                          <div style="width:64px; height:64px; background:#fef3c7; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas fa-motorcycle fa-2x text-warning"></i>
+                          </div>
+                          <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ app.user.first_name }} {{ app.user.last_name }}</h6>
+                            <p class="small text-muted mb-2">{{ app.user.email }}</p>
+                            
+                            <div class="d-flex flex-wrap gap-3 small text-muted mb-3">
+                              <span>Applied: <strong class="text-dark">{{ app.applied_at.strftime('%b %d, %Y %H:%M') if app.applied_at else '—' }}</strong></span>
+                              <span>Status: <span class="badge bg-warning text-dark ms-1">{{ app.status|title }}</span></span>
+                              <span>Phone: <strong class="text-dark">{{ app.user.phone or '—' }}</strong></span>
+                            </div>
+
+                            <!-- Collapsible Details Section -->
+                            <div class="accordion accordion-flush" id="accordion-{{ app.id }}">
+                              <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-{{ app.id }}">
+                                  <button class="accordion-button collapsed px-0 py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ app.id }}" aria-expanded="false" aria-controls="collapse-{{ app.id }}">
+                                    Show Application Details
+                                  </button>
+                                </h2>
+                                <div id="collapse-{{ app.id }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ app.id }}" data-bs-parent="#accordion-{{ app.id }}">
+                                  <div class="accordion-body px-0 pt-2 pb-0">
+                                    
+                                    <!-- Vehicle Information -->
+                                    <div class="mb-3">
+                                      <div class="fw-bold small mb-1">Vehicle Information</div>
+                                      <ul class="list-unstyled mb-0 small">
+                                        <li class="mb-1"><i class="fas fa-motorcycle me-2 text-primary"></i>Vehicle Type: <strong class="text-dark">{{ app.vehicle_type }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-hashtag me-2 text-primary"></i>Plate Number: <strong class="text-dark">{{ app.vehicle_number }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-hourglass-half me-2 text-secondary"></i>Status: <span class="badge bg-warning text-dark">{{ app.status|title }}</span></li>
+                                        <li class="mb-1"><i class="fas fa-calendar-alt me-2 text-secondary"></i>Applied At: <strong class="text-dark">{{ app.applied_at.strftime('%b %d, %Y %H:%M') if app.applied_at else '—' }}</strong></li>
+                                      </ul>
+                                    </div>
+
+                                    <!-- User Information -->
+                                    <div class="mb-3">
+                                      <div class="fw-bold small mb-1">User Information</div>
+                                      <ul class="list-unstyled mb-0 small">
+                                        <li class="mb-1"><i class="fas fa-user me-2 text-secondary"></i>Name: <strong class="text-dark">{{ app.user.first_name }} {{ app.user.last_name }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-envelope me-2 text-secondary"></i>Email: <strong class="text-dark">{{ app.user.email }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-phone me-2 text-secondary"></i>Phone: <strong class="text-dark">{{ app.user.phone or '—' }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-user-tag me-2 text-secondary"></i>Role: <strong class="text-dark">{{ app.user.role|title or 'Rider' }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-calendar me-2 text-secondary"></i>Registered: <strong class="text-dark">{{ app.user.created_at.strftime('%b %d, %Y %H:%M') if app.user.created_at else '—' }}</strong></li>
+                                      </ul>
+                                    </div>
+
+                                    <!-- Address Information -->
+                                    <div class="mb-3">
+                                      <div class="fw-bold small mb-1">Address Information</div>
+                                      {% set primary_addr = app.user.addresses[0] if app.user.addresses|length > 0 else None %}
+                                      {% if primary_addr %}
+                                        <div class="small">
+                                          <strong class="text-dark">{{ primary_addr.label }}</strong> — {{ primary_addr.full_address }}<br>
+                                          <small class="text-muted">
+                                            {{ primary_addr.barangay }}, {{ primary_addr.city }}, {{ primary_addr.province }}, {{ primary_addr.region }}
+                                          </small>
+                                        </div>
+                                      {% elif app.user.address %}
+                                        <div class="small text-dark">{{ app.user.address }}</div>
+                                      {% else %}
+                                        <div class="small text-muted">No address provided.</div>
+                                      {% endif %}
+                                    </div>
+
+                                    <!-- Submitted Documents -->
+                                    <div>
+                                      <div class="fw-bold small mb-1">Submitted Documents</div>
+                                      {% if app.user.valid_id %}
+                                        {% set _parts = app.user.valid_id.split('/static/') %}
+                                        {% set _static_rel = _parts[1] if _parts|length > 1 else app.user.valid_id.lstrip('/') %}
+                                        {% set _ext = (_static_rel.split('.')[-1] if _static_rel else '')|lower %}
+                                        <div class="small">
+                                          <i class="fas fa-id-card me-2 text-success"></i>
+                                          Valid ID: <a href="{{ url_for('static', filename=_static_rel) }}" target="_blank" rel="noopener">View Document <i class="fas fa-external-link-alt fa-xs"></i></a>
+                                        </div>
+                                        {% if _ext in ['png','jpg','jpeg'] %}
+                                          <div class="mt-2">
+                                            <img src="{{ url_for('static', filename=_static_rel) }}" alt="Valid ID preview" style="max-width:260px; border-radius:8px; border:1px solid #e5e7eb;">
+                                          </div>
+                                        {% endif %}
+                                      {% else %}
+                                        <div class="small text-muted">No ID submitted for verification.</div>
+                                      {% endif %}
+                                    </div>
+                                    
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Actions Column -->
+                      <div class="col-lg-4 d-flex align-items-center justify-content-lg-end">
+                        <div class="d-flex flex-row flex-lg-column gap-2" style="min-width:200px;">
+                          {% if app.status == 'pending' %}
+                          <!-- Approve form -->
+                          <form method="POST" action="{{ url_for('approve_rider', app_id=app.id) }}" class="flex-fill">
+                            <button type="submit" class="btn btn-success w-100">
+                              <i class="fas fa-check-circle me-2"></i> Approve
+                            </button>
+                          </form>
+
+                          <!-- Reject button -->
+                          <button type="button" class="btn btn-outline-danger w-100 flex-fill" data-bs-toggle="modal"
+                                  data-bs-target="#rejectRiderModal" data-app-id="{{ app.id }}" data-rider-name="{{ app.user.first_name }} {{ app.user.last_name }}">
+                            <i class="fas fa-times-circle me-2"></i> Reject
+                          </button>
+                          {% else %}
+                          <div class="text-center">
+                            <span class="badge bg-{{ 'success' if app.status == 'approved' else 'danger' }} w-100 py-2">
+                              {{ app.status|title }}
+                            </span>
+                            {% if app.status == 'approved' %}
+                            <div class="small text-muted mt-2">Approved and can now accept deliveries</div>
+                            {% elif app.status == 'rejected' %}
+                            <div class="small text-muted mt-2">Application rejected</div>
+                            {% endif %}
+                          </div>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-center py-5">
+                <i class="fas fa-motorcycle fa-4x text-muted mb-3"></i>
+                <h4>No rider applications found</h4>
+                <p class="text-muted">There are currently no rider applications to review.</p>
+                <a href="{{ url_for('admin_users') }}" class="btn btn-primary">
+                  <i class="fas fa-users me-2"></i>View All Users
+                </a>
+              </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Reject Rider Modal -->
+<div class="modal fade" id="rejectRiderModal" tabindex="-1" aria-labelledby="rejectRiderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form id="reject-rider-form" method="POST" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rejectRiderModalLabel">Reject Rider Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">You are about to reject this rider application. You can provide an optional reason below, which will be included in the email notification to the applicant.</p>
+        <div class="mb-3">
+          <label for="reject-rider-reason" class="form-label">Rejection Reason (Optional)</label>
+          <textarea class="form-control" id="reject-rider-reason" name="reason" rows="3" placeholder="e.g., Application incomplete, vehicle requirements not met, documentation unclear."></textarea>
+        </div>
+        <div class="alert alert-warning" style="min-height: auto; padding: 16px 20px; text-align: left; font-size: 0.875rem; line-height: 1.4;">
+          <i class="fas fa-info-circle me-2" style="font-size: 1rem; vertical-align: middle;"></i>
+          <span style="vertical-align: middle;">
+            <strong>Important:</strong> Rejected applications are marked as <strong>"rejected"</strong>. The applicant cannot become a delivery rider.
+          </span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" name="app_id" id="reject-rider-app-id">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-danger">Confirm Rejection</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JavaScript for Modal -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const rejectRiderModal = document.getElementById('rejectRiderModal');
+    if (rejectRiderModal) {
+      rejectRiderModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const appId = button.getAttribute('data-app-id');
+        const riderName = button.getAttribute('data-rider-name') || 'this rider';
+        
+        // Update modal title and hidden input
+        const modalTitle = rejectRiderModal.querySelector('.modal-title');
+        const rejectAppIdInput = document.getElementById('reject-rider-app-id');
+        const form = document.getElementById('reject-rider-form');
+        
+        modalTitle.textContent = `Reject Rider Application: ${riderName}`;
+        rejectAppIdInput.value = appId;
+        
+        // Dynamically set the form's action URL
+        form.action = `/admin/reject-rider/${appId}`;
+      });
+    }
+  });
+</script>
+{% endblock %}

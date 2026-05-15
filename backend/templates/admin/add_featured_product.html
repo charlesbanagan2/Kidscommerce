@@ -1,0 +1,283 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Add Featured Product - Admin Dashboard{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'add_featured_product' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold">Add Featured Product</h2>
+        <p class="text-muted mb-0">Create initial catalog products to showcase on the platform</p>
+    </div>
+<a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+</a>
+</div>
+
+<form action="{{ url_for('admin_add_featured_product') }}" method="post" enctype="multipart/form-data">
+    <div class="row g-4">
+        <!-- Product Information -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Product Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="name" class="form-label">Product Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required 
+               placeholder="e.g., Soft Cotton Baby Onesie">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
+                            <select class="form-control" id="category_id" name="category_id" required>
+            <option value="">Select Category</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="short_description" class="form-label">Short Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="short_description" name="short_description" rows="2" required 
+              placeholder="Brief 1-2 sentence description for quick buyer overview" maxlength="200"></textarea>
+                        <div class="form-text">Maximum 200 characters - this appears in product listings</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Full Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="description" name="description" rows="6" required 
+              placeholder="Detailed product specifications, features, materials, care instructions, etc."></textarea>
+                        <div class="form-text">Detailed product information for the product page</div>
+                    </div>
+                </div>
+                        </div>
+
+                        <!-- Pricing -->
+                        <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-peso-sign me-2"></i>Pricing & Inventory</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="price" class="form-label">Regular Price <span class="text-danger">*</span></label>
+                            <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required 
+                   placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="sale_price" class="form-label">Discount Price / Sale Price</label>
+                            <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" class="form-control" id="sale_price" name="sale_price" step="0.01" min="0" 
+                   placeholder="0.00">
+                            </div>
+                            <div class="form-text">Leave empty if no discount</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="stock" class="form-label">Stock Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="stock" name="stock" min="0" required 
+               placeholder="50">
+                            <div class="form-text">Available inventory count</div>
+                        </div>
+                    </div>
+                </div>
+                        </div>
+
+                        <!-- Additional Details -->
+                        <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Additional Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="sku" class="form-label">SKU / Product Code</label>
+                            <input type="text" class="form-control" id="sku" name="sku" 
+               placeholder="e.g., BB-ONS-001">
+                            <div class="form-text">Unique product identifier (auto-generated if empty)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="tags" class="form-label">Tags / Keywords</label>
+                            <input type="text" class="form-control" id="tags" name="tags" 
+               placeholder="baby, cotton, onesie, newborn">
+                            <div class="form-text">Comma-separated keywords for search</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="weight" class="form-label">Weight (grams)</label>
+                            <div class="input-group">
+            <input type="number" class="form-control" id="weight" name="weight" min="0" 
+                   placeholder="150">
+            <span class="input-group-text">g</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="dimensions" class="form-label">Dimensions (cm)</label>
+                            <input type="text" class="form-control" id="dimensions" name="dimensions" 
+               placeholder="L x W x H (e.g., 25 x 20 x 5)">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="brand" class="form-label">Brand</label>
+                            <input type="text" class="form-control" id="brand" name="brand" 
+               placeholder="Brand name">
+                        </div>
+                    </div>
+                </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Sidebar -->
+                    <div class="col-lg-4">
+                        <!-- Product Images -->
+                        <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-images me-2"></i>Product Images</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Main Product Image</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <div class="form-text">Recommended: 800x800px, JPG or PNG</div>
+                    </div>
+                    
+                    <div class="image-preview" id="imagePreview" style="display: none;">
+                        <img id="previewImg" src="" alt="Preview" class="img-thumbnail" style="max-width: 100%; max-height: 200px;">
+                    </div>
+                </div>
+                        </div>
+
+                        <!-- Visibility & Status -->
+                        <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-eye me-2"></i>Visibility & Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="featured" name="featured" checked>
+                            <label class="form-check-label" for="featured">
+            <strong>Set as Featured Product</strong>
+                            </label>
+                        </div>
+                        <div class="form-text">Featured products appear on homepage banner and featured sections</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Product Status</label>
+                        <select class="form-control" id="status" name="status">
+                            <option value="active" selected>Active</option>
+                            <option value="draft">Draft</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                        <div class="form-text">
+                            <strong>Active:</strong> Visible to buyers<br>
+                            <strong>Draft:</strong> Hidden, work in progress<br>
+                            <strong>Archived:</strong> Hidden, discontinued
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Admin Products:</strong> These products serve as initial catalog items to showcase the platform before sellers join.
+                    </div>
+                </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="card">
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="save" class="btn btn-success btn-lg">
+                            <i class="fas fa-save me-2"></i>Create Featured Product
+                        </button>
+                        <button type="submit" name="action" value="draft" class="btn btn-outline-warning">
+                            <i class="fas fa-file-alt me-2"></i>Save as Draft
+                        </button>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Image preview functionality
+document.getElementById('image').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.style.display = 'none';
+    }
+});
+
+// Auto-generate SKU if empty
+document.getElementById('name').addEventListener('blur', function() {
+    const skuField = document.getElementById('sku');
+    if (!skuField.value && this.value) {
+        // Simple SKU generation based on product name
+        const sku = this.value.toUpperCase()
+            .replace(/[^A-Z0-9]/g, '-')
+            .substring(0, 10) + '-' + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        skuField.value = sku;
+    }
+});
+
+// Price validation
+document.getElementById('sale_price').addEventListener('input', function() {
+    const regularPrice = parseFloat(document.getElementById('price').value) || 0;
+    const salePrice = parseFloat(this.value) || 0;
+    
+    if (salePrice > 0 && salePrice >= regularPrice) {
+        this.setCustomValidity('Sale price must be less than regular price');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// Character count for short description
+document.getElementById('short_description').addEventListener('input', function() {
+    const maxLength = 200;
+    const currentLength = this.value.length;
+    const remaining = maxLength - currentLength;
+    
+    // Find or create counter element
+    let counter = document.getElementById('short_desc_counter');
+    if (!counter) {
+        counter = document.createElement('div');
+        counter.id = 'short_desc_counter';
+        counter.className = 'form-text';
+        this.parentNode.appendChild(counter);
+    }
+    
+    counter.textContent = `${currentLength}/${maxLength} characters`;
+    counter.className = remaining < 20 ? 'form-text text-warning' : 'form-text text-muted';
+});
+</script>
+
+{% endblock %}
+

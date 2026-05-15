@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="300" viewBox="0 0 1400 300" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c6fff0"/>
+      <stop offset="100%" stop-color="#a8e9ff"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ad2c8"/>
+      <stop offset="100%" stop-color="#4fb6ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="300" fill="url(#bg)"/>
+
+  <!-- subtle medical cross + heart line -->
+  <g fill="none" stroke="url(#accent)" stroke-width="6" opacity="0.35">
+    <path d="M180,120 h24 v-24 h24 v24 h24 v24 h-24 v24 h-24 v-24 h-24 z"/>
+  </g>
+  <g fill="none" stroke="#39a6d9" stroke-width="3" opacity="0.6">
+    <path d="M0,170 C120,170 160,170 220,170 C260,170 280,150 300,150 C320,150 330,170 350,170 C370,170 380,150 400,150 C420,150 440,170 480,170 C520,170 540,150 560,150 C580,150 600,170 640,170"/>
+  </g>
+
+  <!-- bottom wave -->
+  <path d="M0,245 C260,215 520,280 780,245 C1040,215 1220,275 1400,245 L1400,300 L0,300 Z" fill="url(#accent)" opacity="0.22"/>
+</svg>

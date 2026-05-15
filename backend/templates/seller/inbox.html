@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+{% block title %}Seller Inbox{% endblock %}
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Professional e‑commerce inbox styling — visual only (no functional changes).
+   Goal: increase contrast so text and badges are always visible on light surfaces,
+   improve spacing, and give a consistent marketplace look.
+*/
+
+:root{
+    --brand-blue-700: #0b63a8;
+    --brand-blue-600: #0369a1;
+    --muted-700: #243240;
+    --muted-500: #6b7280;
+    --surface: #f4f7fb;        /* page background for visible cards */
+    --card-bg: #ffffff;        /* main card background */
+    --soft-surface: #fbfdff;   /* inner card subtle surface */
+    --success: #198754;
+    --danger: #dc3545;
+    --cta-start: #ff8a2b;
+    --cta-end: #fa6b02;
+    --radius-lg: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 6px 18px rgba(3,25,41,0.06);
+}
+
+/* Page surface so white cards stand out */
+.container-fluid.py-4 {
+    background: var(--surface);
+}
+
+/* General card polish */
+.card {
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(16,24,40,0.04);
+    background: linear-gradient(180deg, var(--card-bg), var(--soft-surface));
+    box-shadow: 0 8px 26px rgba(3,25,41,0.03);
+}
+
+/* Sidebar (left column) */
+.card > .card-header.bg-primary {
+    background: linear-gradient(90deg, var(--brand-blue-700), var(--brand-blue-600));
+    color: #fff;
+    font-weight: 700;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: none;
+}
+.card-body.p-2 {
+    padding: 12px !important;
+}
+
+/* Buyer search input */
+#buyerSearch.form-control {
+    border-radius: 10px;
+    border: 1px solid rgba(16,24,40,0.06);
+    box-shadow: none;
+    padding: 8px 10px;
+    /* Professional spacing: add right padding instead of shrinking width,
+       so the search field no longer visually competes with the unread badge. */
+    padding-right: 2.5rem;
+}
+
+/* Buyer list items styled as visible cards */
+#buyerList .list-group-item {
+    background: #fff;
+    border: 1px solid rgba(16,24,40,0.04);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    padding: 10px;
+    transition: transform .08s ease, box-shadow .12s ease;
+    display: block;
+}
+#buyerList .list-group-item a { color: inherit; text-decoration: none; display: flex; gap: .75rem; align-items: flex-start; }
+#buyerList .list-group-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Active/selected buyer */
+#buyerList .list-group-item.active,
+#buyerList .list-group-item.active:hover {
+    background: linear-gradient(90deg, rgba(11,99,168,0.08), rgba(3,105,161,0.04));
+    border: 1px solid rgba(3,105,161,0.14);
+}
+
+/* Avatar */
+#buyerList img.rounded-circle {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border: 1px solid rgba(16,24,40,0.04);
+}
+
+/* Unread badge (ensure contrast) */
+.badge.bg-danger, .badge.bg-danger.ms-2 {
+    background: linear-gradient(90deg, #e11d48 0%, #dc3545 100%) !important;
+    color: #ffffff !important;
+    font-weight: 800;
+    padding: .28rem .56rem;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px rgba(220,53,69,0.12);
+    border: 1px solid rgba(0,0,0,0.04);
+    font-size: .8rem;
+}
+
+/* Last message preview */
+#buyerList .small {
+    font-size: .875rem;
+    line-height: 1.1;
+}
+
+/* Right column chat card */
+.card.h-100 {
+    display: flex;
+    flex-direction: column;
+    min-height: 520px;
+    height: 100%;
+}
+
+/* Chat header */
+.card-header.bg-light {
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    border-bottom: 1px solid rgba(16,24,40,0.04);
+    font-weight: 700;
+    color: var(--muted-700);
+}
+
+/* Chat body: clearer surface */
+.card-body[style] {
+    background: transparent;
+    padding: 18px;
+}
+
+/* Chat messages layout */
+.message-row {
+   margin-bottom: 12px;
+   display: flex;
+   flex-direction: column;
+   max-width: 100%;
+}
+
+.message-row-inner {
+   display: flex;
+   align-items: flex-end;
+   gap: 8px;
+}
+
+.message-row-inner.seller-side {
+   justify-content: flex-end;
+}
+
+.message-row-inner.buyer-side {
+   justify-content: flex-start;
+}
+
+.message-avatar {
+   width: 36px;
+   height: 36px;
+   border-radius: 999px;
+   overflow: hidden;
+   flex-shrink: 0;
+   border: 2px solid rgba(15,23,42,0.06);
+   background: #e5f3ff;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.message-avatar img {
+   width: 100%;
+   height: 100%;
+   object-fit: cover;
+}
+
+/* Seller / buyer bubbles */
+.message-bubble {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: .95rem;
+    line-height: 1.3;
+    max-width: 78%;
+    word-wrap: break-word;
+    box-shadow: 0 6px 18px rgba(3,25,41,0.04);
+}
+.message-bubble.seller {
+    background: linear-gradient(90deg, #157347 0%, var(--success) 100%); /* green */
+    color: #fff;
+    border: 1px solid rgba(0,0,0,0.03);
+    margin-left: auto;
+}
+.message-bubble.buyer {
+    background: #ffffff;
+    color: var(--muted-700);
+    border: 1px solid rgba(16,24,40,0.06);
+    margin-right: auto;
+}
+
+/* Timestamp */
+.message-meta {
+    font-size: .78rem;
+    color: var(--muted-500);
+    margin-top: 6px;
+}
+
+/* Product card inside chat */
+.chat-product-card {
+    width: 20rem;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(16,24,40,0.05);
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    box-shadow: 0 8px 24px rgba(3,25,41,0.04);
+    margin-top: 10px;
+}
+.chat-product-card img.card-img-top {
+    height: 140px;
+    object-fit: cover;
+}
+.chat-product-card .card-body {
+    padding: 10px;
+}
+.chat-product-card .card-title {
+    font-size: .95rem;
+    margin-bottom: 6px;
+    color: var(--muted-700);
+}
+.chat-product-card .text-primary {
+    color: #0b63a8 !important;
+    font-weight: 800;
+}
+
+/* Product action buttons (clear colors + visible text) */
+.chat-product-card .btn {
+    border-radius: 8px;
+    font-weight: 700;
+    padding: 6px 10px;
+    font-size: .85rem;
+}
+.chat-product-card .btn-outline-info {
+    color: #0369a1;
+    border-color: rgba(3,105,161,0.12);
+    background: transparent;
+}
+.chat-product-card .btn-success {
+    background: linear-gradient(90deg, var(--cta-start), var(--cta-end));
+    border: none;
+    color: #fff;
+}
+.chat-product-card .btn-warning {
+    background: linear-gradient(90deg, #f59e0b, #ffb84a);
+    border: none;
+    color: #0b1720;
+}
+
+/* Chat footer form */
+.card-footer {
+    background: linear-gradient(180deg, #fff, #fbfdff);
+    border-top: 1px solid rgba(16,24,40,0.04);
+    padding: 12px 16px;
+}
+.input-group .form-control, .input-group .form-select {
+    border-radius: 8px;
+    border: 1px solid rgba(16,24,40,0.06);
+}
+.input-group .btn-primary {
+    background: linear-gradient(90deg, var(--brand-blue-700), var(--brand-blue-600));
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+/* Small screens adjustments */
+@media (max-width: 767.98px) {
+    .chat-product-card { width: 100%; }
+    #buyerList .list-group-item { display: flex; align-items: center; gap: .6rem; }
+    .message-bubble { max-width: 100%; }
+}
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 col-lg-2">
+            {% set active_page = 'inbox' %}
+            {% include 'seller/_sidebar.html' %}
+        </div>
+        <!-- Main Content: buyer list + chat -->
+        <div class="col-md-9 col-lg-10">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-2 fw-bold text-dark" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-envelope me-3" style="color: #0b63a8;"></i>Messages</h2>
+                    <p class="text-muted mb-0 fs-5">Communicate with buyers and manage customer inquiries</p>
+                </div>
+            </div>
+            <div class="row">
+                <!-- Left: Buyer List -->
+                <div class="col-md-4 col-lg-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Inbox</h6>
+                </div>
+                <div class="card-body p-2">
+                    <input type="text" class="form-control mb-2" placeholder="Search buyer..." id="buyerSearch" onkeyup="filterBuyers()">
+                    <ul class="list-group" id="buyerList">
+                        {% for buyer in buyers %}
+                            {% set unread = buyer.unread_count if buyer.unread_count else 0 %}
+                            {% set last_msg = buyer.last_message if buyer.last_message else None %}
+                            <li class="list-group-item p-2 {% if buyer.id == selected_buyer_id %}active{% endif %}">
+                                <a href="{{ url_for('seller_inbox', buyer_id=buyer.id) }}" class="text-decoration-none d-flex align-items-start gap-2">
+                                    <img src="{{ buyer.avatar or '/static/default_avatar.png' }}" class="rounded-circle" style="width:40px;height:40px;">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <span class="{% if unread > 0 %}fw-bold{% endif %}" style="color: var(--muted-700);">
+                                                    {{ buyer.first_name }} {{ buyer.last_name }}
+                                                </span>
+                                            </div>
+                                            <div class="ms-2">
+                                                {% if unread > 0 %}
+                                                    <span class="badge bg-danger ms-2">{{ unread }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="small mt-1 {% if unread > 0 and last_msg and last_msg.sender_role == 'buyer' %}fw-bold text-dark{% else %}text-muted{% endif %}">
+                                            {% if last_msg %}
+                                                {{ last_msg.message[:60] }}{% if last_msg.message|length > 60 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">No messages yet</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Chat Thread -->
+        <div class="col-md-8 col-lg-9">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    {% set selected_buyer = (buyers|selectattr('id', 'equalto', selected_buyer_id)|list)[0] if selected_buyer_id else None %}
+                    {% if selected_buyer %}
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <strong style="color:var(--muted-700);">Chat with {{ selected_buyer.first_name }}</strong>
+                                <div class="small text-muted">You and {{ selected_buyer.first_name }} can message here</div>
+                            </div>
+                            <div class="text-muted small">{{ moment().strftime('%b %d, %Y') if moment else '' }}</div>
+                        </div>
+                    {% else %}
+                        <strong>Select a buyer to view messages</strong>
+                    {% endif %}
+                </div>
+
+                <div class="card-body" style="height:420px; overflow-y:auto;">
+                    {% for msg in chat_thread %}
+                        <div class="message-row {% if msg.sender_role == 'seller' %}text-end{% endif %}">
+                            <div class="message-row-inner {% if msg.sender_role == 'seller' %}seller-side{% else %}buyer-side{% endif %}">
+                                {% if msg.sender_role != 'seller' %}
+                                    <div class="message-avatar">
+                                        {% if msg.sender_role == 'buyer' %}
+                                            <img src="{{ selected_buyer.avatar or '/static/default_avatar.png' }}" alt="Buyer Avatar">
+                                        {% elif msg.sender_role == 'rider' %}
+                                            <img src="{{ url_for('static', filename='rider_default_avatar.png') }}" alt="Rider Avatar">
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='default_avatar.png') }}" alt="User Avatar">
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                                <div class="message-bubble {% if msg.sender_role == 'seller' %}seller{% else %}buyer{% endif %}">
+                                    {{ msg.message }}
+                                    {% if msg.product %}
+                                        <div style="margin-top:8px;">
+                                            <div class="chat-product-card">
+                                                {% if msg.product.image_filename %}
+                                                    <img src="{{ url_for('static', filename='uploads/' + msg.product.image_filename) }}" class="card-img-top" alt="{{ msg.product.name }}">
+                                                {% else %}
+                                                    <div style="height:140px; background:#f1f5f9; display:flex;align-items:center;justify-content:center;">
+                                                        <i class="fas fa-box fa-2x text-muted"></i>
+                                                    </div>
+                                                {% endif %}
+                                                <div class="card-body p-2">
+                                                    <h6 class="card-title mb-1">{{ msg.product.name }}</h6>
+                                                    <div class="fw-bold text-primary mb-1">₱{{ "%.2f"|format(msg.product.price) }}</div>
+                                                    <div class="mb-1 text-muted">Stock: {{ msg.product.stock }}</div>
+                                                    {% if msg.product.variations %}
+                                                        <div class="mb-1">
+                                                            <small class="text-muted">Variations: {{ msg.product.variations }}</small>
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="d-flex gap-2">
+                                                        <a href="{{ url_for('product_detail', product_id=msg.product.id) }}" class="btn btn-outline-info btn-sm">View Details</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if msg.sender_role == 'seller' %}
+                                    <div class="message-avatar">
+                                        <img src="{{ seller_store_logo }}" alt="Seller Avatar">
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="message-meta {% if msg.sender_role == 'seller' %}text-end{% endif %}">
+                                {{ msg.created_at.strftime('%b %d %H:%M') }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if selected_buyer_id %}
+                <div class="card-footer">
+                    <form method="post" action="{{ url_for('send_chat_message', buyer_id=selected_buyer_id) }}">
+                        <div class="input-group mb-2">
+                            <input type="text" name="message" class="form-control" placeholder="Type a message..." required>
+                            <select name="product_id" class="form-select" style="max-width:220px;">
+                                <option value="">Attach product...</option>
+                                {% for product in products %}
+                                    <option value="{{ product.id }}">{{ product.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="btn btn-primary" type="submit">Send</button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterBuyers() {
+    var input = document.getElementById("buyerSearch").value.toLowerCase();
+    var items = document.querySelectorAll("#buyerList li");
+    items.forEach(function(item) {
+        var text = item.textContent.toLowerCase();
+        item.style.display = text.includes(input) ? "" : "none";
+    });
+}
+</script>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+var socket = io();
+socket.on('connect', function() {
+    // Join seller room for live updates
+    socket.emit('join', {'room': 'seller_{{ session["user_id"] }}'});
+});
+socket.on('new_message', function(data) {
+    // Update chat thread and badge
+    var badge = document.querySelector('#buyer-badge-' + data.buyer_id);
+    if (badge) {
+        badge.textContent = parseInt(badge.textContent || '0') + 1;
+        badge.classList.add('bg-danger');
+    }
+    // Optionally, fetch new messages via AJAX and update chat thread
+});
+</script>
+
+<script>
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+
+{% endblock %}

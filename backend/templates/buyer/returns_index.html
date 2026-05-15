@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}My Returns & Refunds{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="fw-bold mb-3">My Returns & Refunds</h2>
+  <div class="card">
+    <div class="card-body p-0">
+      {% if requests %}
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>RR #</th>
+              <th>Order #</th>
+              <th>Product</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in requests %}
+            <tr>
+              <td>RR-{{ r.id }}</td>
+              <td>#{{ r.order_id }}</td>
+              <td>{{ r.order_item.product.name }}</td>
+              <td>{{ r.quantity }}</td>
+{% set friendly = (
+  'Submitted – Waiting for Approval' if r.status in ['submitted','seller_reviewing'] else
+  'Refunded' if r.status in ['waiting_rider_pickup','refund_processing','completed'] else
+  'Parcel Picked Up' if r.status == 'rider_picked_up' else
+  'On the Way to Seller' if r.status == 'rider_to_seller' else
+  'Returned to Seller – Completed' if r.status in ['item_received_by_seller'] else
+  'Not Delivered' if r.status in ['return_failed'] else
+  r.status.replace('_',' ')|title
+) %}
+<td><span class="badge bg-secondary">{{ friendly }}</span></td>
+              <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('buyer_return_detail', return_id=r.id) }}">View</a></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="text-center py-5 text-muted">No return/refund requests yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

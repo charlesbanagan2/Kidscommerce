@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Chat with Buyer{% endblock %}
+{% block content %}
+<div class="container py-3">
+    <!-- Mobile header with back & profile -->
+    <div class="d-flex align-items-center gap-2 mb-3 d-md-none">
+        <a class="btn btn-light border" href="{{ url_for('seller_returns_index') }}"><i class="fa fa-arrow-left"></i></a>
+        {% if selected_chat %}
+          <img src="{{ url_for('static', filename='user_avatar.png') }}" class="rounded-circle border" style="width:36px;height:36px;object-fit:cover;">
+          <div>
+            <div class="fw-bold small">{{ selected_chat.first_name }} {{ selected_chat.last_name }}</div>
+            <div class="text-muted small">Buyer</div>
+          </div>
+        {% else %}
+          <h5 class="mb-0">Chat with Buyer</h5>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        <!-- Sidebar: List of conversations -->
+        <div class="col-md-4 d-none d-md-block">
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold bg-light">Conversations</div>
+                <ul class="list-group list-group-flush">
+                    {% for chat in chats %}
+                        <li class="list-group-item px-3 py-2 d-flex align-items-center {% if selected_chat and selected_chat.id == (chat.buyer_id) %}active-chat{% endif %}">
+                            {% set user = users_by_id[chat.buyer_id] %}
+                            <a href="{{ url_for('seller_chat_with_buyer', buyer_id=chat.buyer_id) }}" class="d-flex align-items-center text-decoration-none w-100">
+                                <img src="{{ user.seller_applications[0].store_logo if user.seller_applications and user.seller_applications[0].store_logo else url_for('static', filename='default_logo.png') }}" class="rounded-circle me-2 border" style="width: 36px; height: 36px; object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small text-dark">{{ user.first_name }} {{ user.last_name }}</div>
+                                    <div class="text-muted small">{{ chat.last_message|truncate(24) }}</div>
+                                </div>
+                                {% if chat.unread_count > 0 %}
+                                    <span class="badge bg-danger rounded-pill ms-2">{{ chat.unread_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="list-group-item text-muted">No conversations yet.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <!-- Main Chat Area -->
+        <div class="col-md-8">
+            {% if selected_chat %}
+            <div class="card shadow-sm">
+<div class="card-header d-flex align-items-center bg-light">
+                    <a class="btn btn-sm btn-light border d-md-none me-2" href="{{ url_for('seller_returns_index') }}"><i class="fa fa-arrow-left"></i></a>
+                    <img src="{{ url_for('static', filename='user_avatar.png') }}" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover;">
+                    <span class="ms-2 fw-bold">{{ selected_chat.first_name }} {{ selected_chat.last_name }}</span>
+                    <span class="ms-auto text-muted small d-none d-sm-inline"><i class="fas fa-circle text-success me-1"></i>Online</span>
+                </div>
+<div class="card-body px-4 py-3" style="height: 60vh; overflow-y: auto; background: #f9f9fb;">
+                    {% for msg in chat_messages %}
+                        <div class="d-flex mb-3 {% if msg.sender_role == 'seller' %}justify-content-end{% else %}justify-content-start{% endif %}">
+                            {% if msg.sender_role == 'buyer' %}
+                            <img src="{{ url_for('static', filename='user_avatar.png') }}" class="rounded-circle me-2 border" style="width:32px;height:32px;object-fit:cover;">
+                            {% endif %}
+                            <div class="chat-bubble px-3 py-2 {% if msg.sender_role == 'seller' %}bg-primary text-white{% else %}bg-light text-dark{% endif %}" style="max-width: 70%; border-radius: 16px 16px 4px 16px;">
+                                <div class="small text-muted mb-1">{{ msg.created_at.strftime('%b %d, %I:%M %p') }}</div>
+                                <div>{{ msg.message }}</div>
+                                {% if msg.product %}
+                                    <div class="card mt-2 border-0 shadow-sm" style="width: 230px;">
+                                        <img src="{{ url_for('static', filename='uploads/' + msg.product.image_filename) }}" class="card-img-top" style="height:110px;object-fit:cover;border-radius:8px;">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title mb-1">{{ msg.product.name }}</h6>
+                                            <div class="fw-bold text-primary mb-1">₱{{ "%.2f"|format(msg.product.price) }}</div>
+                                            <div class="mb-1 text-muted small">Stock: {{ msg.product.stock }}</div>
+                                            <div class="d-flex gap-1">
+                                                <a href="{{ url_for('product_detail', product_id=msg.product.id) }}" class="btn btn-outline-info btn-sm">Details</a>
+                                                <a href="{{ url_for('add_to_cart', product_id=msg.product.id) }}" class="btn btn-success btn-sm">Add</a>
+                                                <a href="{{ url_for('checkout', product_id=msg.product.id) }}" class="btn btn-warning btn-sm">Buy</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if msg.sender_role == 'seller' %}
+                                <img src="{{ url_for('static', filename='user_avatar.png') }}" class="rounded-circle ms-2 border" style="width:32px;height:32px;object-fit:cover;">
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="card-footer bg-white border-top">
+                    <form method="POST" action="{{ url_for('seller_chat_with_buyer', buyer_id=selected_chat.id) }}">
+                        <div class="input-group">
+                            <input type="text" name="message" class="form-control" placeholder="Type your message..." required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Select a conversation to start chatting</h5>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.active-chat {
+    background-color: #007bff !important;
+    color: white !important;
+}
+
+.active-chat a {
+    color: white !important;
+}
+
+.chat-bubble {
+    word-wrap: break-word;
+}
+</style>
+{% endblock %}

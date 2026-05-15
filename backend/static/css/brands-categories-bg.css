@@ -1,0 +1,208 @@
+
+/* ========================================
+   UNIVERSAL BRANDS & CATEGORIES BACKGROUND
+   Consistent UI/UX across all sections
+   ======================================== */
+
+/* Background container for brands and categories */
+.brands-section,
+.categories-section,
+.brand-strip,
+.navbar-category-bar,
+.brand-card,
+.category-card,
+.collection__image {
+    position: relative;
+}
+
+/* Universal decorative background overlay */
+.brands-section::before,
+.categories-section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.95), rgba(250,251,255,0.9)),
+        repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(59,130,246,0.03) 35px, rgba(59,130,246,0.03) 70px),
+        repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(250,82,2,0.02) 35px, rgba(250,82,2,0.02) 70px);
+    background-size: 100%, 100px 100px, 100px 100px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ensure content stays above background */
+.brands-section > *,
+.categories-section > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Apply subtle pattern to the entire brands/categories wrapper */
+.brands-wrapper,
+.categories-wrapper {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,0.97), rgba(248,250,255,0.95)),
+        repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(14,165,233,0.025) 40px, rgba(14,165,233,0.025) 80px);
+    background-size: 100%, 120px 120px;
+    padding: 2rem 0;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+
+/* Brand and category cards with modern polish */
+.brand-card,
+.category-card {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,1), rgba(248,250,255,0.98)),
+        repeating-linear-gradient(30deg, transparent, transparent 25px, rgba(59,130,246,0.02) 25px, rgba(59,130,246,0.02) 50px);
+    background-size: 100%, 80px 80px;
+    border: 1px solid rgba(14,165,233,0.12);
+    box-shadow: 
+        0 2px 8px rgba(0,0,0,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.8);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.brand-card:hover,
+.category-card:hover {
+    border-color: rgba(250,82,2,0.3);
+    box-shadow: 
+        0 6px 20px rgba(250,82,2,0.12),
+        0 2px 8px rgba(0,0,0,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+    transform: translateY(-4px) scale(1.02);
+}
+
+/* Category bar (top navigation) with consistent background */
+.navbar-category-bar {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,1), rgba(250,251,255,0.98)),
+        repeating-linear-gradient(60deg, transparent, transparent 30px, rgba(14,165,233,0.015) 30px, rgba(14,165,233,0.015) 60px);
+    background-size: 100%, 90px 90px;
+    border-bottom: 1px solid rgba(14,165,233,0.1);
+    box-shadow: 
+        0 2px 4px rgba(0,0,0,0.02),
+        inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+/* Category banners/covers with decorative pattern */
+.collection__image {
+    overflow: hidden;
+    box-shadow: 
+        0 3px 12px rgba(0,0,0,0.08),
+        inset 0 0 0 1px rgba(255,255,255,0.2);
+}
+
+.collection__image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: 
+        repeating-linear-gradient(45deg, transparent, transparent 50px, rgba(255,255,255,0.03) 50px, rgba(255,255,255,0.03) 100px);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Brand strip scrollable container: no edge overlays so first/last tiles are fully visible */
+.brand-strip {
+    background: transparent;
+    padding: 16px 12px;
+    border-radius: 10px;
+    box-shadow: none;
+    scroll-padding-inline: 12px; /* ensure snapping/scrolling reveals first item completely */
+}
+
+/* Product cards in brand/category views */
+.approved-product-card,
+.product-card {
+    background: 
+        linear-gradient(135deg, rgba(255,255,255,1), rgba(250,251,255,0.98)),
+        repeating-linear-gradient(30deg, transparent, transparent 20px, rgba(14,165,233,0.015) 20px, rgba(14,165,233,0.015) 40px);
+    background-size: 100%, 70px 70px;
+    border: 1px solid rgba(226,232,240,0.8);
+    box-shadow: 
+        0 2px 8px rgba(0,0,0,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.approved-product-card:hover,
+.product-card:hover {
+    border-color: rgba(14,165,233,0.2);
+    box-shadow: 
+        0 8px 24px rgba(14,165,233,0.1),
+        0 3px 10px rgba(0,0,0,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+    .brands-wrapper,
+    .categories-wrapper {
+        padding: 1.5rem 0;
+    }
+    
+    .brand-strip {
+        padding: 12px 6px;
+    }
+}
+
+@media (max-width: 768px) {
+    .brands-wrapper,
+    .categories-wrapper {
+        padding: 1.25rem 0;
+        margin-bottom: 1rem;
+    }
+    
+    .brand-strip {
+        padding: 10px 4px;
+    }
+    
+    /* Simplify pattern on mobile for performance */
+    .brands-section::before,
+    .categories-section::before {
+        background: 
+            linear-gradient(135deg, rgba(255,255,255,0.97), rgba(250,251,255,0.92)),
+            repeating-linear-gradient(45deg, transparent, transparent 50px, rgba(59,130,246,0.02) 50px, rgba(59,130,246,0.02) 100px);
+        background-size: 100%, 140px 140px;
+    }
+}
+
+@media (max-width: 576px) {
+    .brands-wrapper,
+    .categories-wrapper {
+        padding: 1rem 0;
+        border-radius: 8px;
+    }
+    
+    .brand-strip {
+        padding: 8px 4px;
+    }
+}
+
+/* Accessibility: Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    .brand-card,
+    .category-card,
+    .approved-product-card,
+    .product-card {
+        transition: none;
+    }
+    
+    .brand-card:hover,
+    .category-card:hover,
+    .approved-product-card:hover,
+    .product-card:hover {
+        transform: none;
+    }
+}
+
+/* Print styles: Remove decorative backgrounds */
+@media print {
+    .brands-section::before,
+    .categories-section::before,
+    .brand-strip,
+    .navbar-category-bar {
+        background: white !important;
+        box-shadow: none !important;
+    }
+}

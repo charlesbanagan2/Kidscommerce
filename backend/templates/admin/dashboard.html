@@ -1,0 +1,450 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Dashboard - Kids & Baby Store{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'dashboard' %}
+
+<!-- Load Fonts and Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        --surface-color: #ffffff;
+        --text-dark: #1f2937;
+        --text-light: #6b7280;
+        --card-radius: 24px;
+        --transition-speed: 0.3s;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 12px 24px -6px rgba(0, 0, 0, 0.08);
+        --shadow-hover: 0 20px 30px -8px rgba(79, 70, 229, 0.15);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f9fafb;
+    }
+
+    /* --- Animations --- */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-entry {
+        animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        opacity: 0; /* Start hidden */
+    }
+
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+
+    /* --- Header Section --- */
+    .dashboard-header {
+        background: var(--primary-gradient);
+        border-radius: var(--card-radius);
+        padding: 2.5rem 2rem;
+        color: white;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.2);
+    }
+
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 300px;
+        height: 100%;
+        background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdib3g9IjAgMCAxNDQwIDMyMCI+PHBhdGggZmlsbD0id2hpdGUiIGZpbGwtb3BhY2l0eT0iMC4wNSIgZD0iTTAsaDgwTDExMCw5NkwxODAsMTI4TDI4MCwxNjBMMzkwLDEyOEw1MDAsOTZMNjAwLDE2MEw3MjAsMTkyTDgyMCwxNjBMOTIwLDEyOEwxMDMwLDE2MEwxMTQwLDE5MkwxMjUwLDE2MEwxMzYwLDEyOEwxNDQwLDk2TDE0NDAsMzIwTDAuMzIwWiI+PC9wYXRoPjwvc3ZnPg==');
+        background-repeat: no-repeat;
+        background-position: right bottom;
+        background-size: cover;
+        pointer-events: none;
+    }
+
+    .header-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.25rem;
+    }
+
+    .header-date {
+        font-weight: 400;
+        opacity: 0.9;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* --- Stat Cards --- */
+    .stat-card {
+        background: var(--surface-color);
+        border: none;
+        border-radius: var(--card-radius);
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: var(--shadow-md);
+        transition: all var(--transition-speed) ease;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(79, 70, 229, 0.1);
+    }
+
+    .icon-wrapper {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        margin-bottom: 1.25rem;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover .icon-wrapper {
+        transform: scale(1.1) rotate(5deg);
+    }
+
+    /* Icon Specific Colors */
+    .icon-users { background: #eff6ff; color: #3b82f6; } /* Blue */
+    .icon-wallet { background: #fdf4ff; color: #d946ef; } /* Fuchsia */
+    .icon-orders { background: #f0fdf4; color: #22c55e; } /* Green */
+    .icon-products { background: #fff7ed; color: #f97316; } /* Orange */
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-light);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        line-height: 1;
+        letter-spacing: -1px;
+    }
+
+    /* Custom Select for Users Card */
+    .custom-select-wrapper {
+        margin-top: 1rem;
+    }
+    
+    .form-select-custom {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        padding: 0.4rem 2rem 0.4rem 0.8rem;
+        color: var(--text-light);
+        cursor: pointer;
+        background-color: #f9fafb;
+        transition: all 0.2s;
+    }
+
+    .form-select-custom:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        outline: none;
+    }
+
+    /* --- Table Section --- */
+    .table-card {
+        background: white;
+        border-radius: var(--card-radius);
+        box-shadow: var(--shadow-md);
+        border: none;
+        overflow: hidden;
+        margin-top: 2rem;
+    }
+
+    .table-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0;
+    }
+
+    .custom-table {
+        margin-bottom: 0;
+    }
+
+    .custom-table th {
+        background-color: #f9fafb;
+        color: var(--text-light);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem 2rem;
+        border: none;
+    }
+
+    .custom-table td {
+        padding: 1.25rem 2rem;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+        color: var(--text-dark);
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .custom-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .custom-table tr:hover td {
+        background-color: #f8fafc;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .status-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-success::before { background: #166534; }
+
+    .badge-warning { background: #fef9c3; color: #854d0e; }
+    .badge-warning::before { background: #854d0e; }
+
+    .badge-secondary { background: #f3f4f6; color: #4b5563; }
+    .badge-secondary::before { background: #4b5563; }
+
+</style>
+
+<!-- Header -->
+<div class="dashboard-header animate-entry">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="header-title">Overview</h2>
+            <div class="header-date">
+                <i class="ri-calendar-line"></i>
+                {{ moment().strftime('%B %d, %Y') if moment else 'Today' }}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_products') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-box me-1"></i>Products
+            </a>
+            <a href="{{ url_for('admin_orders') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-shopping-cart me-1"></i>Orders
+            </a>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-light btn-sm">
+                <i class="fas fa-users me-1"></i>Users
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Grid -->
+<div class="row g-4">
+    
+    <!-- 1. Total Users (Interactive) -->
+    <div class="col-12 col-md-6 col-xl-3 animate-entry delay-1">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Users</div>
+                    <div class="stat-value" id="user-count-display">
+                        {{ "{:,}".format(((total_buyers or 0) + (total_sellers or 0) + (total_riders or 0))) }}
+                    </div>
+                </div>
+                <div class="icon-wrapper icon-users">
+                    <i class="ri-user-star-line"></i>
+                </div>
+            </div>
+            
+            <!-- User Type Dropdown (Styled) -->
+            <div class="custom-select-wrapper">
+                <select class="form-select form-select-custom" id="user-type-selector">
+                    <option value="total">All Users</option>
+                    <option value="buyers">Buyers ({{ total_buyers or 0 }})</option>
+                    <option value="sellers">Sellers ({{ total_sellers or 0 }})</option>
+                    <option value="riders">Riders ({{ total_riders or 0 }})</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Total Commission -->
+    <div class="col-12 col-md-6 col-xl-3 animate-entry delay-2">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Commission</div>
+                    <div class="stat-value">₱{{ "%.2f"|format(commission or 0) }}</div>
+                </div>
+                <div class="icon-wrapper icon-wallet">
+                    <i class="ri-wallet-3-line"></i>
+                </div>
+            </div>
+            <div class="mt-3 text-muted small">
+                <span class="text-success fw-bold"><i class="ri-arrow-up-line"></i> 5%</span> 
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Total Orders -->
+    <div class="col-12 col-md-6 col-xl-3 animate-entry delay-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Orders</div>
+                    <div class="stat-value">{{ total_orders or 0 }}</div>
+                </div>
+                <div class="icon-wrapper icon-orders">
+                    <i class="ri-shopping-cart-2-line"></i>
+                </div>
+            </div>
+            <!-- Subtext removed -->
+        </div>
+    </div>
+
+    <!-- 4. Total Products -->
+    <div class="col-12 col-md-6 col-xl-3 animate-entry delay-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Total Products</div>
+                    <div class="stat-value">{{ total_products or 0 }}</div>
+                </div>
+                <div class="icon-wrapper icon-products">
+                    <i class="ri-archive-line"></i>
+                </div>
+            </div>
+             <div class="mt-3 text-muted small">
+                <span class="text-muted fw-bold">0%</span> New additions
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Recent Orders Table -->
+<div class="table-card animate-entry delay-4 mb-5">
+    <div class="table-header">
+        <h5 class="table-title">Recent Orders</h5>
+        <button class="btn btn-sm btn-outline-light text-dark border">View All</button>
+    </div>
+    
+    <div class="table-responsive">
+        {% if recent_orders %}
+        <table class="table custom-table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders[:10] %}
+                <tr>
+                    <td class="fw-bold text-primary">#{{ order.id }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-circle bg-light text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.8rem; font-weight: bold;">
+                                {{ order.buyer.first_name[0] }}
+                            </div>
+                            {{ order.buyer.first_name }} {{ order.buyer.last_name }}
+                        </div>
+                    </td>
+                    <td class="fw-bold">₱{{ "%.2f"|format(order.total_amount) }}</td>
+                    <td>
+                        <span class="status-badge {{ 'badge-success' if order.status == 'delivered' else 'badge-warning' if order.status == 'processing' else 'badge-secondary' }}">
+                            {{ order.status.title() }}
+                        </span>
+                    </td>
+                    <td class="text-muted">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <div class="p-5 text-center text-muted">
+                <i class="ri-inbox-archive-line" style="font-size: 2rem; opacity: 0.5;"></i>
+                <p class="mt-2">No recent orders found.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTypeSelector = document.getElementById('user-type-selector');
+    const userCountDisplay = document.getElementById('user-count-display');
+
+    // Values passed from Jinja2
+    const userCounts = {
+        total: parseInt('{{ ((total_buyers or 0) + (total_sellers or 0) + (total_riders or 0)) }}'),
+        buyers: parseInt('{{ total_buyers or 0 }}'),
+        sellers: parseInt('{{ total_sellers or 0 }}'),
+        riders: parseInt('{{ total_riders or 0 }}')
+    };
+
+    userTypeSelector.addEventListener('change', function() {
+        const selectedType = this.value;
+        const count = userCounts[selectedType] || 0;
+        
+        // Add a small fade animation when number changes
+        userCountDisplay.style.opacity = '0';
+        userCountDisplay.style.transform = 'translateY(-5px)';
+        
+        setTimeout(() => {
+            userCountDisplay.textContent = count.toLocaleString();
+            userCountDisplay.style.opacity = '1';
+            userCountDisplay.style.transform = 'translateY(0)';
+        }, 200);
+    });
+});
+</script>
+
+{% endblock %}

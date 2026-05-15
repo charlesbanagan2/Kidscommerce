@@ -1,0 +1,409 @@
+
+/* Custom CSS for Kids & Baby Store */
+
+:root {
+    /* Kids-friendly palette */
+    --primary-color: #60a5fa;   /* sky blue */
+    --secondary-color: #f472b6; /* bubblegum pink */
+    --warning-color: #facc15;   /* sunshine yellow */
+    --danger-color:  #fb7185;   /* coral red */
+    --dark-color:    #334155;   /* slate */
+    --light-color:   #f8fafc;   /* very light */
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+}
+
+/* Prevent horizontal scrolling so pages stay aligned */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    min-height: 500px;
+}
+
+/* Product Cards */
+.product-card {
+    transition: all 0.3s ease;
+    border: none;
+    overflow: hidden;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+}
+
+.category-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.category-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+}
+
+/* Navigation */
+.navbar {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.navbar .navbar-actions .btn,
+.navbar .navbar-actions .badge {
+    border-radius: 999px;
+}
+
+.navbar .btn-outline-primary {
+    border-width: 1.5px;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1.5rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 2rem;
+}
+
+/* Cards */
+.card {
+    border-radius: 1rem;
+    border: none;
+}
+
+.card-header {
+    border-radius: 1rem 1rem 0 0 !important;
+    border-bottom: none;
+    font-weight: 600;
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+}
+
+/* Forms */
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+}
+
+/* Hide native up/down arrows on number inputs (quantity fields) */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
+    appearance: textfield; /* Standard property for compatibility */
+}
+
+/* Admin/Seller Dashboard */
+.list-group-item {
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+.list-group-item.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.list-group-item:hover:not(.active) {
+    background-color: var(--light-color);
+}
+
+/* Seller sidebar layout */
+.seller-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.seller-sidebar-card .seller-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.badge.seller-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.seller-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.seller-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.seller-sidebar .list-group-item.active {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+}
+
+.seller-sidebar .list-group-item.active i.fas {
+    color: rgba(255, 255, 255, 0.98);
+}
+
+.seller-sidebar .list-group-item:hover:not(.active) {
+    background-color: rgba(3, 105, 161, 0.04);
+}
+
+.seller-sidebar .list-group-item:hover i.fas {
+    color: #0369a1;
+}
+
+/* Seller notifications text: prevent very long text from breaking seller panel layout */
+.seller-notification-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.3;
+    max-height: 2.6em;              /* ~2 lines */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    display: box;
+    -webkit-line-clamp: 2;          /* show up to 2 lines */
+    line-clamp: 2;                  /* standard property for compatibility */
+    -webkit-box-orient: vertical;
+    box-orient: vertical;
+}
+
+.seller-notification-message {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    max-height: 4.2em;              /* ~3 lines */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    display: box;
+    -webkit-line-clamp: 3;          /* show up to 3 lines */
+    line-clamp: 3;                  /* standard property for compatibility */
+    -webkit-box-orient: vertical;
+    box-orient: vertical;
+}
+
+.seller-sidebar-toggle {
+    border-radius: 999px;
+    border: none;
+    padding: 0.25rem 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.9);
+    color: #0b63a8;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.seller-sidebar-toggle i {
+    font-size: 0.85rem;
+}
+
+/* Collapsible behavior: only collapsible on smaller screens */
+.seller-sidebar-card .seller-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+.seller-sidebar-card.is-collapsed .seller-sidebar {
+    max-height: 0;
+    opacity: 0;
+    /* display: none; /* removed to allow animation */
+}
+
+@media (min-width: 992px) {
+    /* On desktop, use sticky positioning with consistent height */
+    .seller-sidebar-card {
+        position: sticky;
+        top: 1rem;
+        height: calc(100vh - 6rem);
+        overflow-y: auto;
+        padding-bottom: 1.5rem;
+    }
+
+    /* Maintain original Bootstrap column sizes but ensure consistency */
+    .sidebar-column {
+        position: relative;
+    }
+
+    .main-content-column {
+        position: relative;
+    }
+
+    .seller-sidebar-card.is-collapsed .seller-sidebar {
+        display: block;
+    }
+
+    .seller-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .seller-sidebar .list-group-item {
+        padding: 0.7rem 0.9rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* Alert Improvements */
+.alert {
+    border-radius: 999px;
+    border: none;
+    padding: 0.55rem 1.25rem;
+    max-width: 1240px;
+    margin: 0 auto;
+    max-height: 3.25rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.alert-success {
+    background: linear-gradient(90deg, #d1fae5, #bbf7d0);
+    color: #065f46;
+}
+
+.alert p,
+.alert span,
+.alert strong {
+    margin-bottom: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+/* Quick Edit Button Styles */
+.btn-quick-edit,
+.btn-seller-action {
+    border-radius: 999px;
+    padding: 0.45rem 1.1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border-width: 1.5px;
+}
+
+.btn-quick-edit {
+    background: #0b63a8;
+    border-color: #0b63a8;
+    color: #fff;
+}
+
+.btn-quick-edit:hover {
+    background: #0369a1;
+    border-color: #0369a1;
+}
+
+/* Image Hover Effects */
+.card-img-top {
+    transition: transform 0.3s ease;
+}
+
+.product-card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+/* Success/Error States */
+.text-success { color: var(--secondary-color) !important; }
+.bg-success { background-color: var(--secondary-color) !important; }
+.btn-success { background-color: var(--secondary-color); border-color: var(--secondary-color); }
+
+/* Global dropdown behavior: always on top with smooth animation */
+.dropdown,
+.dropup,
+.dropend,
+.dropstart {
+    position: relative;
+}
+
+.dropdown-menu {
+    z-index: 1050;
+    /* Let menus escape most clipping contexts */
+    overflow: visible;
+    /* Smooth open/close animation */
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+}
+
+.dropdown-menu.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Table Improvements */
+.table th {
+    font-weight: 600;
+    background-color: var(--light-color);
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #0052a3;
+}

@@ -1,0 +1,1685 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Report - Seller Dashboard{% endblock %}
+
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Enhanced Sales Report Styles */
+.sales-report-container {
+  min-height: 100vh;
+  padding-top: 0;
+}
+
+.sales-report-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+}
+
+.sales-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.stat-card.revenue::before { background: linear-gradient(90deg, #4CAF50, #45a049); }
+.stat-card.orders::before { background: linear-gradient(90deg, #2196F3, #1976D2); }
+.stat-card.items::before { background: linear-gradient(90deg, #FF9800, #F57C00); }
+.stat-card.avg-order::before { background: linear-gradient(90deg, #9C27B0, #7B1FA2); }
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.stat-card.revenue .stat-icon { background: rgba(76, 175, 80, 0.1); color: #4CAF50; }
+.stat-card.orders .stat-icon { background: rgba(33, 150, 243, 0.1); color: #2196F3; }
+.stat-card.items .stat-icon { background: rgba(255, 152, 0, 0.1); color: #FF9800; }
+.stat-card.avg-order .stat-icon { background: rgba(156, 39, 176, 0.1); color: #9C27B0; }
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: #2c3e50;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filters-section {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.chart-container {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.data-table-container {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.table-modern {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.table-modern thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  border: none;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table-modern tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.table-modern tbody tr:hover {
+  background-color: rgba(102, 126, 234, 0.05);
+}
+
+.table-modern tbody td {
+  padding: 1rem;
+  border-bottom: 1px solid #f1f3f4;
+  vertical-align: middle;
+}
+
+.product-image {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #f1f3f4;
+}
+
+.badge-modern {
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-modern {
+  border-radius: 25px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.quick-filter-btn {
+  border-radius: 20px;
+  margin: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.quick-filter-btn:hover {
+  transform: translateY(-1px);
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f1f3f4;
+}
+
+.chart-title {
+  display: flex;
+  align-items: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.chart-title i {
+  margin-right: 0.75rem;
+  color: #667eea;
+}
+
+.chart-subtitle {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.no-data-state {
+  text-align: center;
+  padding: 3rem;
+  color: #6c757d;
+}
+
+.no-data-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 992px) {
+  .sales-report-header .d-flex {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .sales-report-header h1 {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sales-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+    margin: 0 auto;
+    max-width: 100%;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+  }
+
+  .filters-section,
+  .chart-container,
+  .data-table-container {
+    padding: 1rem;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+  }
+
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .chart-title {
+    font-size: 1.25rem;
+  }
+
+  .table-responsive {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .table-modern thead th,
+  .table-modern tbody td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .product-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .btn-modern {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .quick-filter-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    margin: 0.125rem;
+  }
+
+  /* Mobile chart improvements */
+  #salesChart, #productChart {
+    height: 250px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .sales-report-container {
+    padding: 0;
+  }
+
+  .sales-report-header {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .sales-report-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-card {
+    padding: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .filters-section,
+  .chart-container,
+  .data-table-container {
+    margin: 0;
+    border-radius: 0;
+    padding: 1rem;
+  }
+
+  .row.g-4 {
+    --bs-gutter-x: 0.5rem;
+  }
+
+  .table-modern thead th,
+  .table-modern tbody td {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.8rem;
+  }
+
+  .badge-modern {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  /* Stack action buttons vertically on very small screens */
+  .d-flex.gap-3 {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+
+  .btn-modern {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hide some columns on very small screens for better readability */
+  .table-modern th:nth-child(5),
+  .table-modern td:nth-child(5),
+  .table-modern th:nth-child(6),
+  .table-modern td:nth-child(6) {
+    display: none;
+  }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+  .stat-card:hover {
+    transform: none;
+  }
+
+  .btn-modern:hover,
+  .quick-filter-btn:hover {
+    transform: none;
+  }
+
+  .table-modern tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .sales-report-header {
+    padding: 0.5rem 1rem;
+  }
+
+  .stat-card {
+    padding: 0.5rem;
+  }
+
+  .filters-section,
+  .chart-container,
+  .data-table-container {
+    padding: 0.75rem;
+  }
+}
+
+/* Sidebar collapsible on mobile */
+@media (max-width: 991.98px){
+  .seller-sidebar{ display:none; }
+  .seller-sidebar.open{ display:block; }
+}
+</style>
+<div class="sales-report-container">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2">
+                {% set active_page = 'sales_report' %}
+                {% include 'seller/_sidebar.html' %}
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <!-- Print Header (hidden on screen, visible on print) -->
+                <div class="print-header" style="display: none;">
+                    <h1>Sales Report</h1>
+                    <div class="report-info">
+                        <p class="mb-1"><strong>Kids & Baby Store - Seller Dashboard</strong></p>
+                        <p class="mb-1">Generated on: {{ now().strftime('%B %d, %Y at %I:%M %p') }}</p>
+                        <p class="mb-1">
+                            {% if date_range == 'today' %}Period: Today
+                            {% elif date_range == '7days' %}Period: Last 7 Days
+                            {% elif date_range == '30days' %}Period: Last 30 Days
+                            {% elif date_range == '90days' %}Period: Last 90 Days
+                            {% elif date_range == 'year' %}Period: Last Year
+                            {% else %}Period: All Time{% endif %}
+                            {% if product_filter != 'all' %}
+                                {% for product in seller_products if product.id|string == product_filter %}
+                                 - Product: {{ product.name }}
+                                {% endfor %}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Enhanced Header -->
+                <div class="sales-report-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-2 fw-bold text-dark" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-chart-line me-3 text-primary"></i>Sales Report</h1>
+                            <p class="text-muted mb-0 fs-5">Track your sales performance and revenue insights</p>
+                        </div>
+                        <div class="d-flex gap-3">
+                            <!-- Removed Back to Dashboard button -->
+                            <button class="btn btn-modern btn-success" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel me-2"></i>Export Excel
+                            </button>
+                            <button class="btn btn-modern btn-primary" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>Print Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Filters Section -->
+                <div class="filters-section">
+                    <div class="d-flex align-items-center mb-4">
+                        <i class="fas fa-filter me-3 text-primary fs-4"></i>
+                        <h3 class="mb-0 fw-bold" style="font-size: 1.2rem; font-family: 'Arial', sans-serif;">Filters & Quick Actions</h3>
+                    </div>
+
+                    <form method="GET" class="row g-4 align-items-end">
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label fw-bold text-dark">Date Range</label>
+                            <select name="date_range" class="form-select form-select-lg" onchange="this.form.submit()">
+                                <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                                <option value="7days" {% if date_range == '7days' %}selected{% endif %}>Last 7 Days</option>
+                                <option value="30days" {% if date_range == '30days' %}selected{% endif %}>Last 30 Days</option>
+                                <option value="90days" {% if date_range == '90days' %}selected{% endif %}>Last 90 Days</option>
+                                <option value="year" {% if date_range == 'year' %}selected{% endif %}>Last Year</option>
+                                <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label fw-bold text-dark">Order Status</label>
+                            <select name="status" class="form-select form-select-lg" onchange="this.form.submit()">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                                <option value="ready_for_pickup" {% if status_filter == 'ready_for_pickup' %}selected{% endif %}>Ready for Pickup</option>
+                                <option value="delivered" {% if status_filter == 'delivered' %}selected{% endif %}>Delivered</option>
+                                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="canceled" {% if status_filter == 'canceled' %}selected{% endif %}>Canceled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label fw-bold text-dark">Payment Status</label>
+                            <select name="payment_status" class="form-select form-select-lg" onchange="this.form.submit()">
+                                <option value="all" {% if payment_status_filter == 'all' %}selected{% endif %}>All</option>
+                                <option value="paid" {% if payment_status_filter == 'paid' %}selected{% endif %}>Paid</option>
+                                <option value="pending" {% if payment_status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="failed" {% if payment_status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                                <option value="refunded" {% if payment_status_filter == 'refunded' %}selected{% endif %}>Refunded</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label class="form-label fw-bold text-dark">Payment Method</label>
+                            <select name="payment_method" class="form-select form-select-lg" onchange="this.form.submit()">
+                                <option value="all" {% if payment_method == 'all' %}selected{% endif %}>All</option>
+                                <option value="gcash" {% if payment_method == 'gcash' %}selected{% endif %}>GCash</option>
+                                <option value="card" {% if payment_method == 'card' %}selected{% endif %}>Card</option>
+                                <option value="paymaya" {% if payment_method == 'paymaya' %}selected{% endif %}>Maya</option>
+                                <option value="cod" {% if payment_method == 'cod' %}selected{% endif %}>Cash on Delivery</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <!-- Quick date chips -->
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for preset,label in [('today','Today'),('7days','7d'),('30days','30d'),('90days','90d'),('year','Year'),('all','All')] %}
+                                        <a class="btn quick-filter-btn {% if date_range==preset %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                                           href="{{ url_for('seller_sales_report', date_range=preset, status=status_filter, payment_status=payment_status_filter, payment_method=payment_method, product=product_filter) }}">{{ label }}</a>
+                                    {% endfor %}
+                                </div>
+                                <div class="ms-auto d-flex gap-3">
+                                    <a href="{{ url_for('seller_sales_report') }}" class="btn btn-modern btn-outline-secondary">
+                                        <i class="fas fa-redo me-2"></i>Reset Filters
+                                    </a>
+                                    <a href="{{ url_for('seller_orders', date_range=date_range, status=status_filter, payment_status=payment_status_filter, payment_method=payment_method) }}" class="btn btn-modern btn-primary">
+                                        <i class="fas fa-list me-2"></i>View Orders
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Enhanced Summary Cards -->
+                <div class="sales-stats-grid">
+                    <div class="stat-card revenue">
+                        <div class="stat-icon">
+                            <i class="fas fa-peso-sign"></i>
+                        </div>
+                        <div class="stat-value">₱{{ "%.2f"|format(total_revenue) }}</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+
+                    <div class="stat-card orders">
+                        <div class="stat-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-value">
+                            <a class="text-decoration-none text-primary" href="{{ url_for('seller_orders', date_range=date_range, status=status_filter, payment_status=payment_status_filter, payment_method=payment_method) }}">{{ total_orders }}</a>
+                        </div>
+                        <div class="stat-label">Total Orders</div>
+                    </div>
+
+                    <div class="stat-card items">
+                        <div class="stat-icon">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-value">{{ total_items_sold }}</div>
+                        <div class="stat-label">Items Sold</div>
+                    </div>
+
+                    <div class="stat-card avg-order">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div class="stat-value">₱{{ "%.2f"|format(avg_order_value) }}</div>
+                        <div class="stat-label">Avg. Order Value</div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Daily Sales Chart -->
+                {% if daily_sales %}
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">
+                                <i class="fas fa-chart-area"></i>
+                                Sales Over Time
+                            </h3>
+                            <p class="chart-subtitle">Track your revenue and order trends over the selected period</p>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="salesChart" height="80"></canvas>
+                        <div class="chart-print-notice">
+                            <p><strong>Sales Over Time Chart</strong></p>
+                            <p class="mb-0">Chart visualization not available in print. Please view online for interactive chart.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Enhanced Product Performance Chart -->
+                {% if product_performance %}
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">
+                                <i class="fas fa-chart-bar"></i>
+                                Product Performance Comparison
+                            </h3>
+                            <p class="chart-subtitle">Compare sales performance across your top products</p>
+                        </div>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="productChart" height="80"></canvas>
+                        <div class="product-chart-print-notice chart-print-notice">
+                            <p><strong>Product Performance Chart</strong></p>
+                            <p class="mb-0">Chart visualization not available in print. Please view online for interactive chart.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Enhanced Product Performance Table -->
+                <div class="data-table-container">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">
+                                <i class="fas fa-trophy"></i>
+                                Product Performance
+                            </h3>
+                            <p class="chart-subtitle">Top performing products by revenue</p>
+                        </div>
+                        {% if product_performance %}
+                        <span class="badge badge-modern bg-info">Top {{ product_performance|length }} Products</span>
+                        {% endif %}
+                    </div>
+
+                    {% if product_performance %}
+                    <div class="table-responsive">
+                        <table class="table-modern">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">#</th>
+                                    <th>Product</th>
+                                    <th class="text-center">Qty Sold</th>
+                                    <th class="text-center">Orders</th>
+                                    <th class="text-end">Avg. Price</th>
+                                    <th class="text-end">Total Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in product_performance[:10] %}
+                                <tr>
+                                    <td class="fw-bold text-primary">{{ loop.index }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if product.product_image %}
+                                            <img src="{{ url_for('static', filename='uploads/' + product.product_image) }}"
+                                                 alt="{{ product.product_name }}"
+                                                 class="product-image me-3">
+                                            {% else %}
+                                            <div class="bg-light d-flex align-items-center justify-content-center me-3"
+                                                 style="width: 50px; height: 50px; border-radius: 8px;">
+                                                <i class="fas fa-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <a class="fw-semibold text-decoration-none text-dark" href="{{ url_for('seller_sales_report', date_range=date_range, product=product.product_id) }}">{{ product.product_name }}</a>
+                                                <div class="text-muted small">ID: {{ product.product_id }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge badge-modern bg-primary">{{ product.quantity_sold }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge badge-modern bg-info">{{ product.order_count }}</span>
+                                    </td>
+                                    <td class="text-end fw-semibold">₱{{ "%.2f"|format(product.avg_price) }}</td>
+                                    <td class="text-end fw-bold text-success fs-6">₱{{ "%.2f"|format(product.revenue) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="no-data-state">
+                        <i class="fas fa-chart-bar"></i>
+                        <h4 class="mt-3">No Sales Data</h4>
+                        <p>No sales data available for the selected period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Enhanced Recent Transactions Table -->
+                <div class="data-table-container">
+                    <div class="chart-header">
+                        <div>
+                            <h3 class="chart-title">
+                                <i class="fas fa-receipt"></i>
+                                Recent Transactions
+                            </h3>
+                            <p class="chart-subtitle">Latest sales transactions and order details</p>
+                        </div>
+                        {% if recent_transactions %}
+                        <span class="badge badge-modern bg-secondary">Last {{ recent_transactions|length }} Sales</span>
+                        {% endif %}
+                    </div>
+
+                    {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table-modern">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Date</th>
+                                    <th>Product</th>
+                                    <th>Buyer</th>
+                                    <th class="text-center">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td class="fw-bold text-primary">#{{ transaction.order_id }}</td>
+                                    <td>
+                                        <div class="fw-semibold">{{ transaction.order_date.strftime('%b %d, %Y') }}</div>
+                                        <small class="text-muted">{{ transaction.order_date.strftime('%I:%M %p') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">{{ transaction.product_name }}</div>
+                                        <small class="text-muted">ID: {{ transaction.product_id }}</small>
+                                    </td>
+                                    <td class="fw-semibold">{{ transaction.buyer_name }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-modern bg-light text-dark">{{ transaction.quantity }}</span>
+                                    </td>
+                                    <td class="text-end fw-semibold">₱{{ "%.2f"|format(transaction.unit_price) }}</td>
+                                    <td class="text-end fw-bold text-success">₱{{ "%.2f"|format(transaction.total) }}</td>
+                                    <td class="text-center">
+                                        {% if transaction.order_status == 'completed' or transaction.order_status == 'delivered' %}
+                                            <span class="badge badge-modern bg-success">Completed</span>
+                                        {% elif transaction.order_status == 'processing' %}
+                                            <span class="badge badge-modern bg-primary">Processing</span>
+                                        {% elif transaction.order_status == 'shipped' %}
+                                            <span class="badge badge-modern bg-info">Shipped</span>
+                                        {% elif transaction.order_status == 'pending' %}
+                                            <span class="badge badge-modern bg-warning">Pending</span>
+                                        {% else %}
+                                            <span class="badge badge-modern bg-secondary">{{ transaction.order_status.title() }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a class="btn btn-modern btn-outline-primary btn-sm" href="{{ url_for('seller_orders', search=transaction.order_id) }}">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-light">
+                                    <td colspan="6" class="text-end fw-bold fs-6">Total:</td>
+                                    <td class="text-end fw-bold text-success fs-5">
+                                        ₱{{ "%.2f"|format(recent_transactions|sum(attribute='total')) }}
+                                    </td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="no-data-state">
+                        <i class="fas fa-receipt"></i>
+                        <h4 class="mt-3">No Transactions</h4>
+                        <p>No transactions found for the selected period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js for Sales Trend -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<!-- SheetJS for Excel Export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- Initialize chart data in a way that avoids lint errors -->
+<script type="application/json" id="chart-data">
+{
+    "dailySales": {% if daily_sales %}{{ daily_sales|tojson|safe }}{% else %}null{% endif %},
+    "productPerformance": {% if product_performance %}{{ product_performance|tojson|safe }}{% else %}null{% endif %},
+    "hasDailySales": {% if daily_sales %}true{% else %}false{% endif %},
+    "hasProductPerformance": {% if product_performance %}true{% else %}false{% endif %},
+    "totalRevenue": {{ "%.2f"|format(total_revenue) }},
+    "totalOrders": {{ total_orders }},
+    "totalItemsSold": {{ total_items_sold }},
+    "avgOrderValue": {{ "%.2f"|format(avg_order_value) }},
+    "dateRange": "{{ date_range }}",
+    "recentTransactions": {% if recent_transactions %}{{ recent_transactions|tojson|safe }}{% else %}null{% endif %}
+}
+</script>
+
+<script>
+// Parse the JSON data from the script tag
+try {
+    window.chartData = JSON.parse(document.getElementById('chart-data').textContent);
+} catch (error) {
+    console.error('Error parsing chart data:', error);
+    window.chartData = {
+        dailySales: null,
+        productPerformance: null,
+        hasDailySales: false,
+        hasProductPerformance: false,
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalItemsSold: 0,
+        avgOrderValue: 0,
+        dateRange: 'all',
+        recentTransactions: null
+    };
+}
+
+// Sidebar toggle for mobile (same as admin panel)
+(function(){
+  const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+  const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+  
+  if (sellerSidebarCard && sellerSidebarToggle) {
+      sellerSidebarToggle.addEventListener('click', function() {
+          sellerSidebarCard.classList.toggle('is-collapsed');
+          const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+          sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+          
+          // Toggle chevron direction
+          const icon = this.querySelector('i');
+          if (icon) {
+              icon.classList.toggle('fa-chevron-left');
+              icon.classList.toggle('fa-chevron-down');
+          }
+      });
+  }
+})();
+
+// Enhanced Chart Initialization with Error Handling
+function initializeCharts() {
+    if (window.chartData.hasDailySales) {
+    try {
+        // Sales Over Time Chart (Line/Area Chart)
+        const salesChartCanvas = document.getElementById('salesChart');
+        if (salesChartCanvas) {
+            const ctx = salesChartCanvas.getContext('2d');
+            const salesData = window.chartData.dailySales;
+
+            // Ensure we have data
+            if (salesData && salesData.length > 0) {
+                const dates = salesData.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+                const revenues = salesData.map(d => d.paid_revenue || d.revenue || 0);
+                const orderCounts = salesData.map(d => d.paid_order_count || d.order_count || 0);
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Revenue (₱)',
+                                data: revenues,
+                                borderColor: 'rgb(40, 167, 69)',
+                                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y',
+                                pointBackgroundColor: 'rgb(40, 167, 69)',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6
+                            },
+                            {
+                                label: 'Orders',
+                                data: orderCounts,
+                                borderColor: 'rgb(13, 110, 253)',
+                                backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                yAxisID: 'y1',
+                                pointBackgroundColor: 'rgb(13, 110, 253)',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20,
+                                    font: {
+                                        size: 12,
+                                        weight: '500'
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderColor: 'rgba(255, 255, 255, 0.2)',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                displayColors: true,
+                                callbacks: {
+                                    title: function(context) {
+                                        return 'Date: ' + context[0].label;
+                                    },
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.dataset.yAxisID === 'y') {
+                                            label += '₱' + context.parsed.y.toFixed(2);
+                                        } else {
+                                            label += context.parsed.y + ' orders';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Revenue (₱)',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₱' + value.toLocaleString();
+                                    },
+                                    font: {
+                                        size: 11
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Orders',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        },
+                        elements: {
+                            point: {
+                                hoverBorderWidth: 3
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+            } else {
+                console.warn('No sales data available for chart');
+                showChartPlaceholder(salesChartCanvas, 'No sales data available');
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing sales chart:', error);
+        const canvas = document.getElementById('salesChart');
+        if (canvas) {
+            showChartPlaceholder(canvas, 'Error loading chart');
+        }
+    }
+    }
+
+    if (window.chartData.hasProductPerformance) {
+    try {
+        // Product Performance Chart (Bar Chart)
+        const productChartCanvas = document.getElementById('productChart');
+        if (productChartCanvas) {
+            const ctxProduct = productChartCanvas.getContext('2d');
+            const productData = window.chartData.productPerformance;
+
+            // Ensure we have data
+            if (productData && productData.length > 0) {
+                // Get top 10 products for the chart
+                const topProducts = productData.slice(0, 10);
+                const productNames = topProducts.map(p => {
+                    // Truncate long names for better display
+                    return p.product_name.length > 20 ? p.product_name.substring(0, 20) + '...' : p.product_name;
+                });
+                const productRevenues = topProducts.map(p => p.paid_revenue || p.revenue || 0);
+                const productQuantities = topProducts.map(p => p.quantity_sold || 0);
+
+                new Chart(ctxProduct, {
+                    type: 'bar',
+                    data: {
+                        labels: productNames,
+                        datasets: [
+                            {
+                                label: 'Revenue (₱)',
+                                data: productRevenues,
+                                backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                                borderColor: 'rgb(40, 167, 69)',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                borderSkipped: false,
+                                yAxisID: 'y',
+                                barThickness: 20
+                            },
+                            {
+                                label: 'Units Sold',
+                                data: productQuantities,
+                                backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                                borderColor: 'rgb(13, 110, 253)',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                borderSkipped: false,
+                                yAxisID: 'y1',
+                                barThickness: 20
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20,
+                                    font: {
+                                        size: 12,
+                                        weight: '500'
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderColor: 'rgba(255, 255, 255, 0.2)',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                displayColors: true,
+                                callbacks: {
+                                    title: function(context) {
+                                        // Show full product name in tooltip
+                                        return topProducts[context[0].dataIndex].product_name;
+                                    },
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.dataset.yAxisID === 'y') {
+                                            label += '₱' + context.parsed.y.toFixed(2);
+                                        } else {
+                                            label += context.parsed.y + ' units';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Revenue (₱)',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₱' + value.toLocaleString();
+                                    },
+                                    font: {
+                                        size: 11
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Units Sold',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                ticks: {
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1200,
+                            easing: 'easeOutQuart',
+                            delay: function(context) {
+                                return context.dataIndex * 100;
+                            }
+                        }
+                    }
+                });
+            } else {
+                console.warn('No product performance data available for chart');
+                showChartPlaceholder(productChartCanvas, 'No product data available');
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing product chart:', error);
+        const canvas = document.getElementById('productChart');
+        if (canvas) {
+            showChartPlaceholder(canvas, 'Error loading chart');
+        }
+    }
+    }
+}
+
+// Function to show placeholder when charts can't be rendered
+function showChartPlaceholder(canvas, message) {
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#6c757d';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, centerX, centerY);
+}
+
+// Initialize charts when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure Chart.js is loaded
+    setTimeout(initializeCharts, 100);
+});
+
+// Fallback: try to initialize charts immediately if DOM is already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(initializeCharts, 100);
+}
+
+// Enhanced Excel Export Function with loading state
+function exportToExcel() {
+    const exportBtn = document.querySelector('button[onclick="exportToExcel()"]');
+    const originalText = exportBtn.innerHTML;
+
+    // Show loading state
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Exporting...';
+    exportBtn.disabled = true;
+
+    try {
+        // Create workbook
+        const wb = XLSX.utils.book_new();
+    
+    // Summary Sheet
+    const summaryData = [
+        ['Sales Report - Kids & Baby Store'],
+        ['Generated on: ' + new Date().toLocaleString()],
+        ['Period: ' + (window.chartData.dateRange === 'today' ? 'Today' : 
+                      window.chartData.dateRange === '7days' ? 'Last 7 Days' :
+                      window.chartData.dateRange === '30days' ? 'Last 30 Days' :
+                      window.chartData.dateRange === '90days' ? 'Last 90 Days' :
+                      window.chartData.dateRange === 'year' ? 'Last Year' : 'All Time')],
+        [],
+        ['Summary Statistics'],
+        ['Total Revenue', '₱' + window.chartData.totalRevenue],
+        ['Total Orders', window.chartData.totalOrders],
+        ['Items Sold', window.chartData.totalItemsSold],
+        ['Average Order Value', '₱' + window.chartData.avgOrderValue],
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+    
+    // Product Performance Sheet
+    if (window.chartData.hasProductPerformance && window.chartData.productPerformance) {
+    const productData = [
+        ['Product Performance'],
+        [],
+        ['Rank', 'Product Name', 'Quantity Sold', 'Orders', 'Avg. Price', 'Total Revenue'],
+        ...window.chartData.productPerformance.map((product, index) => [
+            index + 1,
+            product.product_name ? product.product_name.replace(/'/g, '') : '',
+            product.quantity_sold || 0,
+            product.order_count || 0,
+            (product.avg_price || 0).toFixed(2),
+            (product.revenue || 0).toFixed(2)
+        ])
+    ];
+    const wsProducts = XLSX.utils.aoa_to_sheet(productData);
+    XLSX.utils.book_append_sheet(wb, wsProducts, 'Product Performance');
+    }
+    
+    // Recent Transactions Sheet
+    if (window.chartData.recentTransactions) {
+    const transactionData = [
+        ['Recent Transactions'],
+        [],
+        ['Order ID', 'Date', 'Product', 'Buyer', 'Quantity', 'Unit Price', 'Total', 'Status'],
+        ...window.chartData.recentTransactions.map(transaction => [
+            transaction.order_id || '',
+            transaction.order_date ? new Date(transaction.order_date).toISOString().slice(0, 16).replace('T', ' ') : '',
+            transaction.product_name ? transaction.product_name.replace(/'/g, '') : '',
+            transaction.buyer_name || '',
+            transaction.quantity || 0,
+            (transaction.unit_price || 0).toFixed(2),
+            (transaction.total || 0).toFixed(2),
+            transaction.order_status || ''
+        ])
+    ];
+    const wsTransactions = XLSX.utils.aoa_to_sheet(transactionData);
+    XLSX.utils.book_append_sheet(wb, wsTransactions, 'Transactions');
+    }
+    
+    // Daily Sales Sheet
+    if (window.chartData.hasDailySales && window.chartData.dailySales) {
+    const dailySalesData = [
+        ['Daily Sales Trend'],
+        [],
+        ['Date', 'Revenue', 'Order Count', 'Items Sold'],
+        ...window.chartData.dailySales.map(day => [
+            day.date || '',
+            (day.revenue || 0).toFixed(2),
+            day.order_count || 0,
+            day.items_sold || 0
+        ])
+    ];
+    const wsDailySales = XLSX.utils.aoa_to_sheet(dailySalesData);
+    XLSX.utils.book_append_sheet(wb, wsDailySales, 'Daily Sales');
+    }
+    
+        // Generate filename with date
+        const now = new Date();
+        const filename = 'Sales_Report_' + now.getFullYear() + 
+                         String(now.getMonth() + 1).padStart(2, '0') + 
+                         String(now.getDate()).padStart(2, '0') + '_' +
+                         String(now.getHours()).padStart(2, '0') + 
+                         String(now.getMinutes()).padStart(2, '0') + 
+                         String(now.getSeconds()).padStart(2, '0') + '.xlsx';
+
+        // Export
+        XLSX.writeFile(wb, filename);
+
+        // Reset button state
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+
+        // Show success message (optional)
+        showNotification('Excel report exported successfully!', 'success');
+
+    } catch (error) {
+        console.error('Error exporting to Excel:', error);
+
+        // Reset button state
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+
+        // Show error message
+        showNotification('Error exporting report. Please try again.', 'error');
+    }
+}
+
+// Notification function for user feedback
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Add to page
+    document.body.appendChild(notification);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+
+<style>
+/* Print Styles */
+@media print {
+    /* Hide non-essential elements */
+    .navbar, 
+    .col-md-3, 
+    .btn, 
+    form,
+    .card-header button,
+    .no-print {
+        display: none !important;
+    }
+    
+    /* Full width for main content */
+    .col-md-9, .col-lg-10 {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+    }
+    
+    /* Remove shadows and adjust borders */
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+    }
+    
+    /* Adjust card headers for print */
+    .card-header {
+        background: #f8f9fa !important;
+        color: #000 !important;
+        border-bottom: 2px solid #333 !important;
+        padding: 10px 15px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Print header with logo and info */
+    .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #333;
+    }
+    
+    .print-header h1 {
+        font-size: 24pt;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .print-header .report-info {
+        font-size: 11pt;
+        color: #666;
+    }
+    
+    /* Summary cards - display in grid */
+    .row.g-4 {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        page-break-inside: avoid;
+    }
+    
+    .row.g-4 .card {
+        border: 2px solid #333 !important;
+        background: #f8f9fa !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .row.g-4 .card-body {
+        padding: 15px !important;
+    }
+    
+    /* Tables */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto;
+    }
+    
+    thead {
+        display: table-header-group;
+        background: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    th, td {
+        border: 1px solid #ddd !important;
+        padding: 8px !important;
+        font-size: 10pt;
+    }
+    
+    th {
+        background: #e9ecef !important;
+        font-weight: bold;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Charts - hide in print, show placeholder */
+    #salesChart,
+    #productChart {
+        display: none !important;
+    }
+    
+    .chart-print-notice {
+        display: block !important;
+        text-align: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border: 1px dashed #999;
+        color: #666;
+    }
+    
+    /* Product images in tables */
+    img {
+        max-width: 30px !important;
+        max-height: 30px !important;
+    }
+    
+    /* Badges */
+    .badge {
+        border: 1px solid #333 !important;
+        padding: 2px 6px !important;
+        background: #fff !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Footer */
+    tfoot {
+        font-weight: bold;
+        background: #e9ecef !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Page breaks */
+    .card-body {
+        page-break-inside: avoid;
+    }
+    
+    /* Print footer with page number */
+    @page {
+        margin: 1.5cm;
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+        }
+    }
+    
+    /* Text colors for print */
+    body, p, td, th, span, div {
+        color: #000 !important;
+    }
+    
+    .text-muted {
+        color: #666 !important;
+    }
+    
+    .text-success, .fw-bold.text-success {
+        color: #000 !important;
+        font-weight: bold;
+    }
+}
+
+/* Chart print notice - hidden by default */
+.chart-print-notice {
+    display: none;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "admin_base.html" %}
+{% block title %}Admin - Homepage Slides & Brand Tiles{% endblock %}
+
+{% block admin_content %}
+{% set active_page = 'hero_slides' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Homepage Slides & Brand Tiles</h2>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <h6>Add Slide</h6>
+            <form method="POST" action="{{ url_for('admin_hero_slides') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                                    <label class="form-label">Image (required)</label>
+                                    <input type="file" class="form-control" name="image" required accept="image/*">
+                                    <div class="form-text">Recommended size: 1400×520 (or wide banner). JPG/PNG.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Link</label>
+                                    <input type="url" name="link" id="slide_link" class="form-control" placeholder="https://... (optional)">
+                                    <div class="form-text">You can link to a product (product page) or store (store page) or any external page.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Quick fill: choose product or store</label>
+                                    <div class="d-flex gap-2">
+                                        <select id="prefill_type" class="form-select">
+                                            <option value="">-- Select type --</option>
+                                            <option value="product">Product</option>
+                                            <option value="store">Store</option>
+                                        </select>
+
+                                        <select id="prefill_value" class="form-select">
+                                            <option value="">-- Select --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-text">Selecting will auto-fill the Link field (you must still upload an image or use product/store asset).</div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary" type="submit"><i class="fas fa-upload me-2"></i>Upload Slide</button>
+                                    <a href="{{ url_for('admin_hero_slides') }}" class="btn btn-outline-secondary">Reset</a>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6>Existing Slides</h6>
+                            {% if hero_slides %}
+                                <div class="list-group">
+                                    {% for s in hero_slides %}
+                                        <div class="list-group-item d-flex align-items-center justify-content-between">
+                                            <div class="d-flex gap-3 align-items-center">
+                                                <img src="{{ url_for('static', filename='uploads/' ~ s.image_filename) }}" alt="" style="width:120px;height:60px;object-fit:cover;border-radius:4px;">
+                                                <div>
+                                                    <div class="fw-semibold">{{ s.title or ('Slide #'~s.id) }}</div>
+                                                    <div class="small text-muted">{{ s.link or '— no link —' }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <form method="POST" action="{{ url_for('remove_hero_slide', slide_id=s.id) }}" style="display:inline;">
+                                                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">No slides yet.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <small class="text-muted">
+                        Admin tip: to promote a Brand on the front page, upload a slide using the store's logo or a promotional banner and set the link to the store page (e.g. {{ request.url_root }}store/123). To highlight products, set a product as "New Arrival" (from Products) or add a slide linked to the product page.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/*
+ Inline JS for hero_slides prefill — uses server-provided lists if available.
+ If you pass `products_for_select` and `stores_for_select` to this template from app.py, they'll be used.
+ Fallbacks to empty arrays otherwise.
+*/
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('prefill_type');
+    const valueSelect = document.getElementById('prefill_value');
+    const linkInput = document.getElementById('slide_link');
+
+    const products = {{ (products_for_select | tojson) if products_for_select is defined else '[]' | safe }};
+    const stores = {{ (stores_for_select | tojson) if stores_for_select is defined else '[]' | safe }};
+
+    function populateValuesFor(type) {
+        valueSelect.innerHTML = '<option value="">-- Select --</option>';
+        if (type === 'product') {
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.text = p.name + ' — ₱' + (parseFloat(p.price||0).toFixed(2));
+                valueSelect.appendChild(opt);
+            });
+        } else if (type === 'store') {
+            stores.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.text = s.store_name || (s.first_name + ' ' + s.last_name);
+                valueSelect.appendChild(opt);
+            });
+        }
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+            populateValuesFor(this.value);
+            linkInput.value = '';
+        });
+    }
+    if (valueSelect) {
+        valueSelect.addEventListener('change', function() {
+            const t = typeSelect.value;
+            const v = this.value;
+            if (!t || !v) return;
+            if (t === 'product') {
+                linkInput.value = '{{ request.url_root }}product/' + v;
+            } else if (t === 'store') {
+                linkInput.value = '{{ request.url_root }}store/' + v;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

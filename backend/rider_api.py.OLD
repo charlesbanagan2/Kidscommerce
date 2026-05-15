@@ -1,0 +1,369 @@
+# Rider API Endpoints with FCFS Logic
+# Add these endpoints to your app.py file
+
+from flask import jsonify, request
+from datetime import datetime
+from sqlalchemy import and_
+
+# ============================================
+# RIDER API ENDPOINTS
+# ============================================
+
+@app.route('/api/rider/available-orders', methods=['GET'])
+@token_required
+@role_required('rider')
+def api_rider_available_orders():
+    """Get all orders ready for pickup (FCFS - First Come First Served)"""
+    try:
+        # Only show orders with status 'ready_for_pickup' and no rider assigned
+        orders = Order.query.filter(
+            Order.status == 'ready_for_pickup',
+            Order.rider_id == None
+        ).order_by(Order.updated_at.desc()).all()
+        
+        result = []
+        for order in orders:
+            # Get order items with product details
+            items = []
+            for item in order.items:
+                items.append({
+                    'product_name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': float(item.price_at_time)
+                })
+            
+            # Get seller info
+            seller_info = None
+            if order.items:
+                first_item = order.items[0]
+                seller = first_item.product.seller
+                seller_app = SellerApplication.query.filter_by(
+                    user_id=seller.id, 
+                    status='approved'
+                ).first()
+                
+                seller_info = {
+                    'name': f"{seller.first_name} {seller.last_name}",
+                    'phone': seller.phone,
+                    'address': seller_app.business_address if seller_app else seller.address
+                }
+            
+            result.append({
+                'id': order.id,
+                'buyer_name': order.recipient_name or f"{order.buyer.first_name} {order.buyer.last_name}",
+                'buyer_phone': order.recipient_phone or order.buyer.phone,
+                'delivery_address': order.shipping_address,
+                'total_amount': float(order.total_amount),
+                'payment_method': order.payment_method,
+                'items': items,
+                'seller_info': seller_info,
+                'created_at': order.created_at.isoformat(),
+                'updated_at': order.updated_at.isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'orders': result,
+            'count': len(result)
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching available orders: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch available orders'
+        }), 500
+
+
+@app.route('/api/rider/accept-order', methods=['POST'])
+@token_required
+@role_required('rider')
+def api_rider_accept_order():
+    """Accept an order with FCFS transaction logic"""
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({
+                'success': False,
+                'error': 'Order ID is required'
+            }), 400
+        
+        rider_id = request.current_user_id
+        
+        # CRITICAL: Use database transaction with row-level locking
+        # This ensures only ONE rider can accept the order
+        order = db.session.query(Order).filter(
+            Order.id == order_id
+        ).with_for_update().first()
+        
+        if not order:
+            return jsonify({
+                'success': False,
+                'error': 'Order not found'
+            }), 404
+        
+        # Check if order is still available (FCFS check)
+        if order.status != 'ready_for_pickup':
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': 'Order already taken by another rider'
+            }), 409  # Conflict
+        
+        if order.rider_id is not None:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': 'Order already taken by another rider'
+            }), 409
+        
+        # Accept the order - update status and assign rider
+        order.status = 'in_transit'
+        order.rider_id = rider_id
+        order.picked_up_at = datetime.utcnow()
+        order.picked_up_by = rider_id
+        order.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Notify buyer via Socket.IO
+        try:
+            rider = db.session.get(User, rider_id)
+            socketio.emit('order_accepted_by_rider', {
+                'order_id': order.id,
+                'rider_name': f"{rider.first_name} {rider.last_name}",
+                'rider_phone': rider.phone,
+                'status': 'in_transit'
+            }, room=f'user_{order.buyer_id}')
+            
+            # Notify buyer via push notification
+            push_notification(
+                order.buyer_id,
+                f'Your order #{order.id} has been picked up by a rider and is now on the way!',
+                type='order',
+                order_id=order.id,
+                actor_user_id=rider_id
+            )
+        except Exception as e:
+            app.logger.error(f"Error sending notifications: {str(e)}")
+        
+        # Broadcast to all riders that this order is no longer available
+        try:
+            socketio.emit('order_taken', {
+                'order_id': order.id
+            }, room='riders')
+        except Exception as e:
+            app.logger.error(f"Error broadcasting order_taken: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Order accepted successfully',
+            'order': {
+                'id': order.id,
+                'status': order.status,
+                'buyer_name': order.recipient_name or f"{order.buyer.first_name} {order.buyer.last_name}",
+                'delivery_address': order.shipping_address,
+                'total_amount': float(order.total_amount)
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error accepting order: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to accept order'
+        }), 500
+
+
+@app.route('/api/rider/my-deliveries', methods=['GET'])
+@token_required
+@role_required('rider')
+def api_rider_my_deliveries():
+    """Get rider's current and past deliveries"""
+    try:
+        rider_id = request.current_user_id
+        
+        # Get orders assigned to this rider
+        orders = Order.query.filter(
+            Order.rider_id == rider_id
+        ).order_by(Order.updated_at.desc()).all()
+        
+        result = []
+        for order in orders:
+            items = []
+            for item in order.items:
+                items.append({
+                    'product_name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': float(item.price_at_time)
+                })
+            
+            result.append({
+                'id': order.id,
+                'buyer_name': order.recipient_name or f"{order.buyer.first_name} {order.buyer.last_name}",
+                'buyer_phone': order.recipient_phone or order.buyer.phone,
+                'delivery_address': order.shipping_address,
+                'total_amount': float(order.total_amount),
+                'status': order.status,
+                'payment_method': order.payment_method,
+                'items': items,
+                'picked_up_at': order.picked_up_at.isoformat() if order.picked_up_at else None,
+                'delivered_at': order.delivered_at.isoformat() if order.delivered_at else None,
+                'created_at': order.created_at.isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'orders': result,
+            'count': len(result)
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching my deliveries: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch deliveries'
+        }), 500
+
+
+@app.route('/api/rider/complete-delivery', methods=['POST'])
+@token_required
+@role_required('rider')
+def api_rider_complete_delivery():
+    """Mark delivery as completed"""
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        
+        if not order_id:
+            return jsonify({
+                'success': False,
+                'error': 'Order ID is required'
+            }), 400
+        
+        rider_id = request.current_user_id
+        
+        order = Order.query.filter(
+            Order.id == order_id,
+            Order.rider_id == rider_id
+        ).first()
+        
+        if not order:
+            return jsonify({
+                'success': False,
+                'error': 'Order not found or not assigned to you'
+            }), 404
+        
+        if order.status != 'in_transit':
+            return jsonify({
+                'success': False,
+                'error': 'Order is not in transit'
+            }), 400
+        
+        # Mark as delivered
+        order.status = 'delivered'
+        order.delivered_at = datetime.utcnow()
+        order.delivered_by = rider_id
+        order.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Notify buyer
+        try:
+            socketio.emit('order_delivered', {
+                'order_id': order.id,
+                'status': 'delivered'
+            }, room=f'user_{order.buyer_id}')
+            
+            push_notification(
+                order.buyer_id,
+                f'Your order #{order.id} has been delivered! Please confirm receipt.',
+                type='order',
+                order_id=order.id
+            )
+        except Exception as e:
+            app.logger.error(f"Error sending delivery notifications: {str(e)}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Delivery completed successfully',
+            'order': {
+                'id': order.id,
+                'status': order.status,
+                'delivered_at': order.delivered_at.isoformat()
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error completing delivery: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to complete delivery'
+        }), 500
+
+
+# ============================================
+# SOCKET.IO EVENTS FOR REAL-TIME UPDATES
+# ============================================
+
+@socketio.on('join_riders_room')
+def handle_join_riders_room():
+    """Rider joins the riders room to receive real-time order notifications"""
+    try:
+        # Verify user is a rider
+        if not hasattr(request, 'current_user_id'):
+            return
+        
+        user = db.session.get(User, request.current_user_id)
+        if user and user.role == 'rider' and user.status == 'approved':
+            join_room('riders')
+            emit('joined_riders_room', {'message': 'Successfully joined riders room'})
+    except Exception as e:
+        app.logger.error(f"Error joining riders room: {str(e)}")
+
+
+def broadcast_new_order_available(order_id):
+    """Broadcast to all riders when a new order becomes available"""
+    try:
+        order = db.session.get(Order, order_id)
+        if not order or order.status != 'ready_for_pickup':
+            return
+        
+        # Get order details
+        items = []
+        for item in order.items:
+            items.append({
+                'product_name': item.product.name,
+                'quantity': item.quantity
+            })
+        
+        socketio.emit('new_order_available', {
+            'order_id': order.id,
+            'buyer_name': order.recipient_name or f"{order.buyer.first_name} {order.buyer.last_name}",
+            'delivery_address': order.shipping_address,
+            'total_amount': float(order.total_amount),
+            'items': items,
+            'created_at': order.created_at.isoformat()
+        }, room='riders')
+        
+    except Exception as e:
+        app.logger.error(f"Error broadcasting new order: {str(e)}")
+
+
+# ============================================
+# SELLER INTEGRATION
+# ============================================
+# Add this to your existing seller order update endpoint
+
+def notify_riders_order_ready(order_id):
+    """Called when seller marks order as ready_for_pickup"""
+    try:
+        order = db.session.get(Order, order_id)
+        if order and order.status == 'ready_for_pickup':
+            broadcast_new_order_available(order_id)
+    except Exception as e:
+        app.logger.error(f"Error notifying riders: {str(e)}")

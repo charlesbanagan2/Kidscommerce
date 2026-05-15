@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="300" viewBox="0 0 1400 300" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c7ecff"/>
+      <stop offset="100%" stop-color="#9fd7ff"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#87c8ff"/>
+      <stop offset="100%" stop-color="#bfe6ff"/>
+    </linearGradient>
+    <g id="star" fill="rgba(255,255,255,0.8)">
+      <polygon points="5,0 6.5,3.5 10,4 7,6.3 7.8,9.8 5,8 2.2,9.8 3,6.3 0,4 3.5,3.5"/>
+    </g>
+    <!-- simple onesie silhouette -->
+    <g id="onesie" fill="url(#accent)">
+      <path d="M0 0h0"/>
+      <path d="M70 30c20-8 52-8 72 0l6 45c2 12-2 20-10 24l-18 9-13-16-13 16-18-9c-8-4-12-12-10-24z"/>
+    </g>
+    <g id="pacifier" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.7">
+      <circle cx="0" cy="0" r="12"/>
+      <circle cx="0" cy="0" r="6"/>
+      <path d="M-20,10 q20,12 40,0"/>
+    </g>
+  </defs>
+  <rect width="1400" height="300" fill="url(#bg)"/>
+
+  <!-- floating accents -->
+  <g transform="translate(100,160)">
+    <use href="#onesie"/>
+  </g>
+  <g transform="translate(310,110) scale(0.9)">
+    <use href="#pacifier"/>
+  </g>
+  <g transform="translate(1180,170) scale(1.2)">
+    <use href="#pacifier"/>
+  </g>
+
+  <!-- scattered stars -->
+  <g>
+    <use href="#star" x="90" y="60"/>
+    <use href="#star" x="200" y="40" transform="scale(1.2)"/>
+    <use href="#star" x="540" y="70"/>
+    <use href="#star" x="760" y="36" transform="scale(0.9)"/>
+    <use href="#star" x="980" y="60"/>
+    <use href="#star" x="1260" y="46" transform="scale(1.1)"/>
+  </g>
+
+  <!-- soft bottom wave -->
+  <path d="M0,250 C250,220 450,280 700,250 C950,220 1150,280 1400,250 L1400,300 L0,300 Z" fill="url(#accent)" opacity="0.25"/>
+</svg>

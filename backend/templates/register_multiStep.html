@@ -1,0 +1,1487 @@
+{% extends "base.html" %}
+
+{% block title %}Create Your Account - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<style>
+/* Default styling - no theme overrides */
+</style>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { font-family: 'Poppins', sans-serif; min-height: 100vh; background: #f8f9fa; overflow-x: hidden; }
+
+/* Main container - seamless split layout with 35%/65% ratio */
+.main-container { display: flex; min-height: 100vh; width: 100%; }
+
+/* Left Brand Panel - content now at top and centered */
+.brand-panel { width: 35%; min-height: 100vh; position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 3rem 2rem 2rem 2rem; overflow: hidden; }
+.brand-panel::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(160deg, rgba(11, 99, 168, 0.92) 0%, rgba(9, 77, 130, 0.95) 100%); z-index: 1; }
+
+/* Background image - replace src with your image */
+.brand-bg-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.brand-content { position: relative; z-index: 2; text-align: center; color: #ffffff; max-width: 320px; }
+
+/* Logo area - replace src with your logo */
+.logo-wrapper { margin-bottom: 1.5rem; }
+.logo-wrapper img { width: 100px; height: 100px; object-fit: contain; background: rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 12px; backdrop-filter: blur(10px); }
+.brand-content h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.75rem; text-shadow: 0 2px 15px rgba(0, 0, 0, 0.2); }
+.brand-content p { font-size: 0.9rem; opacity: 0.9; line-height: 1.6; margin-bottom: 1.5rem; }
+
+/* Brand features now centered */
+.brand-features { text-align: left; display: inline-block; }
+.brand-features .feature { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; font-size: 0.85rem; opacity: 0.9; }
+.brand-features .feature i { color: #7dd3fc; font-size: 0.9rem; }
+
+/* Form Panel - expanded to 65% width with no gap */
+.form-panel { width: 65%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 3rem; background: #ffffff; }
+.form-wrapper { width: 100%; max-width: 580px; }
+
+/* Mobile Header (hidden on desktop) */
+.mobile-header { display: none; text-align: center; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e9ecef; }
+.mobile-header img { width: 70px; height: 70px; object-fit: contain; margin-bottom: 0.5rem; }
+.mobile-header h1 { font-size: 1.5rem; font-weight: 700; color: #0b63a8; margin: 0; }
+
+/* Form Header */
+.form-header { margin-bottom: 1.5rem; }
+.form-header h2 { font-size: 1.5rem; font-weight: 700; color: #343a40; margin-bottom: 0.25rem; }
+.form-header p { color: #6c757d; font-size: 0.9rem; margin: 0; }
+
+/* Role Selector */
+.role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.role-option { position: relative; padding: 1.25rem 1rem; border: 2px solid #e9ecef; border-radius: 12px; cursor: pointer; transition: all 0.25s ease; text-align: center; background: #ffffff; }
+.role-option:hover { border-color: #0b63a8; background: rgba(11, 99, 168, 0.1); }
+.role-option.active { border-color: #0b63a8; background: rgba(11, 99, 168, 0.1); box-shadow: 0 4px 12px rgba(11, 99, 168, 0.15); }
+.role-option input[type="radio"] { display: none; }
+.role-option .role-icon { font-size: 1.75rem; margin-bottom: 0.25rem; display: block; }
+.role-option .role-label { font-weight: 600; color: #343a40; font-size: 0.95rem; }
+.role-option.active .role-label { color: #0b63a8; }
+
+/* Enhanced Stepper with Step Labels */
+.stepper { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 1.5rem; padding: 1rem 0; }
+.step-item { display: flex; align-items: center; flex: 1; position: relative; }
+.step-item:not(:last-child)::after { content: ''; position: absolute; top: 18px; left: 50%; width: 100%; height: 2px; background: #dee2e6; z-index: 0; }
+.step-item.active:not(:last-child)::after, .step-item.completed:not(:last-child)::after { background: #0b63a8; }
+.step-content { display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; width: 100%; }
+.step-circle { width: 36px; height: 36px; border-radius: 50%; background: #e9ecef; color: #6c757d; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; transition: all 0.3s ease; border: 3px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.step-item.active .step-circle { background: #0b63a8; color: #ffffff; transform: scale(1.1); box-shadow: 0 4px 15px rgba(11, 99, 168, 0.4); }
+.step-item.completed .step-circle { background: #10b981; color: #ffffff; }
+.step-label { margin-top: 0.5rem; font-size: 0.7rem; font-weight: 600; color: #6c757d; text-transform: uppercase; letter-spacing: 0.03em; text-align: center; white-space: nowrap; }
+.step-item.active .step-label { color: #0b63a8; }
+.step-item.completed .step-label { color: #10b981; }
+
+/* Form Elements */
+.form-section-content { display: none; }
+.form-section-content.active { display: block; }
+.form-step { display: none; animation: slideIn 0.3s ease; }
+.form-step.active { display: block; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(15px); } to { opacity: 1; transform: translateX(0); } }
+.form-label { font-weight: 600; font-size: 0.85rem; color: #343a40; margin-bottom: 0.4rem; }
+.form-label.required::after { content: " *"; color: #dc3545; }
+.form-control, .form-select { border-radius: 10px; border: 1.5px solid #dee2e6; padding: 0.7rem 1rem; font-size: 0.9rem; transition: all 0.2s ease; background: #ffffff; }
+
+/* Password strength bar */
+.password-strength { margin-top: 0.5rem; }
+.password-strength-bar { height: 4px; border-radius: 2px; background: #e9ecef; width: 0%; transition: width 0.3s ease, background 0.3s ease; }
+.password-strength-bar.weak { background: #dc3545; }
+.password-strength-bar.medium { background: #ffc107; }
+.password-strength-bar.strong { background: #10b981; }
+.form-control:focus, .form-select:focus { border-color: #0b63a8; box-shadow: 0 0 0 3px rgba(11, 99, 168, 0.12); }
+.form-control.is-invalid { border-color: #dc3545; box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12); }
+.form-text { font-size: 0.75rem; color: #6c757d; margin-top: 0.25rem; }
+.form-text.error { color: #dc3545; }
+.form-text.success { color: #10b981; }
+
+/* Password Strength */
+.password-wrapper { position: relative; }
+.password-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6c757d; cursor: pointer; padding: 0; z-index: 10; }
+.password-toggle:hover { color: #0b63a8; }
+.password-strength { height: 4px; background: #e9ecef; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.password-strength-bar { height: 100%; width: 0%; transition: width 0.3s ease, background-color 0.3s ease; border-radius: 2px; }
+
+/* Terms Box */
+.terms-section { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e9ecef; }
+.terms-section-label { font-size: 0.95rem; font-weight: 600; color: #343a40; margin-bottom: 0.5rem; }
+.terms-scroll-indicator { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.75rem; color: #0b63a8; margin-bottom: 0.5rem; animation: bounce 2s infinite; }
+.terms-scroll-indicator.hidden { display: none; }
+@keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } 60% { transform: translateY(-3px); } }
+.terms-box { max-height: 250px; overflow-y: auto; padding: 1rem; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; font-size: 0.8rem; color: #6c757d; line-height: 1.6; }
+.terms-box::-webkit-scrollbar { width: 5px; }
+.terms-box::-webkit-scrollbar-track { background: #e9ecef; border-radius: 3px; }
+.terms-box::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 3px; }
+.terms-box::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+.terms-box h6 { font-size: 0.9rem; font-weight: 700; color: #0b63a8; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; }
+.terms-box h6 i { font-size: 0.9rem; }
+.terms-box p { margin-bottom: 0.5rem; }
+.terms-box ul { margin-bottom: 0.75rem; padding-left: 1.25rem; }
+.terms-box ul li { margin-bottom: 0.3rem; }
+.terms-box strong { color: #343a40; }
+.terms-checkbox-wrapper { display: flex; align-items: flex-start; gap: 10px; padding: 0.85rem; background: #f8f9fa; border-radius: 10px; margin-top: 0.75rem; border: 1px solid #e9ecef; transition: all 0.2s ease; }
+.terms-checkbox-wrapper:hover { border-color: #0b63a8; background: rgba(11, 99, 168, 0.1); }
+.terms-checkbox-wrapper input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; accent-color: #0b63a8; cursor: pointer; flex-shrink: 0; }
+.terms-checkbox-wrapper label { font-size: 0.8rem; color: #343a40; cursor: pointer; line-height: 1.5; }
+.terms-checkbox-wrapper label a { color: #0b63a8; text-decoration: underline; }
+.terms-checkbox-wrapper label a:hover { color: #094d82; }
+
+/* Submit Wrapper */
+.submit-wrapper { margin-top: 1rem; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; }
+.submit-wrapper.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+/* Buttons */
+.btn { padding: 0.7rem 1.5rem; font-weight: 600; border-radius: 10px; font-size: 0.9rem; transition: all 0.25s ease; }
+.btn-primary { background: linear-gradient(135deg, #0b63a8 0%, #094d82 100%); border: none; color: #ffffff; box-shadow: 0 4px 15px rgba(11, 99, 168, 0.25); }
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(11, 99, 168, 0.35); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-outline-secondary { border: 2px solid #dee2e6; color: #343a40; background: #ffffff; }
+.btn-outline-secondary:hover { background: #f8f9fa; border-color: #ced4da; }
+.step-actions { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
+.step-actions.single { justify-content: flex-end; }
+
+/* Auth Link */
+.auth-link { text-align: center; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e9ecef; font-size: 0.9rem; color: #6c757d; }
+.auth-link a { color: #0b63a8; font-weight: 600; text-decoration: none; }
+.auth-link a:hover { text-decoration: underline; }
+
+/* Error Messages */
+#psgc-error-msg { color: #dc3545; font-size: 0.8rem; margin-top: 0.5rem; }
+
+/* Row for 2 columns */
+.row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.mb-3 { margin-bottom: 0.85rem !important; }
+
+/* Loading State */
+.select-loading { opacity: 0.7; pointer-events: none; }
+
+/* FLASH MESSAGES (server-side errors like duplicate email) */
+.flash-messages { margin-bottom: 1rem; }
+.flash-messages .alert { border-radius: 10px; font-size: 0.85rem; padding: 0.75rem 1rem; }
+
+/* Email Validation Status */
+.validation-status { margin-top: 0.5rem; font-size: 0.85rem; min-height: 20px; }
+.validation-status.valid { color: #10b981; }
+.validation-status.invalid { color: #ef4444; }
+.validation-status.checking { color: #f59e0b; }
+.validation-status .icon { margin-right: 0.25rem; }
+
+/* Responsive - tablet and mobile */
+@media (max-width: 1100px) {
+  .brand-panel { width: 38%; }
+  .form-panel { width: 62%; padding: 2rem; }
+}
+@media (max-width: 900px) {
+  .main-container { flex-direction: column; }
+  .brand-panel { display: none; }
+  .form-panel { width: 100%; min-height: 100vh; padding: 1.5rem; }
+  .mobile-header { display: block; }
+  .form-wrapper { max-width: 500px; }
+}
+@media (max-width: 576px) {
+  .form-panel { padding: 1rem; }
+  .role-selector { grid-template-columns: 1fr; gap: 0.75rem; }
+  .role-option { padding: 1rem; }
+  .row-2col { grid-template-columns: 1fr; }
+  .step-actions { flex-direction: column-reverse; gap: 0.75rem; }
+  .step-actions .btn { width: 100%; }
+  .step-label { font-size: 0.6rem; }
+  .step-circle { width: 32px; height: 32px; font-size: 0.8rem; }
+  .form-header h2 { font-size: 1.25rem; }
+}
+</style>
+
+.registration-shell {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* Logo Header */
+  .logo-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .logo-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    background: white;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 16px;
+  }
+
+  .logo-wrapper img {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+  }
+
+  .logo-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+  }
+
+  .logo-header p {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 4px 0 0;
+  }
+
+  /* Main Card */
+  .registration-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* Progress Bar */
+  .progress-section {
+    padding: 24px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-light);
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .progress-label .step-name {
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .progress-label .step-count {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .progress-bar-bg {
+    width: 100%;
+    height: 4px;
+    background: var(--border-light);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, #3b82f6 100%);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  /* Role Badge */
+  .role-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--primary-light);
+    color: var(--primary);
+    margin-bottom: 16px;
+  }
+
+  .role-badge.buyer {
+    background: #dbeafe;
+    color: #0369a1;
+  }
+
+  .role-badge.rider {
+    background: #d1fae5;
+    color: #059669;
+  }
+
+  .change-role-link {
+    float: right;
+    font-size: 12px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .change-role-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+  }
+
+  /* Form Container */
+  .form-container {
+    padding: 32px;
+  }
+
+  .form-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 20px;
+  }
+
+  /* Form Steps */
+  .form-step {
+    display: none;
+  }
+
+  .form-step.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Role Selection Grid */
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 24px;
+  }
+
+.role-card {
+    padding: 28px 24px;
+    border: 2px solid var(--border-light);
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    background: white;
+    transition: all 0.3s ease;
+    width: 100%;
+    height: 100%;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .role-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-2px);
+  }
+
+  .role-card.selected {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+
+  .role-card .icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .role-card .buyer .icon {
+    color: #3b82f6;
+  }
+
+  .role-card .rider .icon {
+    color: #10b981;
+  }
+
+  .role-card .title {
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .role-card .description {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Form Fields */
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-row.full {
+    grid-template-columns: 1fr;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    background: white;
+  }
+
+  .form-control::placeholder {
+    color: #d1d5db;
+  }
+
+  select.form-control {
+    cursor: pointer;
+    appearance: none;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 20px;
+  }
+
+  /* Form Helpers */
+  .form-text {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .form-text.error {
+    color: #dc2626;
+  }
+
+  /* Buttons */
+  .button-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+  }
+
+  .btn-secondary {
+    background: var(--bg-light);
+    color: #111827;
+    flex: 1;
+  }
+
+  .btn-secondary:hover {
+    background: #e5e7eb;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Footer */
+  .registration-footer {
+    padding: 24px 32px;
+    border-top: 1px solid var(--border-light);
+    text-align: center;
+  }
+
+  .registration-footer p {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .registration-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .registration-footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* Responsive */
+  @media (max-width: 576px) {
+    body {
+      padding: 20px 16px;
+    }
+
+    .registration-shell {
+      max-width: 100%;
+    }
+
+    .form-container {
+      padding: 20px;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .role-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .logo-header h1 {
+      font-size: 24px;
+    }
+
+    .progress-section {
+      padding: 16px 20px;
+    }
+
+    .button-group {
+      gap: 10px;
+    }
+  }
+</style>
+
+<div class="registration-shell">
+  <!-- Logo Header -->
+  <div class="logo-header">
+    <div class="logo-wrapper">
+      {% if theme_logo %}
+        <img src="{{ url_for('static', filename='uploads/' ~ theme_logo) }}" alt="{{ theme_site_name or 'Site Logo' }}">
+      {% else %}
+        <img src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Kids Kingdom">
+      {% endif %}
+    </div>
+    <h1>Create Account</h1>
+    <p>Join Kids & Baby Store today</p>
+  </div>
+
+  <!-- Main Card -->
+  <div class="registration-card">
+    <!-- Progress Bar -->
+    <div class="progress-section">
+      <div class="progress-label">
+        <span class="step-name" id="step-name">Step 1: Choose Your Role</span>
+        <span class="step-count"><span id="current-step">1</span>/3</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill" style="width: 33.33%"></div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form id="registration-form" method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data">
+      <div class="form-container">
+        
+        <!-- STEP 1: Role Selection -->
+        <div class="form-step active" data-step="1">
+          <div class="form-title">Choose Your Role</div>
+          
+          <div class="role-grid">
+            <!-- Buyer Card -->
+            <div class="role-card buyer selected" onclick="selectRole('buyer')">
+              <div class="icon">📦</div>
+              <div class="title">Buyer</div>
+              <div class="description">Purchase products and manage orders</div>
+            </div>
+
+            <!-- Rider Card -->
+            <div class="role-card rider" onclick="selectRole('rider')">
+              <div class="icon">🏍️</div>
+              <div class="title">Rider</div>
+              <div class="description">Deliver orders and earn money</div>
+            </div>
+          </div>
+
+          <input type="hidden" id="role-input" name="role" value="buyer">
+        </div>
+
+        <!-- STEP 2: Personal Information -->
+        <div class="form-step" data-step="2">
+          <div class="form-title">Personal Information</div>
+
+          <div class="role-badge" id="role-badge-step2">
+            <span class="buyer">👤 Buyer</span>
+            <span class="rider" style="display: none;">🏍️ Rider</span>
+            <a href="javascript:goToStep(1)" class="change-role-link">Change</a>
+          </div>
+
+          <div style="clear: both;"></div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first_name">First Name</label>
+              <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Kids" required>
+            </div>
+            <div class="form-group">
+              <label for="last_name">Last Name</label>
+              <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Kingdom" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" class="form-control" placeholder="kidskingdom@gmail.com" required pattern="^[a-zA-Z0-9._%+-]+@gmail\\.com$">
+            <div class="form-text">Gmail address required</div>
+            <div id="email-validation-status" class="validation-status"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              class="form-control"
+              placeholder="09123456789"
+              inputmode="numeric"
+              value="09"
+              pattern="^09[0-9]{9}$"
+              minlength="11"
+              maxlength="11"
+              oninput="this.value = this.value.replace(/[^0-9]/g, ''); if (!this.value.startsWith('09')) { this.value = '09' + this.value.replace(/^0+/, ''); } this.value = this.value.slice(0, 11);"
+              required
+            >
+          </div>
+        </div>
+
+        <!-- STEP 3: Address & Details -->
+        <div class="form-step" data-step="3">
+          <div class="form-title">Complete Your Details</div>
+
+          <!-- Buyer Address -->
+          <div id="buyer-fields" class="buyer-only">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="region">Region</label>
+                <select id="region" name="region" class="form-control" required>
+                  <option value="">Select region</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="province">Province</label>
+                <select id="province" name="province" class="form-control" required disabled>
+                  <option value="">Select region first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="city">City / Municipality</label>
+                <select id="city" name="city" class="form-control" required disabled>
+                  <option value="">Select province first</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="barangay">Barangay</label>
+                <select id="barangay" name="barangay" class="form-control" required disabled>
+                  <option value="">Select city first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="street_address">Street Address</label>
+              <input type="text" id="street_address" name="street_address" class="form-control" placeholder="House number, street" autocomplete="off" required>
+            </div>
+
+            <input type="hidden" id="address" name="address" required>
+
+            <div class="form-group">
+              <label for="valid_id">Valid ID</label>
+              <input type="file" id="valid_id" name="valid_id" class="form-control" accept="image/png,image/jpeg,application/pdf" required>
+              <div class="form-text">Driver's License, Passport, etc. (JPG, PNG, PDF)</div>
+            </div>
+
+            <div class="terms-section">
+              <div class="terms-section-label">Buyer Terms & Privacy Policy</div>
+
+              <div class="terms-scroll-indicator" id="buyer-scroll-indicator">
+                <i class="fas fa-chevron-down"></i>
+                <span>Please scroll down to read all terms</span>
+              </div>
+
+              <div id="buyer-terms-box" class="terms-box" data-role="buyer">
+                <h6><i class="fas fa-file-contract"></i> Kids Kingdom - Buyer Terms & Privacy</h6>
+                <p>
+                  Kids Kingdom is an online marketplace for families. By creating a buyer account,
+                  you join a community focused on child safety, product quality, and service.
+                </p>
+
+                <p><strong>What Kids Kingdom Offers to Buyers</strong></p>
+                <ul>
+                  <li>Curated products for newborns, toddlers, and children from trusted sellers.</li>
+                  <li>Standardized product information and safety notes.</li>
+                  <li>Secure payment options and delivery tracking.</li>
+                  <li>Order support for delivery concerns.</li>
+                </ul>
+
+                <p><strong>Your Responsibilities as a Buyer</strong></p>
+                <ul>
+                  <li>Provide accurate delivery details and contact information.</li>
+                  <li>Review product descriptions and sizing guides before ordering.</li>
+                  <li>Inspect items upon delivery and report issues within the return period.</li>
+                  <li>Treat riders, support staff, and sellers with respect.</li>
+                </ul>
+
+                <p><strong>Data Privacy & Protection</strong></p>
+                <ul>
+                  <li>Your data is used for account management, orders, and support only.</li>
+                  <li>We do not sell personal information to third parties.</li>
+                  <li>Limited data is shared only to complete deliveries.</li>
+                </ul>
+
+                <p><strong>Orders, Cancellations, and Returns</strong></p>
+                <ul>
+                  <li>Prices are in PHP and may change based on promotions or seller updates.</li>
+                  <li>Orders may be cancelled only within the allowed window.</li>
+                  <li>Approved returns and refunds follow the Return Policy timelines.</li>
+                </ul>
+
+                <p><strong>Acceptance of Buyer Terms</strong></p>
+                <p>
+                  By checking "I agree" and submitting registration, you confirm that you have read
+                  and accepted the Kids Kingdom buyer terms and privacy practices.
+                </p>
+
+                <div class="terms-checkbox-wrapper" id="buyer-terms-wrapper" style="display:flex; margin-top:1rem;">
+                  <input type="checkbox" id="buyer_terms" name="terms" required>
+                  <label for="buyer_terms">
+                    I have read and agree to the Kids Kingdom Terms & Conditions and Privacy Policy for buyers.
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rider-Specific Fields -->
+          <div id="rider-fields" class="rider-only" style="display: none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="vehicle_type">Vehicle Type</label>
+                <select id="vehicle_type" name="vehicle_type" class="form-control" required>
+                  <option value="">Select vehicle type</option>
+                  <option value="motorcycle">Motorcycle</option>
+                  <option value="bicycle">Bicycle</option>
+                  <option value="e-bike">E-Bike</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="vehicle_number">Plate Number</label>
+                <input type="text" id="vehicle_number" name="vehicle_number" class="form-control" placeholder="ABC-1234" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rider_region">Region</label>
+                <select id="rider_region" name="rider_region" class="form-control" required>
+                  <option value="">Select region</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="rider_province">Province</label>
+                <select id="rider_province" name="rider_province" class="form-control" required disabled>
+                  <option value="">Select region first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rider_city">City / Municipality</label>
+                <select id="rider_city" name="rider_city" class="form-control" required disabled>
+                  <option value="">Select province first</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="rider_barangay">Barangay</label>
+                <select id="rider_barangay" name="rider_barangay" class="form-control" required disabled>
+                  <option value="">Select city first</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="rider_street">Street Address</label>
+              <input type="text" id="rider_street" name="rider_street" class="form-control" placeholder="House number, street" autocomplete="off" required>
+            </div>
+
+            <input type="hidden" id="rider_address" name="rider_address" required>
+
+            <div class="form-group">
+              <label for="valid_id_rider">Driver's License</label>
+              <input type="file" id="valid_id_rider" name="valid_id" class="form-control" accept="image/png,image/jpeg,application/pdf" required>
+              <div class="form-text">Upload a clear photo or scan (JPG, PNG, PDF)</div>
+            </div>
+
+            <div class="terms-section">
+              <div class="terms-section-label">Rider Terms & Privacy Policy</div>
+
+              <div class="terms-scroll-indicator" id="rider-scroll-indicator">
+                <i class="fas fa-chevron-down"></i>
+                <span>Please scroll down to read all terms</span>
+              </div>
+
+              <div id="rider-terms-box" class="terms-box" data-role="rider">
+                <h6><i class="fas fa-motorcycle"></i> Kids Kingdom - Rider Terms & Privacy</h6>
+                <p>
+                  As a rider, you play a key role in timely, careful delivery of orders to customers.
+                </p>
+
+                <p><strong>What Kids Kingdom Expects from Riders</strong></p>
+                <ul>
+                  <li>Deliver orders promptly and handle packages with care.</li>
+                  <li>Maintain professional conduct with customers and support staff.</li>
+                  <li>Keep your vehicle in good condition and follow traffic rules.</li>
+                  <li>Protect customer data and privacy at all times.</li>
+                </ul>
+
+                <p><strong>Your Benefits as a Rider</strong></p>
+                <ul>
+                  <li>Flexible working hours and delivery schedules.</li>
+                  <li>Competitive compensation per delivery.</li>
+                  <li>Access to support and training resources.</li>
+                </ul>
+
+                <p><strong>Acceptance of Rider Terms</strong></p>
+                <p>
+                  By checking "I agree" and submitting registration, you confirm that you have read
+                  and accepted the Kids Kingdom rider terms and privacy practices.
+                </p>
+
+                <div class="terms-checkbox-wrapper" id="rider-terms-wrapper" style="display:flex; margin-top:1rem;">
+                  <input type="checkbox" id="rider_terms" name="terms" required>
+                  <label for="rider_terms">
+                    I have read and agree to the Kids Kingdom Terms & Conditions and Privacy Policy for riders.
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="button-group">
+          <button type="button" class="btn btn-secondary" id="prev-btn" onclick="goToStep(currentStep - 1)" style="display: none;">
+            ← Previous
+          </button>
+          <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">
+            Next →
+          </button>
+          <button type="submit" class="btn btn-primary" id="submit-btn" style="display: none;">
+            Complete Registration
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Footer -->
+    <div class="registration-footer">
+      <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+      <p style="margin-top: 8px; font-size: 12px;"><a href="{{ url_for('register_buyer') }}">← Back to options</a></p>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentStep = 1;
+const totalSteps = 3;
+let emailValidationTimeout;
+let isEmailValid = false;
+
+// PSGC Dynamic Address Script (Business Address)
+const PSGC = {
+  regions: 'https://psgc.gitlab.io/api/regions/',
+  provincesForRegion: code => `https://psgc.gitlab.io/api/regions/${encodeURIComponent(code)}/provinces/`,
+  citiesForProvince: code => `https://psgc.gitlab.io/api/provinces/${encodeURIComponent(code)}/cities-municipalities/`,
+  barangaysForCity: code => `https://psgc.gitlab.io/api/cities-municipalities/${encodeURIComponent(code)}/barangays/`
+};
+
+function initAddressDropdowns() {
+  // Initialize address dropdowns for both buyer and rider
+  initializeAddressFields('', 'region', 'province', 'city', 'barangay');
+  initializeAddressFields('rider_', 'rider_region', 'rider_province', 'rider_city', 'rider_barangay');
+}
+
+function initializeAddressFields(prefix, regionId, provinceId, cityId, barangayId) {
+  const regionSelect = document.getElementById(regionId);
+  const provinceSelect = document.getElementById(provinceId);
+  const citySelect = document.getElementById(cityId);
+  const barangaySelect = document.getElementById(barangayId);
+
+  if (!regionSelect) return;
+
+  // Load regions on page load
+  loadRegions(regionSelect, provinceSelect, citySelect, barangayId, prefix);
+
+  // Handle region change
+  regionSelect.addEventListener('change', function() {
+    const regionCode = this.value;
+    if (regionCode) {
+      loadProvinces(regionCode, provinceSelect, citySelect, barangayId, prefix);
+    } else {
+      resetDropdowns([provinceSelect, citySelect, barangaySelect]);
+    }
+  });
+
+  // Handle province change
+  provinceSelect.addEventListener('change', function() {
+    const provinceCode = this.value;
+    if (provinceCode) {
+      loadCities(provinceCode, citySelect, barangayId, prefix);
+    } else {
+      resetDropdowns([citySelect, barangaySelect]);
+    }
+  });
+
+  // Handle city change
+  citySelect.addEventListener('change', function() {
+    const cityCode = this.value;
+    if (cityCode) {
+      loadBarangays(cityCode, barangayId, prefix);
+    } else {
+      resetDropdowns([barangaySelect]);
+    }
+  });
+}
+
+// Cache for address data to avoid repeated API calls
+var addressCache = {
+  regions: null,
+  provinces: {},
+  cities: {},
+  barangays: {}
+};
+
+function loadRegions(regionSelect, provinceSelect, citySelect, barangayId, prefix) {
+  // Show loading state
+  regionSelect.innerHTML = '<option value="">Loading regions...</option>';
+  
+  // Use cache if available
+  if (addressCache.regions) {
+    populateRegions(regionSelect, provinceSelect, citySelect, barangayId, addressCache.regions);
+    return;
+  }
+  
+  // Add timeout to prevent hanging
+  var timeout = setTimeout(function() {
+    regionSelect.innerHTML = '<option value="">Loading timeout. Please refresh.</option>';
+  }, 8000); // 8 second timeout
+  
+  fetch(PSGC.regions)
+    .then(response => {
+      clearTimeout(timeout);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Cache the data
+      addressCache.regions = data;
+      populateRegions(regionSelect, provinceSelect, citySelect, barangayId, data);
+    })
+    .catch(error => {
+      clearTimeout(timeout);
+      console.error('Error loading regions:', error);
+      console.error('URL attempted:', PSGC.regions);
+      regionSelect.innerHTML = '<option value="">Error loading regions. Check console.</option>';
+    });
+}
+
+function populateRegions(regionSelect, provinceSelect, citySelect, barangayId, data) {
+  regionSelect.innerHTML = '<option value="">Select region</option>';
+  if (Array.isArray(data) && data.length > 0) {
+    data.forEach(region => {
+      regionSelect.innerHTML += `<option value="${region.code}">${region.name}</option>`;
+    });
+  } else {
+    regionSelect.innerHTML = '<option value="">No regions available</option>';
+  }
+  resetDropdowns([provinceSelect, citySelect, document.getElementById(barangayId)]);
+}
+
+function loadProvinces(regionCode, provinceSelect, citySelect, barangayId, prefix) {
+  provinceSelect.disabled = true;
+  
+  // Use cache if available
+  if (addressCache.provinces[regionCode]) {
+    populateProvinces(regionCode, provinceSelect, citySelect, barangayId, addressCache.provinces[regionCode]);
+    return;
+  }
+  
+  // Show loading state
+  provinceSelect.innerHTML = '<option value="">Loading provinces...</option>';
+  
+  // Add timeout to prevent hanging
+  var timeout = setTimeout(function() {
+    provinceSelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+    provinceSelect.disabled = false;
+  }, 8000); // 8 second timeout
+  
+  fetch(PSGC.provincesForRegion(regionCode))
+    .then(response => {
+      clearTimeout(timeout);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Cache the data
+      addressCache.provinces[regionCode] = data;
+      populateProvinces(regionCode, provinceSelect, citySelect, barangayId, data);
+    })
+    .catch(error => {
+      clearTimeout(timeout);
+      console.error('Error loading provinces:', error);
+      provinceSelect.innerHTML = '<option value="">Error loading provinces</option>';
+      provinceSelect.disabled = false;
+    });
+}
+
+function populateProvinces(regionCode, provinceSelect, citySelect, barangayId, data) {
+  provinceSelect.innerHTML = '<option value="">Select province</option>';
+  if (Array.isArray(data) && data.length > 0) {
+    data.forEach(province => {
+      provinceSelect.innerHTML += `<option value="${province.code}">${province.name}</option>`;
+    });
+  } else {
+    provinceSelect.innerHTML = '<option value="">No provinces found</option>';
+  }
+  provinceSelect.disabled = false;
+  resetDropdowns([citySelect, document.getElementById(barangayId)]);
+}
+
+function loadCities(provinceCode, citySelect, barangayId, prefix) {
+  citySelect.disabled = true;
+  
+  // Use cache if available
+  if (addressCache.cities[provinceCode]) {
+    populateCities(provinceCode, citySelect, barangayId, addressCache.cities[provinceCode]);
+    return;
+  }
+  
+  // Show loading state
+  citySelect.innerHTML = '<option value="">Loading cities...</option>';
+  
+  // Add timeout to prevent hanging
+  var timeout = setTimeout(function() {
+    citySelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+    citySelect.disabled = false;
+  }, 8000); // 8 second timeout
+  
+  fetch(PSGC.citiesForProvince(provinceCode))
+    .then(response => {
+      clearTimeout(timeout);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Cache the data
+      addressCache.cities[provinceCode] = data;
+      populateCities(provinceCode, citySelect, barangayId, data);
+    })
+    .catch(error => {
+      clearTimeout(timeout);
+      console.error('Error loading cities:', error);
+      citySelect.innerHTML = '<option value="">Error loading cities</option>';
+      citySelect.disabled = false;
+    });
+}
+
+function populateCities(provinceCode, citySelect, barangayId, data) {
+  citySelect.innerHTML = '<option value="">Select city</option>';
+  if (Array.isArray(data) && data.length > 0) {
+    data.forEach(city => {
+      citySelect.innerHTML += `<option value="${city.code}">${city.name}</option>`;
+    });
+  } else {
+    citySelect.innerHTML = '<option value="">No cities found</option>';
+  }
+  citySelect.disabled = false;
+  resetDropdowns([document.getElementById(barangayId)]);
+}
+
+function loadBarangays(cityCode, barangaySelect, prefix) {
+  // Debug logging
+  console.log('loadBarangays called with:', { cityCode, barangaySelect, prefix });
+  
+  // Get the correct barangay select element
+  var actualBarangaySelect = document.getElementById(barangaySelect);
+  if (!actualBarangaySelect) {
+    console.error('Barangay select element not found:', barangaySelect);
+    return;
+  }
+  
+  console.log('Found barangay select element:', actualBarangaySelect);
+  actualBarangaySelect.disabled = true;
+  
+  // Use cache if available
+  if (addressCache.barangays[cityCode]) {
+    console.log('Using cached barangays for city:', cityCode);
+    populateBarangays(cityCode, actualBarangaySelect, addressCache.barangays[cityCode]);
+    return;
+  }
+  
+  // Show loading state
+  actualBarangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+  console.log('Fetching barangays from API for city:', cityCode);
+  
+  // Add timeout to prevent hanging
+  var timeout = setTimeout(function() {
+    console.error('Barangay loading timeout for city:', cityCode);
+    actualBarangaySelect.innerHTML = '<option value="">Loading timeout. Please try again.</option>';
+    actualBarangaySelect.disabled = false;
+  }, 10000); // 10 second timeout
+  
+  fetch(PSGC.barangaysForCity(cityCode))
+    .then(response => {
+      clearTimeout(timeout);
+      console.log('Barangay API response status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Barangay data received:', data);
+      // Cache the data
+      addressCache.barangays[cityCode] = data;
+      populateBarangays(cityCode, actualBarangaySelect, data);
+    })
+    .catch(error => {
+      clearTimeout(timeout);
+      console.error('Error loading barangays:', error);
+      actualBarangaySelect.innerHTML = '<option value="">Error loading barangays</option>';
+      actualBarangaySelect.disabled = false;
+    });
+}
+
+function populateBarangays(cityCode, barangaySelect, data) {
+  barangaySelect.innerHTML = '<option value="">Select barangay</option>';
+  if (Array.isArray(data) && data.length > 0) {
+    data.forEach(barangay => {
+      barangaySelect.innerHTML += `<option value="${barangay.code}">${barangay.name}</option>`;
+    });
+  } else {
+    barangaySelect.innerHTML = '<option value="">No barangays found</option>';
+  }
+  barangaySelect.disabled = false;
+  
+  // Add event listener to update address when barangay is selected
+  barangaySelect.addEventListener('change', function() {
+    // Trigger address building based on which form this is
+    if (barangaySelect.id === 'barangay') {
+      buildBuyerAddress();
+    } else if (barangaySelect.id === 'rider_barangay') {
+      buildRiderAddress();
+    }
+  });
+}
+
+function resetDropdowns(dropdowns) {
+  dropdowns.forEach(dropdown => {
+    if (dropdown) {
+      dropdown.innerHTML = '<option value="">Select previous first</option>';
+      dropdown.disabled = true;
+    }
+  });
+}
+
+function buildBuyerAddress() {
+  var street = document.getElementById('street_address');
+  var barangay = document.getElementById('barangay');
+  var city = document.getElementById('city');
+  var province = document.getElementById('province');
+  var region = document.getElementById('region');
+  var output = document.getElementById('address');
+
+  if (!output) return;
+  var parts = [
+    street && street.value,
+    barangay && barangay.selectedOptions[0] && barangay.selectedOptions[0].text,
+    city && city.selectedOptions[0] && city.selectedOptions[0].text,
+    province && province.selectedOptions[0] && province.selectedOptions[0].text,
+    region && region.selectedOptions[0] && region.selectedOptions[0].text
+  ].filter(Boolean);
+  output.value = parts.join(', ');
+}
+
+function buildRiderAddress() {
+  var street = document.getElementById('rider_street');
+  var barangay = document.getElementById('rider_barangay');
+  var city = document.getElementById('rider_city');
+  var province = document.getElementById('rider_province');
+  var region = document.getElementById('rider_region');
+  var output = document.getElementById('rider_address');
+
+  if (!output) return;
+  var parts = [
+    street && street.value,
+    barangay && barangay.selectedOptions[0] && barangay.selectedOptions[0].text,
+    city && city.selectedOptions[0] && city.selectedOptions[0].text,
+    province && province.selectedOptions[0] && province.selectedOptions[0].text,
+    region && region.selectedOptions[0] && region.selectedOptions[0].text
+  ].filter(Boolean);
+  output.value = parts.join(', ');
+}
+
+function selectRole(role) {
+  // Update input
+  document.getElementById('role-input').value = role;
+
+  // Update UI
+  document.querySelectorAll('.role-card').forEach(card => {
+    card.classList.remove('selected');
+  });
+  event.target.closest('.role-card').classList.add('selected');
+
+  // Update badge
+  const buyerSpan = document.querySelector('#role-badge-step2 .buyer');
+  const riderSpan = document.querySelector('#role-badge-step2 .rider');
+  if (role === 'buyer') {
+    buyerSpan.style.display = 'inline';
+    riderSpan.style.display = 'none';
+  } else {
+    buyerSpan.style.display = 'none';
+    riderSpan.style.display = 'inline';
+  }
+
+  // Update field visibility
+  if (role === 'rider') {
+    document.getElementById('buyer-fields').style.display = 'none';
+    document.getElementById('rider-fields').style.display = 'block';
+    document.getElementById('vehicle_type').required = true;
+    document.getElementById('vehicle_number').required = true;
+    document.getElementById('valid_id_rider').required = true;
+    document.getElementById('rider_region').required = true;
+    document.getElementById('rider_province').required = true;
+    document.getElementById('rider_city').required = true;
+    document.getElementById('rider_barangay').required = true;
+    document.getElementById('rider_street').required = true;
+    document.getElementById('region').required = false;
+    document.getElementById('province').required = false;
+    document.getElementById('city').required = false;
+    document.getElementById('barangay').required = false;
+    document.getElementById('street_address').required = false;
+    document.getElementById('valid_id').required = false;
+  } else {
+    document.getElementById('buyer-fields').style.display = 'block';
+    document.getElementById('rider-fields').style.display = 'none';
+    document.getElementById('vehicle_type').required = false;
+    document.getElementById('vehicle_number').required = false;
+    document.getElementById('valid_id_rider').required = false;
+    document.getElementById('rider_region').required = false;
+    document.getElementById('rider_province').required = false;
+    document.getElementById('rider_city').required = false;
+    document.getElementById('rider_barangay').required = false;
+    document.getElementById('rider_street').required = false;
+    document.getElementById('region').required = true;
+    document.getElementById('province').required = true;
+    document.getElementById('city').required = true;
+    document.getElementById('barangay').required = true;
+    document.getElementById('street_address').required = true;
+    document.getElementById('valid_id').required = true;
+  }
+}
+
+function goToStep(step) {
+  // Validate email before proceeding from step 2
+  if (currentStep === 2 && step > 2) {
+    const email = document.getElementById('email').value.trim();
+    if (!email) {
+      showEmailStatus('Please enter an email address', 'invalid');
+      return;
+    }
+    if (!isEmailValid) {
+      showEmailStatus('Please enter a valid email address', 'invalid');
+      return;
+    }
+  }
+
+  // Hide current step
+  document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.remove('active');
+  
+  // Show new step
+  currentStep = step;
+  document.querySelector(`.form-step[data-step="${currentStep}"]`).classList.add('active');
+  
+  updateUI();
+}
+
+function nextStep() {
+  if (currentStep < totalSteps) {
+    goToStep(currentStep + 1);
+  }
+}
+
+function prevStep() {
+  if (currentStep > 1) {
+    goToStep(currentStep - 1);
+  }
+}
+
+function updateUI() {
+  // Update step name
+  const stepNames = [
+    'Step 1: Choose Your Role',
+    'Step 2: Personal Information', 
+    'Step 3: Complete Your Details'
+  ];
+  document.getElementById('step-name').textContent = stepNames[currentStep - 1];
+
+  // Update buttons
+  document.getElementById('prev-btn').style.display = currentStep > 1 ? 'block' : 'none';
+  document.getElementById('next-btn').style.display = currentStep < totalSteps ? 'block' : 'none';
+  document.getElementById('submit-btn').style.display = currentStep === totalSteps ? 'block' : 'none';
+}
+
+// Email validation functions
+function showEmailStatus(message, type) {
+  const statusDiv = document.getElementById('email-validation-status');
+  const icon = type === 'valid' ? '✓' : type === 'invalid' ? '✗' : '⏳';
+  
+  statusDiv.className = `validation-status ${type}`;
+  statusDiv.innerHTML = `<span class="icon">${icon}</span>${message}`;
+}
+
+function validateEmailRealtime(email) {
+  const statusDiv = document.getElementById('email-validation-status');
+  
+  // Basic format check first
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+  if (!email) {
+    showEmailStatus('', '');
+    isEmailValid = false;
+    return;
+  }
+  
+  if (!gmailRegex.test(email)) {
+    showEmailStatus('Please enter a valid Gmail address', 'invalid');
+    isEmailValid = false;
+    return;
+  }
+  
+  // Show checking status
+  showEmailStatus('Checking email...', 'checking');
+  isEmailValid = false;
+  
+  // Call the validation API
+  fetch('/api/check-email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: email })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.ok) {
+      if (data.provider_status === 'skipped') {
+        showEmailStatus('Email format valid (external verification disabled)', 'valid');
+      } else {
+        showEmailStatus('Email verified and valid', 'valid');
+      }
+      isEmailValid = true;
+    } else {
+      showEmailStatus(data.message || 'Invalid email address', 'invalid');
+      isEmailValid = false;
+    }
+  })
+  .catch(error => {
+    console.error('Email validation error:', error);
+    showEmailStatus('Unable to verify email. Please try again.', 'invalid');
+    isEmailValid = false;
+  });
+}
+
+// Add email input event listener
+document.addEventListener('DOMContentLoaded', function() {
+  selectRole('buyer');
+  initAddressDropdowns();
+  updateUI();
+  
+  const emailInput = document.getElementById('email');
+  emailInput.addEventListener('input', function(e) {
+    clearTimeout(emailValidationTimeout);
+    const email = e.target.value.trim();
+    
+    // Debounce validation to avoid too many API calls
+    emailValidationTimeout = setTimeout(() => {
+      validateEmailRealtime(email);
+    }, 800);
+  });
+  
+  // Also validate on blur (when user clicks away)
+  emailInput.addEventListener('blur', function(e) {
+    clearTimeout(emailValidationTimeout);
+    validateEmailRealtime(e.target.value.trim());
+  });
+
+  ['region', 'province', 'city', 'barangay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', buildBuyerAddress);
+  });
+  ['rider_region', 'rider_province', 'rider_city', 'rider_barangay'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', buildRiderAddress);
+  });
+  var buyerStreet = document.getElementById('street_address');
+  if (buyerStreet) buyerStreet.addEventListener('input', buildBuyerAddress);
+  var riderStreet = document.getElementById('rider_street');
+  if (riderStreet) riderStreet.addEventListener('input', buildRiderAddress);
+});
+</script>
+
+{% endblock %}

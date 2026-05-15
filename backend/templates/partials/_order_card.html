@@ -1,0 +1,124 @@
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>Order #{{ order.id }}</strong>
+      <small class="text-muted ms-2">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      {% set s = order.status %}
+      {% set badge = 'secondary' %}
+      {% if s in ['completed','refunded'] %}{% set badge = 'success' %}
+      {% elif s == 'pending' %}{% set badge = 'warning' %}
+      {% elif s == 'processing' %}{% set badge = 'info' %}
+      {% elif s in ['ready_for_pickup','to_ship','in_transit'] %}{% set badge = 'primary' %}
+      {% elif s == 'delivered' %}{% set badge = 'success' %}
+      {% elif s == 'cancelled' %}{% set badge = 'danger' %}
+      {% endif %}
+{% if context_tab == 'to_ship' %}
+      {% set label_text = 'Processing' %}
+      {% set badge = 'info' %}
+    {% else %}
+      {% set label_text = (
+        'Out for Delivery' if s in ['to_ship','in_transit'] else
+        'Ready for Pickup' if s == 'ready_for_pickup' else
+        s.replace('_',' ')|title
+      ) %}
+    {% endif %}
+      <span class="badge bg-{{ badge }}">{{ label_text }}</span>
+      {% if order.status not in ['ready_for_pickup','to_ship','in_transit','delivered','completed','pending','cancelled'] %}
+      <span class="badge bg-{% if order.payment_status == 'paid' %}success{% elif order.payment_status == 'pending' %}warning{% else %}danger{% endif %}">
+        {{ order.payment_status|title }}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- Items -->
+    <div class="row g-3">
+      {% for item in order.items %}
+      <div class="col-md-12">
+        <div class="d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center" style="flex: 1;">
+            {% if item.product.image_filename %}
+              <img src="{{ url_for('static', filename='uploads/' + item.product.image_filename) }}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;" alt="{{ item.product.name }}">
+            {% else %}
+              <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                <i class="fas fa-image text-muted"></i>
+              </div>
+            {% endif %}
+            <div class="flex-grow-1">
+              <h6 class="mb-1">{{ item.product.name }}</h6>
+              <p class="mb-1 text-muted small">Seller: {{ item.product.seller.first_name }} {{ item.product.seller.last_name }}</p>
+              <p class="mb-0">
+                <span class="fw-bold">₱{{ "%.2f"|format(item.price_at_time) }}</span>
+                <span class="text-muted"> × {{ item.quantity }}</span>
+              </p>
+            </div>
+          </div>
+          <div class="text-end d-flex flex-column align-items-end" style="min-width: 280px;">
+            <div class="mb-2">
+              <small class="text-muted d-block">Total: </small>
+              <span class="fw-bold text-primary" style="font-size: 1.1rem;">₱{{ "%.2f"|format(item.price_at_time * item.quantity) }}</span>
+            </div>
+              <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <a href="{{ url_for('buyer_order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View Order</a>
+                {% if order.status == 'delivered' %}
+                  <a href="{{ url_for('buyer_new_return', order_item_id=item.id) }}" class="btn btn-sm btn-outline-warning">Return</a>
+                {% endif %}
+                {% if context_tab == 'completed' %}
+                  {% if item.can_review %}
+                    <button class="btn btn-sm btn-warning rate-product-btn" 
+                            data-product-id="{{ item.product.id }}"
+                            data-product-name="{{ item.product.name }}"
+                            data-order-id="{{ order.id }}"
+                            data-bs-toggle="modal" data-bs-target="#rateModal">
+                      <i class="fas fa-star me-1"></i>Rate
+                    </button>
+                  {% elif item.has_review %}
+                    <button class="btn btn-sm btn-outline-success" disabled>
+                      <i class="fas fa-check me-1"></i>Rated
+                    </button>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Summary + Actions -->
+    <div class="border-top pt-3 mt-3">
+      <div class="row">
+        <div class="col-md-6">
+          <h6>Shipping Address:</h6>
+          <p class="text-muted small">{{ order.shipping_address }}</p>
+          <h6>Payment Method:</h6>
+          <p class="text-muted small">{{ order.payment_method|title }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+          <div class="mt-3">
+            {# Actions vary by context_tab per requirements #}
+            {% if context_tab == 'to_receive' %}
+              {# Only show Order Received (disabled until delivered) #}
+              {% if order.status == 'delivered' %}
+                <form method="post" action="{{ url_for('buyer_confirm_received', order_id=order.id) }}" style="display:inline;">
+                  <button class="btn btn-sm btn-primary">Order Received</button>
+                </form>
+              {% else %}
+                <button class="btn btn-sm btn-primary" disabled title="Available after delivery">Order Received</button>
+              {% endif %}
+            {% elif context_tab == 'completed' %}
+              <small class="text-muted">Completed on {{ (order.updated_at or order.created_at).strftime('%Y-%m-%d %I:%M %p') }}</small>
+            {% else %}
+              {# Default actions (used by To Pay etc.) #}
+              {% if order.status in ['pending', 'to_pay'] %}
+                <button class="btn btn-sm btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#cancelModal" data-order-id="{{ order.id }}">Cancel Order</button>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

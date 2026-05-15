@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}Return/Refund RR-{{ rr.id }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold">Return/Refund Request <small class="text-muted">RR-{{ rr.id }}</small></h2>
+    <span class="badge bg-secondary">{{ (rr.request_type or 'refund')|title }}</span>
+    {% if rr.status in ['submitted', 'waiting_seller_approval', 'seller_reviewing'] %}
+    <button class="btn btn-outline-danger" onclick="showCancelConfirm('{{ rr.id }}')">Cancel Request</button>
+    {% endif %}
+  </div>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card mb-3">
+        <div class="card-header">Status Tracking</div>
+        <div class="card-body">
+          <style>
+            .vtl{position:relative;margin-left:10px}
+            .vtl:before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;background:#e5e7eb}
+            .vtl-item{position:relative;padding-left:36px;padding-bottom:14px}
+            .vtl-item:last-child{padding-bottom:0}
+            .vtl-dot{position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;border:2px solid #cbd5e1;background:#fff}
+            .vtl-item.active .vtl-dot{background:#0d6efd;border-color:#0d6efd}
+            .vtl-title{font-weight:700}
+            .vtl-note{font-size:.92rem;color:#6b7280}
+            @media (max-width:576px){.vtl-title{font-size:1rem}.vtl-note{font-size:.85rem}}
+          </style>
+          {% set state = (
+            'waiting' if rr.status in ['submitted','seller_reviewing'] else
+            'approved' if rr.status in ['waiting_rider_pickup','refund_processing'] else
+            'refunded' if rr.status in ['completed','item_received_by_seller'] else
+            'rejected' if rr.status in ['rejected','return_failed'] else 'waiting'
+          ) %}
+          <div class="vtl">
+            <!-- Waiting for Seller Approval -->
+            <div class="vtl-item {% if state in ['waiting','approved','refunded','rejected'] %}active{% endif %}">
+              <div class="vtl-dot"></div>
+              <div class="vtl-title">Waiting for Seller Approval</div>
+              <div class="vtl-note">Your request is currently under review by the seller.</div>
+              <div class="small text-muted mt-1">Submitted: {{ rr.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            {% if state == 'rejected' %}
+            <!-- Rejected by Seller -->
+            <div class="vtl-item active">
+              <div class="vtl-dot"></div>
+              <div class="vtl-title text-danger">Rejected by Seller</div>
+              <div class="vtl-note">Your return/refund request was not approved. Please check the seller’s reason or contact support for further assistance.</div>
+              {% if rr.seller_response_reason %}
+                <div class="small text-muted mt-1">Reason: {{ rr.seller_response_reason }}</div>
+              {% endif %}
+              <div class="small text-muted mt-1">Updated: {{ (rr.updated_at or rr.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+            {% else %}
+            <!-- Approved -->
+            <div class="vtl-item {% if state in ['approved','refunded'] %}active{% endif %}">
+              <div class="vtl-dot"></div>
+              <div class="vtl-title">Approved</div>
+              <div class="vtl-note">Your return/refund has been accepted. Pickup or refund processing will begin.</div>
+              {% if state in ['approved','refunded'] %}
+              <div class="small text-muted mt-1">Updated: {{ (rr.updated_at or rr.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
+              {% endif %}
+            </div>
+            <!-- Refunded -->
+            <div class="vtl-item {% if state == 'refunded' %}active{% endif %}">
+              <div class="vtl-dot"></div>
+              <div class="vtl-title">Refunded</div>
+              <div class="vtl-note">Your refund has been sent or completed.</div>
+              {% if state == 'refunded' %}
+              <div class="small text-muted mt-1">Completed: {{ (rr.updated_at or rr.created_at).strftime('%Y-%m-%d %H:%M') }}</div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Your Description</div>
+        <div class="card-body">
+          <p class="mb-2"><strong>Reason:</strong> {{ rr.reason }}{% if rr.reason_other %} — {{ rr.reason_other }}{% endif %}</p>
+          <p>{{ rr.description or '—' }}</p>
+          {% if rr.images and rr.images|length %}
+          <div class="row g-2">
+            {% for img in rr.images %}
+            <div class="col-4">
+              <img src="{{ url_for('static', filename='uploads/' + img) }}" class="img-fluid rounded border" alt="Evidence image">
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if rr.video_filename %}
+          <div class="mt-3">
+            <video src="{{ url_for('static', filename='uploads/' + rr.video_filename) }}" controls class="w-100" style="max-height:320px; object-fit:contain;"></video>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header">Order Item</div>
+        <div class="card-body">
+          <div><strong>Order #:</strong> {{ rr.order_id }}</div>
+          <div><strong>Product:</strong> {{ rr.order_item.product.name }}</div>
+          <div><strong>Qty Requested:</strong> {{ rr.quantity }}</div>
+          <div><strong>Seller:</strong> {{ rr.seller.first_name }} {{ rr.seller.last_name }}</div>
+          {% if rr.shipping_instruction %}
+          <hr>
+          <div><strong>Return Instruction:</strong><br>{{ rr.shipping_instruction|replace('\n','<br>')|safe }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <a class="btn btn-outline-primary w-100" href="{{ url_for('buyer_returns_index') }}">Back to Requests</a>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Request Confirmation Modal -->
+<div class="modal fade" id="cancel-return-modal" tabindex="-1" aria-labelledby="cancelReturnLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-premium rounded-4" style="background: white; overflow: hidden;">
+      <!-- Header with subtle gradient background -->
+      <div class="modal-header border-0 px-4 py-3" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
+        <h5 class="modal-title fw-bold" id="cancelReturnLabel" style="font-size: 1.2rem; color: #1a1a1a; letter-spacing: -0.01em;">Cancel Return Request</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: opacity(0.6);"></button>
+      </div>
+
+      <!-- Body with improved spacing and typography -->
+      <div class="modal-body px-4 py-4" style="background: white;">
+        <div class="d-flex align-items-flex-start gap-3">
+          <!-- Icon container with soft background -->
+          <div class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #dc2626; font-size: 1.5rem;">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          
+          <!-- Message section with improved typography -->
+          <div style="flex: 1;">
+            <p class="mb-2 fw-semibold" id="cancel-return-message" style="font-size: 1rem; color: #1a1a1a; line-height: 1.5;">
+              Cancel this return request?
+            </p>
+            <p class="mb-0" style="font-size: 0.9rem; color: #6b7280; line-height: 1.5;">
+              You can submit a new return request anytime. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer with improved button styling -->
+      <div class="modal-footer border-0 px-4 py-3" style="background: #f9fafb; gap: 0.75rem;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep Request</button>
+        <button type="button" class="btn btn-danger" id="cancel-return-yes">Cancel Request</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+<!-- Modal Styling -->
+<style>
+/* Enhanced cancel modal styling */
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+#cancel-return-modal .modal-content {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+  border-radius: 1rem;
+}
+
+#cancel-return-modal .shadow-premium {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+}
+
+#cancel-return-modal .modal-header {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 1rem 1rem 0 0;
+  padding: 1.5rem;
+}
+
+#cancel-return-modal .modal-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
+}
+
+#cancel-return-modal .btn-close {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  filter: opacity(0.6);
+}
+
+#cancel-return-modal .btn-close:hover,
+#cancel-return-modal .btn-close:focus {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem;
+}
+
+#cancel-return-modal .modal-body {
+  padding: 1.75rem 1.5rem;
+}
+
+/* Icon container in modal */
+#cancel-return-modal .rounded-circle {
+  animation: slideInIcon 0.3s ease-out;
+}
+
+@keyframes slideInIcon {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Modal message text */
+#cancel-return-modal .modal-message-title,
+#cancel-return-modal #cancel-return-message {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+#cancel-return-modal .modal-message-text {
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+#cancel-return-modal .modal-footer {
+  border: none;
+  background: #f9fafb;
+  border-radius: 0 0 1rem 1rem;
+  padding: 1.25rem 1.5rem;
+  gap: 0.75rem;
+}
+
+/* Modal buttons with enhanced styling */
+#cancel-return-modal .btn-outline-secondary {
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.5rem;
+  letter-spacing: 0.3px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
+  color: #6b7280;
+}
+
+#cancel-return-modal .btn-outline-secondary:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+#cancel-return-modal .btn-danger {
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.5rem;
+  letter-spacing: 0.3px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #dc2626;
+  border: none;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+}
+
+#cancel-return-modal .btn-danger:hover {
+  background: #b91c1c !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+#cancel-return-modal .btn-danger:active {
+  transform: translateY(0);
+}
+
+/* Responsive modal */
+@media (max-width: 576px) {
+  #cancel-return-modal .modal-header {
+    padding: 1.25rem;
+  }
+
+  #cancel-return-modal .modal-title {
+    font-size: 1.1rem;
+  }
+
+  #cancel-return-modal .modal-body {
+    padding: 1.5rem !important;
+  }
+
+  #cancel-return-modal .modal-footer {
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    gap: 0.75rem !important;
+  }
+
+  #cancel-return-modal .btn-outline-secondary,
+  #cancel-return-modal .btn-danger {
+    width: 100%;
+  }
+}
+</style>
+
+{% block scripts %}
+<script>
+function showCancelConfirm(returnId) {
+  return new Promise(resolve => {
+    const modalEl = document.getElementById('cancel-return-modal');
+    const yesBtn = document.getElementById('cancel-return-yes');
+    
+    if (!modalEl || !yesBtn) {
+      console.warn('Cancel modal not found, falling back to native confirm');
+      const fallback = window.confirm('Cancel this return request?');
+      if (fallback) {
+        // Fallback: submit form directly
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/buyer/returns/${returnId}/cancel`;
+        document.body.appendChild(form);
+        form.submit();
+      }
+      return;
+    }
+
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    const cleanup = () => {
+      modalEl.removeEventListener('hidden.bs.modal', onHide);
+      yesBtn.removeEventListener('click', onYes);
+    };
+
+    const onYes = () => {
+      cleanup();
+      bsModal.hide();
+      
+      // Submit the cancel form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/buyer/returns/${returnId}/cancel`;
+      document.body.appendChild(form);
+      form.submit();
+    };
+
+    const onHide = () => {
+      cleanup();
+    };
+
+    yesBtn.addEventListener('click', onYes);
+    modalEl.addEventListener('hidden.bs.modal', onHide);
+
+    bsModal.show();
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cart</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Shopping Cart</h1>
+
+    <div class="cart-controls">
+      <label><input type="checkbox" id="select-all" /> Select All</label>
+      <div class="spacer"></div>
+      <div id="selected-count" class="muted">0 selected</div>
+    </div>
+
+    <div id="cart-list" class="cart-list"></div>
+
+    <footer class="cart-footer">
+      <div class="total">Total: <span id="total-amount">0</span></div>
+      <button id="checkout-btn" disabled>Checkout Selected</button>
+    </footer>
+  </main>
+  <script src="/js/cart.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Track Order - Kids & Baby Store{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">Track Order</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Order Number:</strong> #{{ order.id }}<br>
+                        <strong>Tracking Number:</strong> <span class="badge bg-info">{{ order.tracking_number }}</span><br>
+                        {% set s = order.status %}
+                        {% set label = 'Out for Delivery' if s in ['ready_for_pickup','to_ship','in_transit'] else s.replace('_',' ')|title %}
+                        <strong>Status:</strong> <span class="badge bg-warning">{{ label }}</span><br>
+                        <strong>Order Date:</strong> {{ order.created_at.strftime('%B %d, %Y') }}
+                    </div>
+                    <hr>
+                    <h6>Shipping Address</h6>
+                    <p>{{ order.shipping_address }}</p>
+                    <hr>
+                    <h6>Items</h6>
+                    <ul class="list-group mb-3">
+                        {% for item in order.items %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ item.product.name }}</strong>
+                                <br>
+                                <small class="text-muted">Qty: {{ item.quantity }}</small>
+                            </div>
+                            <span>₱{{ "%.2f"|format(item.price_at_time * item.quantity) }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong class="text-primary">₱{{ "%.2f"|format(order.total_amount) }}</strong>
+                    </div>
+                    <hr>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-truck me-2"></i>
+                        <strong>Order Status:</strong> {{ label }}<br>
+                        {% if s == 'pending' %}
+                            Your order has been placed and is waiting for seller confirmation.
+                        {% elif s == 'processing' %}
+                            Your order is being prepared by the seller.
+                        {% elif s in ['ready_for_pickup','to_ship','in_transit'] %}
+                            Your order is out for delivery. Please expect arrival soon.
+                        {% elif s == 'delivered' %}
+                            Your order has been delivered. Thank you!
+                        {% elif s == 'completed' %}
+                            Order completed. Enjoy your purchase!
+                        {% elif s == 'cancelled' %}
+                            This order was cancelled.
+                        {% else %}
+                            Please contact support for more info.
+                        {% endif %}
+                    </div>
+                    {% if order.picked_up_by %}
+                    <a href="{{ url_for('buyer_rider_chat', rider_id=order.picked_up_by) }}" class="btn btn-outline-primary mt-2 me-2">
+                        <i class="fas fa-comments me-2"></i>Chat Rider
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

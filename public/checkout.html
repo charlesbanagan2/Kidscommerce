@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Checkout</h1>
+
+    <div id="summary-list" class="summary-list"></div>
+
+    <div class="summary-totals">
+      <div>Subtotal: <span id="subtotal">0</span></div>
+      <div>Shipping: <span id="shipping">0</span></div>
+      <div class="grand">Total: <span id="grand-total">0</span></div>
+    </div>
+
+    <div class="actions">
+      <a href="/cart.html">Back to Cart</a>
+      <button id="place-order-btn" disabled>Place Order (COD)</button>
+    </div>
+
+    <div id="error" class="error" style="display:none;"></div>
+  </main>
+  <script src="/js/checkout.js" defer></script>
+</body>
+</html>

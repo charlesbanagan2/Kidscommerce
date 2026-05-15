@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Cancel Order - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Cancel Order #{{ order.id }}</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Are you sure you want to cancel this order?</p>
+          <p><strong>Order Total:</strong> ₱{{ "%.2f"|format(order.total_amount) }}</p>
+          <p><strong>Status:</strong> {{ order.status|title }}</p>
+          
+          <form method="POST" action="{{ url_for('cancel_order', order_id=order.id) }}">
+            <div class="mb-3">
+              <label class="form-label">Select your reason(s):</label>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered by mistake" id="r1">
+                <label class="form-check-label" for="r1">Ordered by mistake</label>
+              </div>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Change of mind" id="r2">
+                <label class="form-check-label" for="r2">Change of mind</label>
+              </div>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Found a cheaper alternative" id="r3">
+                <label class="form-check-label" for="r3">Found a cheaper alternative</label>
+              </div>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Ordered the wrong item" id="r4">
+                <label class="form-check-label" for="r4">Ordered the wrong item</label>
+              </div>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="cancel_reasons" value="Seller has not processed my order" id="r5">
+                <label class="form-check-label" for="r5">Seller has not processed my order</label>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Other reason (optional)</label>
+              <input type="text" class="form-control" name="cancel_other" placeholder="Type your reason">
+            </div>
+            
+            <div class="d-flex gap-2">
+              <a href="{{ url_for('my_orders') }}" class="btn btn-outline-secondary">Keep Order</a>
+              <button type="submit" class="btn btn-danger">Cancel Order</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

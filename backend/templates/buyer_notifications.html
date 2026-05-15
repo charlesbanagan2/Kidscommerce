@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}My Notifications - Kids & Baby Store{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% include 'partials/_back_bar.html' %}
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-bell me-2"></i>My Notifications
+                    </h4>
+                    <span class="badge bg-primary">{{ notifications|length }} total</span>
+                </div>
+                <div class="card-body">
+                    {% if enriched_notifications %}
+                        <div class="list-group list-group-flush">
+                            {% for row in enriched_notifications %}
+                                {% set n = row.notification %}
+                                <div class="list-group-item {% if not n.is_read %}bg-light border-start border-primary border-3{% endif %}">
+<div class="d-flex w-100">
+                                        {% set thumb = (n.images[0] if n.images and n.images|length>0 else (n.image_url or row.actor_avatar)) %}
+                                        {% if thumb %}
+                                          <img src="{{ thumb }}" alt="thumb" class="rounded me-3" style="width:56px;height:56px;object-fit:cover;">
+                                        {% else %}
+                                          <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width:56px;height:56px;">
+                                            <i class="fas fa-bell text-muted"></i>
+                                          </div>
+                                        {% endif %}
+                                        <div class="flex-grow-1">
+                                          <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                              {% if row.actor_name %}<div class="small text-muted">{{ row.actor_name }}</div>{% endif %}
+                                              <p class="mb-1 {% if not n.is_read %}fw-bold{% endif %}">{{ n.message }}</p>
+                                            </div>
+                                            <small class="text-muted">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                          </div>
+                                          {% if row.order %}
+                                            <div class="small text-muted">
+                                              Order #{{ row.order.id }}
+                                              {% if row.tracking %} • Tracking: {{ row.tracking }}{% endif %}
+                                              {% if row.status %} • Status: {{ row.status.replace('_',' ')|title }}{% endif %}
+                                            </div>
+                                          {% endif %}
+                                          {% if n.images and n.images|length>1 %}
+                                            <div class="mt-2 d-flex flex-wrap gap-1">
+                                              {% for im in n.images[:6] %}
+                                                <img src="{{ im }}" class="rounded border" style="width:42px;height:42px;object-fit:cover;">
+                                              {% endfor %}
+                                            </div>
+                                          {% endif %}
+                                          {% if n.link %}
+                                            <div class="mt-2"><a class="btn btn-sm btn-outline-primary" href="{{ n.link }}">Open</a></div>
+                                          {% endif %}
+                                        </div>
+                                      </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No notifications yet</h5>
+                            <p class="text-muted">You'll see important updates and messages here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+

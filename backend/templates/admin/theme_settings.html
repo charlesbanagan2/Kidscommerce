@@ -1,0 +1,164 @@
+{% extends "admin_base.html" %}
+{% block title %}Theme Settings{% endblock %}
+{% block admin_content %}
+{% set active_page = 'theme_settings' %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Theme Settings</h2>
+</div>
+
+<div class="container px-0 py-2">
+    <form method="post" enctype="multipart/form-data" class="mb-4">
+      <div class="mb-3">
+        <label class="form-label">Site Name</label>
+        <input type="text" name="site_name" class="form-control" value="{{ theme.site_name }}">
+      </div>
+
+        <div class="mb-4">
+          <label class="form-label">Logo</label>
+          <div class="mb-2">
+            <div class="alert alert-info small mb-2 d-flex align-items-center gap-2" role="alert">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                This logo is used in the site header and will be visible to <strong>Buyers only</strong>. It will be hidden for Sellers and Admin users.
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-3 align-items-start">
+              <div>
+                  <input id="logoInput" type="file" name="logo" class="form-control" accept="image/png,image/jpeg">
+                  <div class="small text-muted mt-2">Recommended: 100×60 px • JPG/PNG • ≤1MB</div>
+                </div>
+
+                <div>
+                  <div id="logoPreviewCard" class="card p-2 position-relative" style="width:320px;">
+                    <div class="d-flex align-items-center gap-3">
+                      {% if theme.logo_filename %}
+                        <div style="position:relative;">
+                          <img id="logoPreview" src="{{ url_for('static', filename='uploads/' ~ theme.logo_filename) }}" alt="Logo preview"
+                               style="max-height:60px; max-width:100px; object-fit:contain; background:#fff; padding:6px; border-radius:6px; border:1px solid #e6e6e6;">
+                          <span class="badge bg-success" style="position:absolute; top:-8px; right:-8px; font-size:11px; border-radius:6px;">Visible to buyers</span>
+                        </div>
+                        <div class="flex-grow-1">
+                          <div class="fw-semibold text-truncate" style="max-width:130px;">{{ theme.logo_filename }}</div>
+                          <div class="text-muted small" id="currentLogoInfo">Uploaded logo — preview shown above</div>
+                        </div>
+                      {% else %}
+                        <div style="width:100px; height:60px; display:flex; align-items:center; justify-content:center; background:#f8f9fa; border:1px dashed #ddd; border-radius:6px;">
+                          <small class="text-muted">No logo</small>
+                        </div>
+                        <div class="flex-grow-1">
+                          <div class="fw-semibold">No logo</div>
+                          <div class="text-muted small">Preview will appear here (buyers only)</div>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div id="selectedFileInfo" class="mt-2 small text-muted"></div>
+                  </div>
+                </div>
+
+                <div style="min-width:220px;">
+                  <div class="mb-2"><strong>Upload guidelines</strong></div>
+                  <ul class="small text-muted mb-0 ps-3">
+                    <li>Size: 100×60 px (landscape).</li>
+                    <li>Formats: JPG, PNG (transparent PNG recommended).</li>
+                    <li>Keep file size ≤ 1 MB.</li>
+                    <li>Visible only in buyer-facing header.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+          <div class="row gy-3 mb-3">
+            <div class="col-auto">
+              <label class="form-label d-block">Logos and Text Color</label>
+              <input type="color" name="primary_color" value="{{ theme.primary_color }}" class="form-control form-control-color" style="width:56px; height:40px; padding:4px;">
+            </div>
+            <div class="col-auto">
+              <label class="form-label d-block">Background Button Color</label>
+              <input type="color" name="secondary_color" value="{{ theme.secondary_color }}" class="form-control form-control-color" style="width:56px; height:40px; padding:4px;">
+            </div>
+            <div class="col-auto">
+              <label class="form-label d-block">Header and Footer Color</label>
+              <input type="color" name="footer_color" value="{{ theme.footer_color }}" class="form-control form-control-color" style="width:56px; height:40px; padding:4px;">
+            </div>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary" type="submit">
+              <i class="fas fa-save me-1"></i> Save
+            </button>
+            {% if theme.logo_filename %}
+              <form method="POST" action="{{ url_for('remove_logo') }}" style="display:inline;">
+                <button type="submit" class="btn btn-outline-danger" title="Remove Logo" onclick="return confirm('Remove logo?');">
+                  <i class="fas fa-times me-1"></i> Remove Logo
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const logoInput = document.getElementById('logoInput');
+  const logoPreview = document.getElementById('logoPreview');
+  const selectedFileInfo = document.getElementById('selectedFileInfo');
+  const currentLogoInfo = document.getElementById('currentLogoInfo');
+
+  if (!logoInput) return;
+
+  logoInput.addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    selectedFileInfo.textContent = '';
+
+    if (!file) {
+      if (currentLogoInfo) currentLogoInfo.textContent = 'No file selected';
+      return;
+    }
+
+    const kb = Math.round(file.size / 1024);
+    const sizeText = kb >= 1024 ? (Math.round(kb / 1024) + ' MB') : (kb + ' KB');
+
+    selectedFileInfo.innerHTML = `<strong>${file.name}</strong> • ${sizeText}`;
+
+    if (!file.type.startsWith('image/')) {
+      selectedFileInfo.innerHTML += `<br><span class="text-danger small">Selected file is not an image.</span>`;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      const img = new Image();
+      img.onload = function () {
+        const dims = `${img.naturalWidth}×${img.naturalHeight} px`;
+        selectedFileInfo.innerHTML += `<br><small class="text-muted">Dimensions: ${dims}</small>`;
+        if (currentLogoInfo) currentLogoInfo.textContent = `Selected: ${file.name} • ${dims} • ${sizeText}`;
+        if (logoPreview) {
+          logoPreview.src = evt.target.result;
+          logoPreview.style.maxHeight = '60px';
+          logoPreview.style.maxWidth = '100px';
+        } else {
+          const previewElem = document.createElement('img');
+          previewElem.id = 'logoPreview';
+          previewElem.style.maxHeight = '60px';
+          previewElem.style.maxWidth = '100px';
+          previewElem.style.objectFit = 'contain';
+          previewElem.src = evt.target.result;
+          const card = document.getElementById('logoPreviewCard');
+          if (card) {
+            card.insertBefore(previewElem, card.firstChild);
+          }
+        }
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+# Read the original file
+$lines = Get-Content 'c:\Users\mnban\OneDrive\Desktop\kids\backend\app.py'
+
+# Split into before, old code, and after
+$before = $lines[0..16535]
+$after = $lines[16645..($lines.Count-1)]
+
+# New endpoints code
+$newCode = @'
+
+@app.route('/api/v1/auth/forgot-password', methods=['POST'])
+def api_v1_forgot_password():
+    """Send password reset code to user's email (Mobile API) - FIXED VERSION."""
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid JSON data', 'error_type': 'invalid_request'}), 400
+        
+        email = (data.get('email') or '').strip()
+        if not email:
+            return jsonify({'success': False, 'error': 'Email is required', 'error_type': 'missing_email'}), 400
+        
+        # Check if user exists using ORM
+        try:
+            user = User.query.filter_by(email=email).first()
+        except Exception as e:
+            app.logger.error(f"Database query error: {str(e)}")
+            return jsonify({'success': False, 'error': 'Database error. Please try again.', 'error_type': 'database_error'}), 500
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'No account found with this email address', 'error_type': 'user_not_found'}), 404
+        
+        # Generate 6-digit reset code
+        reset_code = str(random.randint(100000, 999999))
+        
+        # Store code using ORM
+        try:
+            user.verification_code = reset_code
+            db.session.commit()
+            app.logger.info(f"Reset code generated for {email}: {reset_code}")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Failed to save reset code: {str(e)}")
+            return jsonify({'success': False, 'error': 'Failed to generate reset code. Please try again.', 'error_type': 'code_generation_failed'}), 500
+        
+        # Send email
+        try:
+            if send_verification_email(email, reset_code):
+                app.logger.info(f"Password reset code sent to {email}")
+                return jsonify({'success': True, 'message': 'Reset code sent to your email. Please check your inbox.'}), 200
+            else:
+                app.logger.error(f"Failed to send reset email to {email}")
+                return jsonify({'success': False, 'error': 'Failed to send email. Please check your email address and try again.', 'error_type': 'email_failed'}), 500
+        except Exception as e:
+            app.logger.error(f"Email sending error: {str(e)}")
+            return jsonify({'success': False, 'error': 'Failed to send email. Please try again later.', 'error_type': 'email_error'}), 500
+        
+    except Exception as e:
+        app.logger.error(f"Unexpected error in forgot password: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'An unexpected error occurred. Please try again.', 'error_type': 'server_error'}), 500
+
+
+@app.route('/api/v1/auth/reset-password', methods=['POST'])
+def api_v1_reset_password():
+    """Reset user password with verification code (Mobile API) - FIXED VERSION."""
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid JSON data', 'error_type': 'invalid_request'}), 400
+        
+        email = (data.get('email') or '').strip()
+        code = (data.get('code') or '').strip()
+        new_password = data.get('new_password')
+        
+        # Validate required fields
+        if not email:
+            return jsonify({'success': False, 'error': 'Email is required', 'error_type': 'missing_email'}), 400
+        if not code:
+            return jsonify({'success': False, 'error': 'Reset code is required', 'error_type': 'missing_code'}), 400
+        if not new_password:
+            return jsonify({'success': False, 'error': 'New password is required', 'error_type': 'missing_password'}), 400
+        
+        # Validate password strength
+        is_valid, password_message = validate_password(new_password)
+        if not is_valid:
+            return jsonify({'success': False, 'error': password_message, 'error_type': 'weak_password'}), 400
+        
+        # Find user using ORM
+        try:
+            user = User.query.filter_by(email=email).first()
+        except Exception as e:
+            app.logger.error(f"Database query error: {str(e)}")
+            return jsonify({'success': False, 'error': 'Database error. Please try again.', 'error_type': 'database_error'}), 500
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found', 'error_type': 'user_not_found'}), 404
+        
+        # Verify reset code
+        if not user.verification_code:
+            return jsonify({'success': False, 'error': 'No reset code found. Please request a new code.', 'error_type': 'no_code'}), 400
+        
+        if user.verification_code != code:
+            return jsonify({'success': False, 'error': 'Invalid verification code. Please check your email and try again.', 'error_type': 'invalid_code'}), 400
+        
+        # Update password using ORM
+        try:
+            user.password = new_password
+            user.verification_code = None
+            db.session.commit()
+            app.logger.info(f"Password reset successful for {email}")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Database update error: {str(e)}")
+            return jsonify({'success': False, 'error': 'Failed to update password. Please try again.', 'error_type': 'update_failed'}), 500
+        
+        # Send confirmation email (don't fail if this fails)
+        try:
+            from email.utils import formataddr
+            subject = 'Kids Kingdom - Password Changed Successfully'
+            body = f'''Hello {user.first_name},
+
+Your password has been successfully changed.
+
+If you didn't make this change, please contact us immediately at support@kidskingdom.com
+
+Best regards,
+Kids Kingdom Team'''
+            
+            msg = MIMEText(body)
+            msg['Subject'] = subject
+            msg['From'] = formataddr(('Kids Kingdom', app.config['MAIL_SENDER']))
+            msg['To'] = email
+            
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
+                smtp.send_message(msg)
+            app.logger.info(f"Confirmation email sent to {email}")
+        except Exception as e:
+            app.logger.warning(f"Failed to send confirmation email: {str(e)}")
+        
+        return jsonify({'success': True, 'message': 'Password reset successfully. You can now login with your new password.'}), 200
+        
+    except Exception as e:
+        app.logger.error(f"Unexpected error in reset password: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': 'An unexpected error occurred. Please try again.', 'error_type': 'server_error'}), 500
+
+'@
+
+# Combine all parts
+$newContent = $before + $newCode.Split("`n") + $after
+
+# Write to new file
+$newContent | Set-Content 'c:\Users\mnban\OneDrive\Desktop\kids\backend\app.py' -Encoding UTF8
+
+Write-Output "Success: Endpoints replaced in app.py"

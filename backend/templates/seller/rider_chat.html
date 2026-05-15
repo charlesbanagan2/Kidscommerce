@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Chat with Rider{% endblock %}
+{% block content %}
+<style>
+.rider-chat-container {
+  max-width: 900px;
+}
+.rider-message-row {
+  display: flex;
+  margin-bottom: 0.6rem;
+}
+.rider-message-row.seller-side {
+  justify-content: flex-end;
+}
+.rider-message-row.rider-side {
+  justify-content: flex-start;
+}
+.rider-message-inner {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 80%;
+}
+.rider-message-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid rgba(15,23,42,0.06);
+}
+.rider-message-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rider-message-bubble {
+  border-radius: 14px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.95rem;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+}
+.rider-message-bubble.seller {
+  background: #0b63a8;
+  color: #fff;
+}
+.rider-message-bubble.rider {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+.rider-message-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+</style>
+
+<div class="container py-3 rider-chat-container">
+  <!-- Sticky chat header -->
+  <div class="d-flex align-items-center justify-content-between mb-3" style="position:sticky;top:0;z-index:2;">
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn btn-light border d-inline-flex align-items-center" href="{{ url_for('seller_orders') }}">
+        <i class="fa fa-arrow-left"></i>
+      </a>
+      <img src="{{ (rider_profile.photo_path if rider_profile and rider_profile.photo_path else url_for('static', filename='user_avatar.png')) }}" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">
+      <div>
+        <div class="fw-bold">{{ rider.first_name }} {{ rider.last_name }}</div>
+        <div class="text-muted small">Rider</div>
+      </div>
+    </div>
+    <div class="d-none d-sm-flex align-items-center gap-2">
+      <img src="{{ navbar_avatar_url }}" class="rounded-circle border" style="width:32px;height:32px;object-fit:cover;">
+      <div class="small text-end">
+        <div class="fw-semibold">You</div>
+        <div class="text-muted">Seller</div>
+      </div>
+    </div>
+  </div>
+
+  {% if order %}
+  <div class="alert alert-info mb-3">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Order #{{ order.id }}</strong> - {{ order.status|replace('_', ' ')|title }}
+  </div>
+  {% endif %}
+
+<div class="card">
+    <div class="card-body" style="max-height: 60vh; overflow: auto;">
+      {% if chat_messages %}
+        {% for m in chat_messages %}
+          {% set is_from_seller = (m[1] == seller_id) %}
+          {% set is_from_rider = not is_from_seller %}
+          <div class="rider-message-row {{ 'seller-side' if is_from_seller else 'rider-side' }}">
+            <div class="rider-message-inner">
+              {% if is_from_rider %}
+                <div class="rider-message-avatar">
+                  <img src="{{ (rider_profile.photo_path if rider_profile and rider_profile.photo_path else url_for('static', filename='user_avatar.png')) }}" alt="Rider">
+                </div>
+              {% endif %}
+              <div>
+                <div class="rider-message-bubble {{ 'seller' if is_from_seller else 'rider' }}">
+                  <div class="small mb-1 text-muted {{ 'text-white-50' if is_from_seller }}">
+                    {{ 'You' if is_from_seller else rider.first_name }}
+                  </div>
+                  <div>{{ m[3] }}</div>
+                </div>
+                <div class="rider-message-meta text-{{ 'end' if is_from_seller else 'start' }}">
+                  {{ m[5].strftime('%Y-%m-%d %H:%M') }}
+                </div>
+              </div>
+              {% if is_from_seller %}
+                <div class="rider-message-avatar">
+                  <img src="{{ navbar_avatar_url }}" alt="Seller">
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted">No messages yet. Start a conversation with the rider.</div>
+      {% endif %}
+    </div>
+    <div class="card-footer">
+      <form method="post" class="d-flex gap-2">
+        <input class="form-control" name="message" placeholder="Type a message..." required>
+        <button class="btn btn-primary"><i class="fa fa-paper-plane"></i></button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

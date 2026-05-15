@@ -1,0 +1,714 @@
+{% extends 'base.html' %}
+{% block title %}My Products{% endblock %}
+{% block content %}
+<style>
+/* Admin Sidebar Styles - Import from admin_base.html */
+.admin-sidebar-card {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    position: relative;
+    z-index: 102;
+}
+
+.admin-panel-header {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 0.75rem 0.75rem 0 0;
+    box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-badge {
+    background: linear-gradient(90deg, #ff8a2b 0%, #fa6b02 100%);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(250, 107, 2, 0.12);
+    border-radius: 999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
+    border: none;
+    padding: 0.85rem 1.15rem;
+    font-size: 1rem;
+    transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease, color 0.16s ease;
+}
+
+.admin-sidebar .list-group-item i.fas {
+    width: 1.4rem;
+    text-align: center;
+    color: #3b82c4;
+    transition: color 0.16s ease, transform 0.06s ease;
+}
+
+.admin-sidebar .list-group-item.active,
+.admin-sidebar .list-group-item.active:hover {
+    background: linear-gradient(90deg, #0b63a8 0%, #0369a1 100%) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 10px 24px rgba(3, 25, 41, 0.06);
+}
+
+.admin-sidebar .list-group-item.active i.fas,
+.admin-sidebar .list-group-item.active:hover i.fas {
+    color: #ffffff !important;
+}
+
+.admin-sidebar .list-group-item:hover {
+    background: rgba(6, 42, 84, 0.04);
+    border-color: rgba(11, 99, 168, 0.16);
+    box-shadow: 0 10px 24px rgba(3, 25, 41, 0.08);
+    color: #0b2b45;
+    transform: translateY(-1px);
+}
+
+.admin-sidebar .list-group-item:hover i.fas {
+    color: #0b63a8;
+    transform: scale(1.05);
+}
+
+/* Collapsible behavior */
+.admin-sidebar-card .admin-sidebar {
+    transition: max-height 0.24s ease-out, opacity 0.24s ease-out;
+    max-height: 2000px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.admin-sidebar-card.is-collapsed .admin-sidebar {
+    max-height: 0;
+    opacity: 0;
+}
+
+@media (min-width: 992px) {
+    .admin-sidebar-card {
+        position: static;
+    }
+    
+    .admin-sidebar-card.is-collapsed .admin-sidebar {
+        display: block;
+    }
+    
+    .admin-sidebar-toggle {
+        display: none !important;
+    }
+}
+
+/* Fix dropdown z-index and top spacing */
+.container-fluid.py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* Ensure dropdown menus appear above sidebar */
+.dropdown-menu {
+    z-index: 1050 !important;
+}
+
+/* Fix any overlapping issues */
+.navbar-nav .dropdown-menu {
+    z-index: 1050 !important;
+}
+
+.seller-products-scope .products-header {
+  padding-top: 0.75rem;
+}
+
+.seller-products-scope .products-card {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(15,23,42,0.06);
+  box-shadow: 0 10px 28px rgba(15,23,42,0.06);
+}
+
+.seller-products-scope .products-table thead th {
+  font-weight: 600;
+  color: #6b7280;
+  border-bottom-width: 1px;
+}
+
+.seller-products-scope .products-table tbody tr {
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
+}
+
+.seller-products-scope .products-table tbody tr:hover {
+  background-color: rgba(3,105,161,0.02);
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06);
+  transform: translateY(-1px);
+}
+
+.seller-products-scope .product-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f3f4f6;
+}
+
+.seller-products-scope .product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.seller-products-scope .product-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.seller-products-scope .product-meta {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.seller-products-scope .btn-product-action {
+  border-radius: 8px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s ease;
+  border: 1.5px solid;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.seller-products-scope .btn-product-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.seller-products-scope .btn-product-edit {
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.seller-products-scope .btn-product-edit:hover {
+  background-color: #0d6efd;
+  color: #ffffff;
+  border-color: #0d6efd;
+}
+
+.seller-products-scope .btn-product-delete {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.seller-products-scope .btn-product-delete:hover {
+  background-color: #dc3545;
+  color: #ffffff;
+  border-color: #dc3545;
+}
+
+.seller-products-scope .btn-product-action i {
+  font-size: 0.85em;
+}
+
+/* Responsive table -> cards on small screens */
+@media (max-width: 768px) {
+  .seller-products-scope .products-table thead {
+    display: none;
+  }
+
+  .seller-products-scope .products-table tbody tr {
+    display: block;
+    margin-bottom: 0.9rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(15,23,42,0.06);
+    padding: 0.75rem 0.85rem;
+    background-color: #ffffff;
+  }
+
+  .seller-products-scope .products-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    border: none;
+  }
+
+  .seller-products-scope .products-table tbody td::before {
+    content: attr(data-label);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin-right: 0.5rem;
+  }
+
+  .seller-products-scope .products-table tbody td.products-main-cell {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .seller-products-scope .products-table tbody td.products-main-cell::before {
+    content: '';
+  }
+
+  .seller-products-scope .products-table tbody td.products-actions-cell {
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+}
+</style>
+
+<div class="container-fluid py-4 seller-products-scope seller-dashboard">
+  <div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3 col-lg-2 sidebar-column">
+      {% set active_page = 'products' %}
+      {% include 'seller/_sidebar.html' %}
+    </div>
+    <!-- Main Content -->
+    <div class="col-md-9 col-lg-10 main-content-column">
+      <div class="products-header">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 class="fw-bold mb-2" style="font-size: 1.5rem; font-family: 'Arial', sans-serif;"><i class="fas fa-box me-3" style="color: #0b63a8;"></i>My Products</h2>
+            <p class="text-muted mb-0 fs-5">Manage your product listings, inventory, and pricing</p>
+          </div>
+          <a href="{{ url_for('add_product') }}" class="btn btn-primary">Add Product</a>
+        </div>
+
+        {% if products %}
+        <div class="card products-card">
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table align-middle mb-0 products-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>ID</th>
+                    <th>Category</th>
+                    <th>Price (₱)</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in products %}
+                  <tr>
+                    <td class="products-main-cell" data-label="Product">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="product-thumb">
+                          {% if p.image_filename %}
+                            <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" alt="{{ p.name }}">
+                          {% else %}
+                            <img src="{{ url_for('static', filename='default_product.png') }}" alt="{{ p.name }}">
+                          {% endif %}
+                        </div>
+                        <div>
+                          <div class="product-name">{{ p.name }}</div>
+                          <div class="product-meta">{{ categories.get(p.category_id, 'Unknown') }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="ID">#{{ p.id }}</td>
+                    <td data-label="Category">{{ categories.get(p.category_id, 'Unknown') }}</td>
+                    <td data-label="Price">{{ '%.2f'|format(p.price) }}</td>
+                    <td data-label="Stock">
+                      {% set available_stock = get_available_stock(p.id) %}
+                      {% if available_stock == 0 %}
+                        <span class="badge bg-danger d-inline-flex align-items-center gap-1 px-2 py-1">
+                          <i class="fas fa-times-circle"></i>
+                          Out of Stock
+                        </span>
+                      {% elif available_stock <= 10 %}
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1 px-2 py-1">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Low Stock
+                          </span>
+                          <span class="badge bg-secondary">{{ available_stock }}</span>
+                        </div>
+                      {% else %}
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge bg-success-subtle text-success d-inline-flex align-items-center gap-1 px-2 py-1">
+                            <i class="fas fa-check-circle"></i>
+                            In Stock
+                          </span>
+                          <span class="badge bg-secondary">{{ available_stock }}</span>
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td data-label="Status">
+                      {% set badge = 'secondary' %}
+                      {% if p.status == 'active' %}{% set badge='success' %}
+                      {% elif p.status == 'pending' %}{% set badge='warning' %}
+                      {% elif p.status in ['rejected','inactive','deleted'] %}{% set badge='danger' %}
+                      {% endif %}
+                      <span class="badge bg-{{ badge }} text-uppercase">{{ p.status }}</span>
+                      {% if p.status == 'rejected' and p.rejection_reason %}
+                        <div class="small text-muted">Reason: {{ p.rejection_reason }}</div>
+                      {% endif %}
+                      {% if p.is_deleted %}
+                        <div class="small text-muted">(deleted)</div>
+                      {% endif %}
+                    </td>
+                    <td data-label="Created">{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at }}</td>
+                    <td class="text-end products-actions-cell" data-label="Actions">
+                      <a class="btn btn-sm btn-outline-primary btn-product-action btn-product-edit"
+                         href="{{ url_for('seller_edit_product', product_id=p.id) }}"
+                         title="Edit Product">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit</span>
+                      </a>
+                      <!-- Check for pending restock request -->
+                      {% set pending_restock = False %}
+                      {% for req in p.restock_requests %}
+                        {% if req.status == 'pending' %}
+                          {% set pending_restock = True %}
+                        {% endif %}
+                      {% endfor %}
+                      
+                      {% if pending_restock %}
+                      <!-- Pending approval status -->
+                      <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1 px-2 py-1 me-2">
+                        <i class="fas fa-clock"></i>
+                        Pending Admin Approval
+                      </span>
+                      <!-- Cancel restock request -->
+                      <form action="{{ url_for('seller_cancel_restock', product_id=p.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger btn-product-action"
+                                title="Cancel Restock Request"
+                                onclick="return confirm('Cancel your restock request for this product?')">
+                          <i class="fas fa-times"></i>
+                          <span>Cancel Request</span>
+                        </button>
+                      </form>
+                      {% else %}
+                      <!-- Restock request button - available for all products -->
+                      <button type="button" class="btn btn-sm btn-outline-success btn-product-action btn-product-restock"
+                              data-bs-toggle="modal" data-bs-target="#restockModal{{ p.id }}"
+                              title="Request Restock">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Request Restock</span>
+                      </button>
+                      {% endif %}
+                      <button type="button" class="btn btn-sm btn-outline-danger btn-product-action btn-product-delete"
+                              title="Delete Product"
+                              data-bs-toggle="modal" 
+                              data-bs-target="#deleteProductModal{{ p.id }}">
+                        <i class="fas fa-trash-alt"></i>
+                        <span>Delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  <!-- Restock Request Modal -->
+                  <div class="modal fade" id="restockModal{{ p.id }}" tabindex="-1" aria-labelledby="restockModalLabel{{ p.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="restockModalLabel{{ p.id }}">
+                            <i class="fas fa-plus-circle text-success me-2"></i>Request Restock
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form action="{{ url_for('seller_restock_product', product_id=p.id) }}" method="post">
+                          <div class="modal-body">
+                            <div class="mb-3">
+                              <label for="restockQuantity{{ p.id }}" class="form-label">Product</label>
+                              <div class="d-flex align-items-center gap-2">
+                                <div class="product-thumb" style="width: 40px; height: 40px;">
+                                  {% if p.image_filename %}
+                                    <img src="{{ url_for('static', filename='uploads/' + p.image_filename) }}" alt="{{ p.name }}">
+                                  {% else %}
+                                    <img src="{{ url_for('static', filename='default_product.png') }}" alt="{{ p.name }}">
+                                  {% endif %}
+                                </div>
+                                <div>
+                                  <strong>{{ p.name }}</strong><br>
+                                  <div class="d-flex align-items-center gap-2">
+                                    {% if get_available_stock(p.id) <= 0 %}
+                                      <span class="badge bg-danger">Out of Stock</span>
+                                    {% elif get_available_stock(p.id) <= 10 %}
+                                      <span class="badge bg-warning"><i class="bi bi-exclamation-triangle-fill"></i> Low Stock</span>
+                                      <span class="badge bg-secondary rounded-pill">{{ get_available_stock(p.id) }}</span>
+                                    {% else %}
+                                      <span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> In Stock</span>
+                                      <span class="badge bg-secondary rounded-pill">{{ get_available_stock(p.id) }}</span>
+                                    {% endif %}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="mb-3">
+                              <label for="restockQuantity{{ p.id }}" class="form-label">Requested Quantity</label>
+                              <input type="number" class="form-control" id="restockQuantity{{ p.id }}" name="restock_quantity" 
+                                     min="1" value="1" required>
+                              <div class="form-text">Enter the number of items you want to add to inventory</div>
+                            </div>
+                            <div class="alert alert-info">
+                              <i class="fas fa-info-circle me-2"></i>
+                              <strong>Restock Request Process:</strong><br>
+                              1. Submit your restock request to admin<br>
+                              2. Admin will review and approve/reject<br>
+                              3. Product will become available after approval<br>
+                              4. You'll receive notification when processed
+                            </div>
+                            <div class="alert alert-warning">
+                              <i class="fas fa-clock me-2"></i>
+                              <strong>Note:</strong> This product will remain "Out of Stock" until admin approves your request.
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">
+                              <i class="fas fa-paper-plane me-2"></i>Submit Request
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Delete Product Modal -->
+                  <div class="modal fade" id="deleteProductModal{{ p.id }}" tabindex="-1" aria-labelledby="deleteProductModalLabel{{ p.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-premium rounded-4" style="background: white; overflow: hidden;">
+                        <!-- Header with subtle gradient background -->
+                        <div class="modal-header border-0 px-4 py-3" style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); border-bottom: 1px solid #e5e7eb;">
+                          <h5 class="modal-title fw-bold" id="deleteProductModalLabel{{ p.id }}" style="font-size: 1.2rem; color: #1a1a1a; letter-spacing: -0.01em;">Remove Item</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: opacity(0.6);"></button>
+                        </div>
+
+                        <!-- Body with improved spacing and typography -->
+                        <div class="modal-body px-4 py-4" style="background: white;">
+                          <div class="d-flex align-items-flex-start gap-3">
+                            <!-- Icon container with soft background -->
+                            <div class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #dc2626; font-size: 1.5rem;">
+                              <i class="fas fa-trash-alt"></i>
+                            </div>
+                            
+                            <!-- Message section with improved typography -->
+                            <div style="flex: 1;">
+                              <p class="mb-2 fw-semibold" id="confirm-delete-message" style="font-size: 1rem; color: #1a1a1a; line-height: 1.5;">
+                                Remove this product from your store?
+                              </p>
+                              <p class="mb-0" style="font-size: 0.9rem; color: #6b7280; line-height: 1.5;">
+                                You can add it back anytime. This action cannot be undone.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Footer with improved button styling -->
+                        <div class="modal-footer border-0 px-4 py-3" style="background: #f9fafb; gap: 0.75rem;">
+                          <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal" style="border: 1.5px solid #d1d5db; color: #374151; font-weight: 600; border-radius: 0.75rem; transition: all 0.2s ease;">
+                            Cancel
+                          </button>
+                          <form action="{{ url_for('seller_delete_product', product_id=p.id) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-danger px-4 py-2" style="background: #dc2626; border: none; color: white; font-weight: 600; border-radius: 0.75rem; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);">
+                              Remove Item
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        {% else %}
+          <div class="alert alert-info">You have no products yet. Click "Add Product" to create one.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Handle real-time stock updates
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for seller stock updates
+    if (typeof socket !== 'undefined') {
+        socket.on('seller_stock_update', function(data) {
+            console.log('Seller stock update received:', data);
+            
+            // Find the product row and update it
+            const productRow = document.querySelector(`tr:has([href*="product_id=${data.product_id}"])`);
+            if (productRow) {
+                // Find the stock cell
+                const stockCell = productRow.querySelector('td[data-label="Stock"]');
+                if (stockCell) {
+                    // Update stock display based on new available stock
+                    let stockHtml = '';
+                    if (data.available_stock == 0) {
+                        stockHtml = `
+                            <span class="badge bg-danger d-inline-flex align-items-center gap-1 px-2 py-1">
+                              <i class="fas fa-times-circle"></i>
+                              Out of Stock
+                            </span>`;
+                    } else if (data.available_stock <= 10) {
+                        stockHtml = `
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1 px-2 py-1">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Low Stock
+                              </span>
+                              <span class="badge bg-secondary">${data.available_stock}</span>
+                            </div>`;
+                    } else {
+                        stockHtml = `
+                            <span class="badge bg-success-subtle text-success d-inline-flex align-items-center gap-1 px-2 py-1">
+                              <i class="fas fa-check-circle"></i>
+                              ${data.available_stock}
+                            </span>`;
+                    }
+                    stockCell.innerHTML = stockHtml;
+                }
+                
+                // Update actions column - remove restock button if now in stock
+                const actionsCell = productRow.querySelector('td.products-actions-cell');
+                if (actionsCell && data.available_stock > 0) {
+                    const restockButton = actionsCell.querySelector('.btn-product-restock');
+                    if (restockButton) {
+                        restockButton.remove();
+                    }
+                }
+            }
+            
+            // Show success notification
+            showNotification(`Product restocked successfully! ${data.available_stock} items now available.`, 'success');
+        });
+        
+        // Listen for general stock updates
+        socket.on('product_stock_update', function(data) {
+            console.log('Product stock update received:', data);
+            
+            // Find all product rows that match this product ID
+            const productLinks = document.querySelectorAll(`a[href*="product_id=${data.product_id}"]`);
+            productLinks.forEach(link => {
+                const productRow = link.closest('tr');
+                if (productRow) {
+                    const stockCell = productRow.querySelector('td[data-label="Stock"]');
+                    if (stockCell) {
+                        // Update stock display
+                        let stockHtml = '';
+                        if (data.available_stock == 0) {
+                            stockHtml = `
+                                <span class="badge bg-danger d-inline-flex align-items-center gap-1 px-2 py-1">
+                                  <i class="fas fa-times-circle"></i>
+                                  Out of Stock
+                                </span>`;
+                        } else if (data.available_stock <= 10) {
+                            stockHtml = `
+                                <div class="d-flex align-items-center gap-2">
+                                  <span class="badge bg-warning text-dark d-inline-flex align-items-center gap-1 px-2 py-1">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Low Stock
+                                  </span>
+                                  <span class="badge bg-secondary">${data.available_stock}</span>
+                                </div>`;
+                        } else {
+                            stockHtml = `
+                                <span class="badge bg-success-subtle text-success d-inline-flex align-items-center gap-1 px-2 py-1">
+                                  <i class="fas fa-check-circle"></i>
+                                  ${data.available_stock}
+                                </span>`;
+                        }
+                        stockCell.innerHTML = stockHtml;
+                    }
+                    
+                    // Update actions column
+                    const actionsCell = productRow.querySelector('td.products-actions-cell');
+                    if (actionsCell) {
+                        if (data.available_stock > 0) {
+                            // Remove restock button if in stock
+                            const restockButton = actionsCell.querySelector('.btn-product-restock');
+                            if (restockButton) {
+                                restockButton.remove();
+                            }
+                        } else {
+                            // Add restock button if out of stock and doesn't exist
+                            const existingRestockButton = actionsCell.querySelector('.btn-product-restock');
+                            if (!existingRestockButton) {
+                                const editButton = actionsCell.querySelector('.btn-product-edit');
+                                if (editButton) {
+                                    const restockButton = document.createElement('button');
+                                    restockButton.type = 'button';
+                                    restockButton.className = 'btn btn-sm btn-outline-success btn-product-action btn-product-restock';
+                                    restockButton.setAttribute('data-bs-toggle', 'modal');
+                                    restockButton.setAttribute('data-bs-target', `#restockModal${data.product_id}`);
+                                    restockButton.setAttribute('title', 'Restock Product');
+                                    restockButton.innerHTML = '<i class="fas fa-plus-circle"></i><span>Restock</span>';
+                                    editButton.parentNode.insertBefore(restockButton, editButton.nextSibling);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    // Helper function to show notifications
+    function showNotification(message, type) {
+        // Check if a notification container exists
+        let container = document.querySelector('.notification-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'notification-container';
+            container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+            document.body.appendChild(container);
+        }
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show`;
+        notification.style.cssText = 'margin-bottom: 10px; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        container.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+});
+
+// Seller sidebar toggle functionality (same as admin panel)
+const sellerSidebarCard = document.querySelector('[data-seller-sidebar]');
+const sellerSidebarToggle = document.querySelector('.admin-sidebar-toggle');
+
+if (sellerSidebarCard && sellerSidebarToggle) {
+    sellerSidebarToggle.addEventListener('click', function() {
+        sellerSidebarCard.classList.toggle('is-collapsed');
+        const isExpanded = sellerSidebarCard.classList.contains('is-collapsed') ? 'false' : 'true';
+        sellerSidebarToggle.setAttribute('aria-expanded', isExpanded);
+        
+        // Toggle chevron direction
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.classList.toggle('fa-chevron-left');
+            icon.classList.toggle('fa-chevron-down');
+        }
+    });
+}
+</script>
+
+{% endblock %}
+
+
+
