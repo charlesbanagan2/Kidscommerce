@@ -81,10 +81,12 @@
                     <option value="all" {{ 'selected' if status == 'all' else '' }}>All Status</option>
                     <option value="pending" {{ 'selected' if status == 'pending' else '' }}>Pending</option>
                     <option value="processing" {{ 'selected' if status == 'processing' else '' }}>Processing</option>
-                    <option value="shipped" {{ 'selected' if status == 'shipped' else '' }}>Shipped</option>
+                    <option value="to_ship" {{ 'selected' if status == 'to_ship' else '' }}>To Ship</option>
                     <option value="delivered" {{ 'selected' if status == 'delivered' else '' }}>Delivered</option>
                     <option value="completed" {{ 'selected' if status == 'completed' else '' }}>Completed</option>
+                    <option value="return_requested" {{ 'selected' if status == 'return_requested' else '' }}>Return &amp; Refund Requested</option>
                     <option value="returned" {{ 'selected' if status == 'returned' else '' }}>Returned</option>
+                    <option value="refunded" {{ 'selected' if status == 'refunded' else '' }}>Refunded</option>
                     <option value="cancelled" {{ 'selected' if status == 'cancelled' else '' }}>Cancelled</option>
                 </select>
             </div>
@@ -168,14 +170,18 @@
                     <span class="badge bg-warning">Pending</span>
                 {% elif order.status == 'processing' %}
                     <span class="badge bg-info">Processing</span>
-                {% elif order.status == 'shipped' %}
-                    <span class="badge bg-primary">Shipped</span>
+                {% elif order.status == 'to_ship' %}
+                    <span class="badge bg-primary">To Ship</span>
                 {% elif order.status == 'delivered' %}
                     <span class="badge bg-success">Delivered</span>
                 {% elif order.status == 'completed' %}
                     <span class="badge bg-success">Completed</span>
+                {% elif order.status == 'return_requested' %}
+                    <span class="badge bg-warning text-dark">Return &amp; Refund Requested</span>
                 {% elif order.status == 'returned' %}
                     <span class="badge bg-secondary">Returned</span>
+                {% elif order.status == 'refunded' %}
+                    <span class="badge bg-success">Refunded</span>
                 {% elif order.status == 'cancelled' %}
                     <span class="badge bg-danger">Cancelled</span>
                 {% endif %}
@@ -225,15 +231,15 @@
                     <i class="fas fa-play"></i>
                 </a>
             {% elif order.status == 'processing' %}
-                <a href="{{ url_for('update_order_status', order_id=order.id, status='shipped') }}" class="btn btn-outline-primary" title="Mark as Shipped">
+                <a href="{{ url_for('update_order_status', order_id=order.id, status='to_ship') }}" class="btn btn-outline-primary" title="Mark as To Ship">
                     <i class="fas fa-truck"></i>
                 </a>
-            {% elif order.status == 'shipped' %}
+            {% elif order.status == 'to_ship' %}
                 <a href="{{ url_for('update_order_status', order_id=order.id, status='delivered') }}" class="btn btn-outline-success" title="Mark as Delivered">
                     <i class="fas fa-check"></i>
                 </a>
             {% endif %}
-            {% if order.status not in ['completed', 'cancelled', 'returned'] %}
+            {% if order.status not in ['completed', 'cancelled', 'return_requested', 'returned', 'refunded'] %}
                 <a href="{{ url_for('update_order_status', order_id=order.id, status='cancelled') }}" class="btn btn-outline-danger" title="Cancel Order">
                     <i class="fas fa-times"></i>
                 </a>

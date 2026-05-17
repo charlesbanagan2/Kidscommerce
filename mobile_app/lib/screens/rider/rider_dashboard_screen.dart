@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
+import '../../config/url_config.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/order.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'rider_chat_screen.dart';
@@ -23,6 +26,7 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
   double _earningsWeek = 0;
   double _earningsMonth = 0;
   String _userName = 'Rider';
+  String? _profileImageUrl;
   int _unreadNotificationCount = 0;
   late AnimationController _animController;
 
@@ -61,6 +65,16 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
       _error = null;
     });
     try {
+      final authProvider = context.read<AuthProvider>();
+      try {
+        final user = await ApiService.getUserProfile();
+        _userName = user.fullName.isNotEmpty ? user.fullName : 'Rider';
+        _profileImageUrl = user.profileImage;
+      } catch (_) {
+        _userName = authProvider.user?.fullName ?? 'Rider';
+        _profileImageUrl = authProvider.user?.profileImage;
+      }
+
       final myOrders = await ApiService.getRiderOrders();
       final earningsPayload = await ApiService.getRiderEarnings();
       final notifResponse = await ApiService.getNotifications();
@@ -531,12 +545,28 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
                         border: Border.all(
                             color: Colors.white.withValues(alpha: 0.4),
                             width: 1.5)),
-                    child: Center(
-                        child: Text(initial,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 20))),
+                    clipBehavior: Clip.antiAlias,
+                    child: _profileImageUrl != null &&
+                            _profileImageUrl!.isNotEmpty
+                        ? Image.network(
+                            UrlConfig.toAbsoluteImageUrl(_profileImageUrl!),
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(initial,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 20)),
+                            ),
+                          )
+                        : Center(
+                            child: Text(initial,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 20))),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

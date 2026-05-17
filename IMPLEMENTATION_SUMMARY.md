@@ -1,416 +1,417 @@
-# 📋 IMPLEMENTATION SUMMARY
+# ✅ RETURN & REFUND SYSTEM - COMPLETE IMPLEMENTATION
 
-## ✅ COMPLETE - Rating System with Image/Video Support
+## 🎯 CURRENT STATUS
+
+### ✅ ALREADY WORKING:
+1. **Backend API** - All endpoints functional
+   - `/api/return-evidence/upload` - Upload photos/videos
+   - `/api/buyer/orders/<id>/return-request` - Create return request
+   - `/api/buyer/return-requests` - Get buyer's requests
+   - `/api/seller/return-requests` - Get seller's requests
+   - `/api/seller/return-requests/<id>/approve` - Approve request
+   - `/api/seller/return-requests/<id>/reject` - Reject request
+
+2. **Seller Website** - Routes exist in app.py (line 14007+)
+   - `/seller/returns` - List all return requests
+   - `/seller/returns/<id>` - View return details
+   - Approve/Reject actions working
+
+3. **Mobile App Return Screen** - Fully functional
+   - Step 1: Select items (with product images)
+   - Step 2: Upload evidence (1 photo + 1 video mandatory)
+   - Step 3: Review and submit
+   - Timeout handling fixed (60s)
+
+4. **Notifications** - Working via push_notification()
+   - Buyer submits → Seller notified
+   - Seller approves → Buyer notified
+   - Seller rejects → Buyer notified
+
+### ⏳ NEEDS IMPLEMENTATION:
+
+1. **Mobile App - Orders Screen Updates**
+   - Show return status badges in "To Receive" tab
+   - Add "Returns" tab for approved/refunded items
+   - Show "Return Requested", "Refunded", "Rejected" badges
+
+2. **Mobile App - Order Details Screen**
+   - Show return request status if exists
+   - Disable "Request Return" button if already requested
 
 ---
 
-## 🔧 Changes Made
+## 📱 MOBILE APP FIXES NEEDED
 
-### 1. Backend API (`backend/app.py`)
+### File: `mobile_app/lib/screens/buyer_app/orders_screen.dart`
 
-**Modified Endpoint:** `/api/reviews` (POST)
+**Changes Required:**
 
-**Changes:**
-- ✅ Added multipart/form-data support
-- ✅ Added file upload handling
-- ✅ Added image/video detection
-- ✅ Added secure file storage
-- ✅ Added media JSON array storage
-- ✅ Updated response format with `success` field
+1. **Add Returns Tab**
+```dart
+// In TabBar widget, add:
+Tab(
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(LucideIcons.rotateCcw, size: 16),
+      SizedBox(width: 6),
+      Text('Returns'),
+    ],
+  ),
+),
+```
 
-**Code Location:** Line ~14600 in `app.py`
+2. **Add Returns Tab View**
+```dart
+// In TabBarView, add:
+_buildReturnsTab(),
+```
 
-**Key Features:**
+3. **Implement _buildReturnsTab() method**
+```dart
+Widget _buildReturnsTab() {
+  final returnOrders = _orders.where((order) {
+    return order.status == 'refunded' || 
+           order.returnRequests?.any((r) => r.status == 'approved') == true;
+  }).toList();
+
+  if (returnOrders.isEmpty) {
+    return _buildEmptyState(
+      icon: LucideIcons.rotateCcw,
+      title: 'No Returns',
+      message: 'You have no return or refund requests',
+    );
+  }
+
+  return ListView.builder(
+    padding: EdgeInsets.all(16),
+    itemCount: returnOrders.length,
+    itemBuilder: (context, index) {
+      final order = returnOrders[index];
+      return _buildReturnOrderCard(order);
+    },
+  );
+}
+```
+
+4. **Add Return Status Badge to Order Cards**
+```dart
+// In _buildOrderCard(), add after status badge:
+if (order.returnRequests != null && order.returnRequests!.isNotEmpty) {
+  final returnRequest = order.returnRequests!.first;
+  Container(
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: _getReturnStatusColor(returnRequest.status),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          _getReturnStatusIcon(returnRequest.status),
+          size: 12,
+          color: Colors.white,
+        ),
+        SizedBox(width: 4),
+        Text(
+          _getReturnStatusText(returnRequest.status),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  ),
+}
+```
+
+5. **Add Helper Methods**
+```dart
+Color _getReturnStatusColor(String status) {
+  switch (status) {
+    case 'submitted':
+      return Colors.orange;
+    case 'approved':
+      return Colors.green;
+    case 'rejected':
+      return Colors.red;
+    default:
+      return Colors.grey;
+  }
+}
+
+IconData _getReturnStatusIcon(String status) {
+  switch (status) {
+    case 'submitted':
+      return LucideIcons.clock;
+    case 'approved':
+      return LucideIcons.checkCircle;
+    case 'rejected':
+      return LucideIcons.xCircle;
+    default:
+      return LucideIcons.info;
+  }
+}
+
+String _getReturnStatusText(String status) {
+  switch (status) {
+    case 'submitted':
+      return 'Return Requested';
+    case 'approved':
+      return 'Refunded';
+    case 'rejected':
+      return 'Return Rejected';
+    default:
+      return status.replaceAll('_', ' ').toUpperCase();
+  }
+}
+```
+
+---
+
+### File: `mobile_app/lib/screens/buyer_app/order_detail_screen.dart`
+
+**Changes Required:**
+
+1. **Check for Existing Return Request**
+```dart
+// Add to state:
+bool _hasReturnRequest = false;
+String? _returnRequestStatus;
+
+@override
+void initState() {
+  super.initState();
+  _checkReturnRequest();
+}
+
+Future<void> _checkReturnRequest() async {
+  try {
+    final response = await ApiService.request(
+      'GET',
+      '/api/buyer/return-requests',
+    );
+    
+    if (response['success'] == true) {
+      final requests = response['return_requests'] as List;
+      final orderRequest = requests.firstWhere(
+        (r) => r['order_id'] == widget.order.id,
+        orElse: () => null,
+      );
+      
+      if (orderRequest != null) {
+        setState(() {
+          _hasReturnRequest = true;
+          _returnRequestStatus = orderRequest['status'];
+        });
+      }
+    }
+  } catch (e) {
+    debugPrint('Error checking return request: $e');
+  }
+}
+```
+
+2. **Update Return Button Logic**
+```dart
+// Replace existing return button with:
+if (order.status == 'delivered' || order.status == 'completed') {
+  if (_hasReturnRequest) {
+    // Show status badge instead of button
+    Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getReturnStatusColor(_returnRequestStatus!),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getReturnStatusIcon(_returnRequestStatus!),
+            color: Colors.white,
+            size: 20,
+          ),
+          SizedBox(width: 8),
+          Text(
+            _getReturnStatusText(_returnRequestStatus!),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  } else {
+    // Show request return button
+    ElevatedButton.icon(
+      onPressed: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReturnRefundScreen(order: order),
+          ),
+        );
+        if (result == true) {
+          _checkReturnRequest(); // Refresh status
+        }
+      },
+      icon: Icon(LucideIcons.rotateCcw),
+      label: Text('Request Return/Refund'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+## 🌐 SELLER WEBSITE - ALREADY WORKING
+
+### Routes (app.py line 14007+):
+- ✅ `/seller/returns` - List page
+- ✅ `/seller/returns/<id>` - Detail page
+- ✅ Approve/Reject actions
+
+### Templates:
+- ✅ `templates/seller/returns.html` - List view
+- ✅ `templates/seller/return_detail.html` - Detail view
+
+### Features:
+- ✅ Pending requests tab
+- ✅ Completed returns tab
+- ✅ Statistics cards
+- ✅ Approve/Reject buttons
+- ✅ View evidence photos/videos
+
+---
+
+## 🔔 NOTIFICATIONS - ALREADY WORKING
+
+### Backend (app.py):
 ```python
-# Handles both JSON and multipart data
-if request.content_type and 'multipart/form-data' in request.content_type:
-    # Process files
-    for key in request.files:
-        if key.startswith('media['):
-            # Save file
-            # Detect type (image/video)
-            # Store in media array
-```
-
----
-
-### 2. Mobile App - Submit Review Screen
-
-**File:** `mobile_app/lib/screens/buyer_app/submit_review_screen.dart`
-
-**Changes:**
-- ✅ Enhanced success overlay animation
-- ✅ Added Tagalog success messages
-- ✅ Added gradient check icon
-- ✅ Added staggered star animations
-- ✅ Added info badge
-- ✅ Improved animation timing
-
-**New Success Overlay Features:**
-```dart
-- Fade animation (0-300ms)
-- Scale animation (0-500ms) with elastic curve
-- Check icon animation (300-800ms)
-- Star animations (400-800ms) staggered
-- Gradient background on check icon
-- Shadow effects
-- Tagalog messages
-```
-
----
-
-### 3. Mobile App - Product Detail Screen
-
-**File:** `mobile_app/lib/screens/buyer_app/product_detail_screen.dart`
-
-**Changes:**
-- ✅ Added rating count display
-- ✅ Added star icon with rating
-- ✅ Improved review section layout
-- ✅ Added auto-refresh after review submission
-- ✅ Added setState() call to update UI
-
-**New Display:**
-```dart
-Row(
-  children: [
-    Icon(LucideIcons.star, color: Colors.amber),
-    Text('${product.rating} (${product.reviewCount})'),
-  ],
+# When buyer submits
+push_notification(
+    seller_id,
+    f'New return request for Order #{order_id}',
+    type='return_request',
+    link=f'/seller/returns/{return_id}'
 )
-```
 
----
+# When seller approves
+push_notification(
+    buyer_id,
+    f'Your return request for Order #{order_id} has been approved. Refund processed.',
+    type='return_approved',
+    link=f'/buyer/orders/{order_id}'
+)
 
-## 📁 Files Modified
-
-### Backend:
-```
-backend/
-  └── app.py
-      └── /api/reviews endpoint (Line ~14600)
-          ├── Added multipart support
-          ├── Added file handling
-          ├── Added media storage
-          └── Updated response format
+# When seller rejects
+push_notification(
+    buyer_id,
+    f'Your return request for Order #{order_id} was rejected',
+    type='return_rejected',
+    link=f'/buyer/orders/{order_id}'
+)
 ```
 
 ### Mobile App:
-```
-mobile_app/lib/screens/buyer_app/
-  ├── submit_review_screen.dart
-  │   └── _ReviewSuccessOverlay class
-  │       ├── Enhanced animations
-  │       ├── Tagalog messages
-  │       └── Gradient effects
-  │
-  └── product_detail_screen.dart
-      └── _buildRatingsPreview()
-          ├── Rating count display
-          ├── Star icon
-          └── Auto-refresh logic
-```
+- ✅ Real-time via SocketIO
+- ✅ Badge count updates
+- ✅ Notification list shows all actions
 
 ---
 
-## 🎨 New Features
+## 🗄️ DATABASE - ALREADY EXISTS
 
-### 1. Success Animation
-**Duration:** 800ms
-**Effects:**
-- Fade in (0-300ms)
-- Elastic scale (0-500ms)
-- Check icon bounce (300-800ms)
-- Staggered stars (400-800ms)
-- Auto-dismiss (2000ms)
-
-### 2. Visual Enhancements
-- ✅ Gradient check icon (green)
-- ✅ Shadow effects
-- ✅ Rounded corners (24px)
-- ✅ Info badge with icon
-- ✅ Professional spacing
-
-### 3. Tagalog Messages
-- ✅ "Salamat sa iyong {rating}-star review!"
-- ✅ "Makikita na ng lahat ang iyong review"
-
-### 4. Rating Display
-- ✅ Star icon on product details
-- ✅ Rating number (e.g., 4.5)
-- ✅ Review count (e.g., 12 reviews)
-- ✅ Visible on all screens
-
----
-
-## 🔄 Data Flow
-
-### Submit Review:
-```
-User Input
-  ↓
-Mobile App (Flutter)
-  ↓
-ApiService.uploadMultipart()
-  ↓
-POST /api/reviews (multipart/form-data)
-  ↓
-Flask Backend
-  ├── Validate user & product
-  ├── Save files to disk
-  ├── Create review record
-  └── Return success
-  ↓
-Mobile App
-  ├── Show success overlay
-  ├── Animate elements
-  ├── Refresh products
-  └── Update UI
-```
-
----
-
-## 📊 Database Schema
-
-### Review Table:
+### ReturnRequest Table:
 ```sql
-review (
-  id: INTEGER PRIMARY KEY,
-  product_id: INTEGER,
-  user_id: INTEGER,
-  order_id: INTEGER,
-  rating: INTEGER (1-5),
-  title: VARCHAR(120),
-  content: TEXT,
-  status: VARCHAR(20) DEFAULT 'published',
-  media: JSON,  -- [{"type": "image", "path": "..."}]
-  verified_purchase: BOOLEAN,
-  created_at: TIMESTAMP
-)
+CREATE TABLE return_request (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    order_item_id INTEGER NOT NULL,
+    buyer_id INTEGER NOT NULL,
+    seller_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    description TEXT,
+    quantity INTEGER DEFAULT 1,
+    images TEXT,  -- JSON array
+    video_filename VARCHAR(255),
+    request_type VARCHAR(20) NOT NULL,
+    status VARCHAR(30) DEFAULT 'submitted',
+    created_at DATETIME,
+    processed_at DATETIME,
+    processed_by INTEGER,
+    refund_amount FLOAT,
+    seller_response_reason TEXT,
+    updated_at DATETIME
+);
 ```
 
-### Media JSON Format:
-```json
-[
-  {
-    "type": "image",
-    "path": "/static/uploads/reviews/20250115_143022_photo1.jpg"
-  },
-  {
-    "type": "video",
-    "path": "/static/uploads/reviews/20250115_143025_video1.mp4"
-  }
-]
-```
+**Status Flow:**
+1. `submitted` - Buyer submitted, waiting for seller
+2. `approved` - Seller approved, refund processed
+3. `rejected` - Seller rejected
 
 ---
 
-## 🎯 Testing Results
+## 🧪 TESTING CHECKLIST
 
-### ✅ All Tests Passing:
+### Mobile App (Buyer):
+- [x] Request return from order details
+- [x] Upload 1 photo + 1 video (mandatory)
+- [ ] See "Return Requested" badge in To Receive tab
+- [ ] Receive notification when seller approves/rejects
+- [ ] Approved items show in Returns tab with "Refunded" status
+- [ ] Rejected items show "Rejected" badge in To Receive
 
-1. **View Ratings** ✅
-   - Product cards show ratings
-   - Product details show ratings
-   - Review counts visible
+### Website (Seller):
+- [x] See pending requests in Returns page
+- [x] View return details (photos, videos, reason)
+- [x] Approve request → Buyer notified
+- [x] Reject request → Buyer notified
+- [x] Completed returns show in "Completed" tab
 
-2. **Submit Review** ✅
-   - Rating selection works
-   - Title/content optional
-   - Submit button functional
-
-3. **Upload Media** ✅
-   - Images upload successfully
-   - Videos upload successfully
-   - Up to 6 files supported
-
-4. **Success Animation** ✅
-   - Smooth animations
-   - Tagalog messages
-   - Auto-dismiss works
-
-5. **Public Visibility** ✅
-   - All buyers see reviews
-   - Ratings update immediately
-   - Review count increases
+### Notifications:
+- [x] Seller receives notification when buyer requests
+- [x] Buyer receives notification when seller approves
+- [x] Buyer receives notification when seller rejects
+- [x] Badge counts update in real-time
 
 ---
 
-## 🔒 Security Features
+## 🚀 NEXT STEPS
 
-### Backend:
-- ✅ JWT authentication required
-- ✅ Role-based access (buyer only)
-- ✅ Verified purchase validation
-- ✅ Rating range validation (1-5)
-- ✅ Secure filename handling
-- ✅ File type validation
-
-### Mobile:
-- ✅ Authentication check
-- ✅ File size limits
-- ✅ Maximum 6 files
-- ✅ Supported formats only
-- ✅ Error handling
+1. **Update orders_screen.dart** - Add Returns tab and status badges
+2. **Update order_detail_screen.dart** - Check return status and disable button
+3. **Test complete flow** - Buyer request → Seller approve/reject → Check notifications
+4. **Deploy** - Restart backend and hot reload mobile app
 
 ---
 
-## 📱 Supported Platforms
+## 📝 SUMMARY
 
-- ✅ Android
-- ✅ iOS
-- ✅ Web (Flask backend)
+**What's Working:**
+- ✅ Backend API (100%)
+- ✅ Seller website (100%)
+- ✅ Mobile return screen (100%)
+- ✅ Notifications (100%)
 
----
+**What Needs Implementation:**
+- ⏳ Mobile orders screen - Returns tab (30 minutes)
+- ⏳ Mobile order details - Return status check (15 minutes)
 
-## 📚 Documentation Created
+**Total Time Needed:** ~45 minutes to complete
 
-1. **RATING_SYSTEM_COMPLETE.md**
-   - Complete overview
-   - Features list
-   - Technical details
-   - Success criteria
-
-2. **RATING_TEST_GUIDE.md**
-   - Testing instructions
-   - Test scenarios
-   - Expected results
-   - Troubleshooting
-
-3. **RATING_API_REFERENCE.md**
-   - API documentation
-   - Request/response formats
-   - Code examples
-   - Security notes
-
-4. **RATING_VISUAL_FLOW.md**
-   - Visual diagrams
-   - User journey
-   - Animation timeline
-   - Data flow
-
-5. **RATING_SUMMARY_TAGALOG.md**
-   - Tagalog guide
-   - Simple explanations
-   - Quick reference
-   - Tips and tricks
-
-6. **QUICK_START.md**
-   - Quick start guide
-   - 3-step setup
-   - Fast testing
-   - Pro tips
-
----
-
-## 🎉 Success Metrics
-
-### Functionality:
-- ✅ 100% working rating system
-- ✅ 100% working media uploads
-- ✅ 100% working animations
-- ✅ 100% public visibility
-
-### User Experience:
-- ✅ Beautiful UI
-- ✅ Smooth animations
-- ✅ Clear feedback
-- ✅ Fast performance
-
-### Code Quality:
-- ✅ Clean code
-- ✅ Proper error handling
-- ✅ Security implemented
-- ✅ Well documented
-
----
-
-## 🚀 Deployment Ready
-
-### Checklist:
-- [x] Backend API working
-- [x] Mobile app working
-- [x] Database schema ready
-- [x] File storage configured
-- [x] Security implemented
-- [x] Testing completed
-- [x] Documentation created
-
-### Status: ✅ PRODUCTION READY
-
----
-
-## 🎊 FINAL STATUS
-
-```
-╔═══════════════════════════════════════╗
-║                                       ║
-║     ⭐ RATING SYSTEM COMPLETE ⭐      ║
-║                                       ║
-║  Backend:        ✅ WORKING           ║
-║  Mobile App:     ✅ WORKING           ║
-║  Ratings:        ✅ WORKING           ║
-║  Media Upload:   ✅ WORKING           ║
-║  Animations:     ✅ WORKING           ║
-║  Visibility:     ✅ WORKING           ║
-║  Documentation:  ✅ COMPLETE          ║
-║  Testing:        ✅ PASSED            ║
-║                                       ║
-║         TAPOS NA! 🎉                  ║
-║                                       ║
-╚═══════════════════════════════════════╝
-```
-
----
-
-## 📞 Support
-
-### For Questions:
-1. Check documentation files
-2. Review test guide
-3. See API reference
-4. View visual flow
-
-### For Issues:
-1. Check error messages
-2. Review logs
-3. Test with simple case
-4. Verify authentication
-
----
-
-## 🎯 Next Steps (Optional)
-
-### Future Enhancements:
-- [ ] Review moderation
-- [ ] Helpful votes
-- [ ] Seller replies
-- [ ] Photo gallery
-- [ ] Filter reviews
-- [ ] Edit reviews
-- [ ] Notifications
-
----
-
-## ✨ Conclusion
-
-**ALL REQUIREMENTS MET:**
-- ✅ Working ratings function
-- ✅ Image/video support
-- ✅ Public visibility
-- ✅ Star display
-- ✅ Beautiful success UI
-- ✅ Website compatibility
-
-**IMPLEMENTATION:** Complete
-**TESTING:** Passed
-**DOCUMENTATION:** Complete
-**STATUS:** Production Ready
-
-**TAPOS NA! KUMPLETO NA! GUMAGANA NA!** 🎉🎊✨
-
----
-
-**Date:** January 2025
-**Version:** 1.0.0
-**Status:** ✅ COMPLETE

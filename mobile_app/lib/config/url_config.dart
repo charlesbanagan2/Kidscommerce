@@ -1,8 +1,8 @@
 /// URL configuration helper for API and asset URLs
 class UrlConfig {
   // Backend server configuration
-  // Use localhost for web/browser access, 192.168.1.20 for mobile devices
-  static const String backendHost = '192.168.1.20';
+  // Use localhost for web/browser access, 172.20.10.12 for mobile devices
+  static const String backendHost = '172.20.10.12';
   static const int backendPort = 5000;
   static const String backendScheme = 'http';
 

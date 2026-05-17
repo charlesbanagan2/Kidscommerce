@@ -107,6 +107,8 @@ def ensure_notification_table_on_startup():
 def before_request():
     """Track request start time for performance monitoring"""
     request.start_time = time.time()
+    # Log all incoming requests
+    print(f"[REQUEST] {request.method} {request.path} from {request.remote_addr}")
 
 # CORS Configuration for Mobile API Access
 @app.after_request
@@ -118,11 +120,11 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     response.headers.add('Access-Control-Allow-Credentials', 'true')
 
-    # Performance monitoring
+    # Performance monitoring - log ALL requests
     if hasattr(request, 'start_time'):
         elapsed = time.time() - request.start_time
-        if elapsed > 0.5:  # Log slow requests (>500ms)
-            print(f"[SLOW] {request.path} took {elapsed:.3f}s")
+        status_emoji = "✅" if response.status_code < 400 else "❌"
+        print(f"{status_emoji} [{response.status_code}] {request.method} {request.path} - {elapsed:.3f}s")
 
     return response
 
@@ -172,21 +174,33 @@ app.config['SUPABASE_SERVICE_KEY'] = os.getenv('SUPABASE_SERVICE_KEY', SUPABASE_
 
 # SQLAlchemy configuration backed by Supabase PostgreSQL.
 SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL', '').strip()
-if not SUPABASE_DB_URL:
-    # Optional fallback: build URI from split Supabase DB vars if provided.
-    supabase_project_ref = SUPABASE_URL.replace('https://', '').split('.')[0]
-    db_user = os.getenv('SUPABASE_DB_USER', 'postgres')
-    db_password = os.getenv('SUPABASE_DB_PASSWORD', '').strip()
-    db_name = os.getenv('SUPABASE_DB_NAME', 'postgres')
-    db_host = os.getenv('SUPABASE_DB_HOST', f"db.{supabase_project_ref}.supabase.co")
-    db_port = os.getenv('SUPABASE_DB_PORT', '6543')
-    if db_password:
-        SUPABASE_DB_URL = f"postgresql+psycopg2://{db_user}:{quote(db_password, safe='')}@{db_host}:{db_port}/{db_name}"
 
+# If no direct DB URL, use REST API only mode
 if not SUPABASE_DB_URL:
-    raise RuntimeError(
-        'Missing SUPABASE_DB_URL (or SUPABASE_DB_PASSWORD with split DB vars) in Supabase env.'
-    )
+    print("[INFO] Using REST API mode (no direct PostgreSQL connection)")
+    # Use SQLite in-memory as dummy database for SQLAlchemy models
+    SUPABASE_DB_URL = 'sqlite:///:memory:'
+else:
+    # Optional fallback: build URI from split Supabase DB vars if provided.
+    if SUPABASE_DB_URL == 'sqlite:///:memory:':
+        pass  # Already set
+    else:
+        supabase_project_ref = SUPABASE_URL.replace('https://', '').split('.')[0]
+        db_user = os.getenv('SUPABASE_DB_USER', 'postgres')
+        db_password = os.getenv('SUPABASE_DB_PASSWORD', '').strip()
+        db_name = os.getenv('SUPABASE_DB_NAME', 'postgres')
+        db_host = os.getenv('SUPABASE_DB_HOST', f"db.{supabase_project_ref}.supabase.co")
+        db_port = os.getenv('SUPABASE_DB_PORT', '6543')
+        if db_password and 'sqlite' not in SUPABASE_DB_URL:
+            SUPABASE_DB_URL = f"postgresql+psycopg2://{db_user}:{quote(db_password, safe='')}@{db_host}:{db_port}/{db_name}"
+
+if not SUPABASE_DB_URL or SUPABASE_DB_URL == 'sqlite:///:memory:':
+    if SUPABASE_DB_URL == 'sqlite:///:memory:':
+        print('[INFO] REST API mode enabled - using in-memory SQLite for models only')
+    else:
+        raise RuntimeError(
+            'Missing SUPABASE_DB_URL (or SUPABASE_DB_PASSWORD with split DB vars) in Supabase env.'
+        )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = SUPABASE_DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -200,7 +214,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_timeout': 10,
     'echo': False,
     'connect_args': {
-        'connect_timeout': 3,
+        'connect_timeout': 5,
         'keepalives': 1,
         'keepalives_idle': 30,
         'keepalives_interval': 10,
@@ -208,6 +222,34 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     }
 }
 db = SQLAlchemy(app)
+
+# Global flag to track database availability
+DB_AVAILABLE = True
+DB_ERROR_MESSAGE = None
+
+def check_database_connection():
+    """Check if database connection is available"""
+    global DB_AVAILABLE, DB_ERROR_MESSAGE
+    try:
+        with app.app_context():
+            db.session.execute('SELECT 1')
+            DB_AVAILABLE = True
+            DB_ERROR_MESSAGE = None
+            return True
+    except Exception as e:
+        DB_AVAILABLE = False
+        DB_ERROR_MESSAGE = str(e)
+        return False
+
+# Check database connection on startup
+try:
+    check_database_connection()
+except Exception as e:
+    print(f"[WARNING] Database connection failed on startup: {e}")
+    DB_AVAILABLE = False
+    DB_ERROR_MESSAGE = str(e)
+
+# Default error handling (use Flask's built-in handlers)
 
 # Dev toggle: when set to '1' use local ORM for buyer/cart/checkout reads/writes
 USE_LOCAL_ORM_FALLBACK = os.environ.get('USE_LOCAL_ORM_FALLBACK', '1') == '1'
@@ -278,6 +320,9 @@ def get_data(table, filters=None, select='*', order=None, limit=None, offset=Non
                 if filters:
                     for k, v in filters.items():
                         if hasattr(Product, k):
+                            if isinstance(v, (list, tuple, set)):
+                                query = query.filter(getattr(Product, k).in_(list(v)))
+                                continue
                             # Handle Supabase-style filters (gte., lte., etc.)
                             if isinstance(v, str) and '.' in v:
                                 parts = v.split('.', 1)
@@ -419,7 +464,10 @@ def get_data(table, filters=None, select='*', order=None, limit=None, offset=Non
         
         if filters:
             for key, value in filters.items():
-                params[key] = f'eq.{value}'
+                if isinstance(value, (list, tuple, set)):
+                    params[key] = f"in.({','.join(str(item) for item in value)})"
+                else:
+                    params[key] = f'eq.{value}'
         
         if order:
             params['order'] = order
@@ -943,7 +991,10 @@ def count_data(table, filters=None):
                 if filters:
                     for k, v in filters.items():
                         if hasattr(Product, k):
-                            query = query.filter(getattr(Product, k) == v)
+                            if isinstance(v, (list, tuple, set)):
+                                query = query.filter(getattr(Product, k).in_(list(v)))
+                            else:
+                                query = query.filter(getattr(Product, k) == v)
                 return query.count()
             if table == 'category':
                 query = Category.query
@@ -974,7 +1025,10 @@ def count_data(table, filters=None):
         
         if filters:
             for key, value in filters.items():
-                params[key] = f'eq.{value}'
+                if isinstance(value, (list, tuple, set)):
+                    params[key] = f"in.({','.join(str(item) for item in value)})"
+                else:
+                    params[key] = f'eq.{value}'
         
         response = requests.head(url, headers=headers, params=params, timeout=30)
         
@@ -1361,31 +1415,79 @@ def inject_cart_count():
 
 
 # --- Helper function to get user avatar URL ---
+def _avatar_static_filename(profile_picture: str) -> str:
+    """Normalize stored profile_picture values to a static filename."""
+    pic = str(profile_picture or '').strip().replace('\\', '/')
+    if pic.startswith('/static/'):
+        pic = pic[len('/static/'):]
+    elif pic.startswith('static/'):
+        pic = pic[len('static/'):]
+    if pic.startswith('uploads/'):
+        return pic
+    if 'user_avatars/' in pic or 'admin_avatars/' in pic:
+        return f"uploads/{pic.split('uploads/')[-1].lstrip('/')}"
+    return f"uploads/user_avatars/{os.path.basename(pic)}"
+
+
 def get_user_avatar_url(user_id, user_role=None):
-    """Get avatar URL with database check for profile_picture"""
+    """Get avatar URL with database check for profile_picture."""
     try:
-        # Check if user has custom profile picture in database
+        from flask import has_request_context
+        base_url = request.url_root.rstrip('/') if has_request_context() else ''
+
         user = db.session.get(User, user_id)
         if user and user.profile_picture:
-            # Return absolute URL for API consumers
-            if user.profile_picture.startswith('http'):
-                return user.profile_picture
-            # Convert relative path to absolute URL
-            base_url = request.url_root.rstrip('/')
-            return f"{base_url}{url_for('static', filename=user.profile_picture.lstrip('/'))}"
-        
-        # Fallback to default avatar based on role
-        base_url = request.url_root.rstrip('/')
-        if user_role == 'admin':
-            return f"{base_url}{url_for('static', filename=f'uploads/admin_avatars/admin_avatar_{user_id}.png')}"
-        return f"{base_url}{url_for('static', filename=f'uploads/user_avatars/user_avatar_{user_id}.png')}"
-    except:
-        # Fallback to default avatar
+            pic = str(user.profile_picture).strip()
+            if pic.startswith('http://') or pic.startswith('https://'):
+                return pic
+            static_name = _avatar_static_filename(pic)
+            rel_url = url_for('static', filename=static_name)
+            return f"{base_url}{rel_url}" if base_url else rel_url
+
+        static_name = (
+            f"uploads/admin_avatars/admin_avatar_{user_id}.png"
+            if user_role == 'admin'
+            else f"uploads/user_avatars/user_avatar_{user_id}.png"
+        )
+        avatar_path = os.path.join(app.root_path, 'static', static_name.replace('/', os.sep))
+        if not os.path.exists(avatar_path):
+            static_name = 'user_avatar.png'
+        rel_url = url_for('static', filename=static_name)
+        return f"{base_url}{rel_url}" if base_url else rel_url
+    except Exception:
         try:
-            base_url = request.url_root.rstrip('/')
-            return f"{base_url}{url_for('static', filename='user_avatar.png')}"
-        except:
-            return url_for('static', filename='user_avatar.png')
+            from flask import has_request_context
+            base_url = request.url_root.rstrip('/') if has_request_context() else ''
+            rel_url = url_for('static', filename='user_avatar.png')
+            return f"{base_url}{rel_url}" if base_url else rel_url
+        except Exception:
+            return '/static/user_avatar.png'
+
+
+def _save_user_profile_avatar(user: 'User', file_storage) -> str:
+    """Save a square PNG avatar for any user role and return its public URL."""
+    if not file_storage or not getattr(file_storage, 'filename', None):
+        raise ValueError('No image file provided')
+    ext = (file_storage.filename.rsplit('.', 1)[-1].lower() if '.' in file_storage.filename else '')
+    if ext not in ALLOWED_IMAGE_EXT:
+        raise ValueError('Unsupported image type. Please upload JPG or PNG.')
+
+    avatar_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'user_avatars')
+    os.makedirs(avatar_dir, exist_ok=True)
+
+    img = Image.open(file_storage.stream).convert('RGBA')
+    w, h = img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    img = img.crop((left, top, left + side, top + side)).resize((256, 256), Image.LANCZOS)
+
+    final_name = f'user_avatar_{user.id}.png'
+    img.save(os.path.join(avatar_dir, final_name), format='PNG', optimize=True)
+
+    user.profile_picture = f'uploads/user_avatars/{final_name}'
+    db.session.commit()
+    return get_user_avatar_url(user.id, user.role)
 
 @app.context_processor
 def avatar_helper():
@@ -1527,9 +1629,6 @@ socketio = SocketIO(
     async_mode='threading',
     allow_upgrades=False,
 )
-
-# Register unified chat system
-register_unified_chat_api(app, socketio, db)
 
 # Register product chat system (buyer-seller product inquiries)
 register_product_chat_api(app, db, socketio, token_required)
@@ -1818,6 +1917,7 @@ def _ensure_schema_migrations():
         # Fix sequence issues for chat tables
         fix_sequence_for_table('rider_chat_message')
         fix_sequence_for_table('store_chat_message')
+        fix_sequence_for_table('return_request')
     except Exception:
         # Avoid blocking requests if migration check fails
         pass
@@ -2432,7 +2532,10 @@ def credit_wallet(user_id: int, amount: float, source: str, order_id: int = None
     insert_data('wallet_transaction', tx_data)
 
 
-def get_user_earnings(user_id: int, period: str = 'today') -> float:
+RIDER_WALLET_SOURCES = ('order_commission', 'order_delivery')
+
+
+def get_user_earnings(user_id: int, period: str = 'today', sources=None) -> float:
     """Return sum of credits for a user within the period using optimized SQL query."""
     from sqlalchemy import func
 
@@ -2445,6 +2548,8 @@ def get_user_earnings(user_id: int, period: str = 'today') -> float:
         WalletTransaction.user_id == user_id,
         WalletTransaction.type == 'credit'
     )
+    if sources:
+        query = query.filter(WalletTransaction.source.in_(sources))
 
     # Add date filter in SQL instead of Python
     if period == 'today':
@@ -2538,37 +2643,124 @@ def _admins():
     return admins if admins else []
 
 
+def _entity_id(entity) -> int:
+    if isinstance(entity, dict):
+        return entity.get('id')
+    return getattr(entity, 'id', None)
+
+
 def _order_already_commissioned(order_id: int) -> bool:
     """Check if order has already been commissioned (Supabase version)."""
     transactions = get_data('wallet_transaction', filters={'order_id': order_id, 'source': 'order_commission'})
     return transactions is not None and len(transactions) > 0
 
 
+def _wallet_credit_exists(user_id: int, order_id: int, source: str) -> bool:
+    if not user_id or not order_id or not source:
+        return False
+    try:
+        return db.session.query(WalletTransaction.id).filter_by(
+            user_id=int(user_id),
+            order_id=int(order_id),
+            source=source,
+            type='credit',
+        ).first() is not None
+    except Exception:
+        transactions = get_data(
+            'wallet_transaction',
+            filters={
+                'user_id': user_id,
+                'order_id': order_id,
+                'source': source,
+                'type': 'credit',
+            },
+        )
+        return bool(transactions)
+
+
+def _credit_wallet_once(user_id: int, amount: float, source: str, order_id: int) -> bool:
+    if not user_id or not amount or amount <= 0:
+        return False
+    if _wallet_credit_exists(user_id, order_id, source):
+        return False
+    credit_wallet(user_id, amount, source, order_id)
+    return True
+
+
+def _order_rider_id(order: 'Order'):
+    return (
+        getattr(order, 'picked_up_by', None)
+        or getattr(order, 'delivered_by', None)
+        or getattr(order, 'rider_id', None)
+    )
+
+
+def _release_rider_earning(order: 'Order') -> bool:
+    """Release the delivery earning only, used when a delivered order is later refunded."""
+    rider_id = _order_rider_id(order)
+    if not rider_id:
+        return False
+    delivery_fee = float(order.delivery_fee) if hasattr(order, 'delivery_fee') and order.delivery_fee else 36.0
+    released = _credit_wallet_once(rider_id, delivery_fee, 'order_commission', order.id)
+    if released:
+        try:
+            order.rider_earnings = delivery_fee
+        except Exception:
+            pass
+        db.session.commit()
+    return released
+
+
+def _finalize_rider_earning_after_return(order: 'Order', refund_approved: bool) -> bool:
+    """Release rider delivery fee after return/refund is approved or rejected."""
+    if not order:
+        return False
+    if refund_approved:
+        return _release_rider_earning(order)
+    _release_commissions(order)
+    return True
+
+
 def _release_commissions(order: 'Order'):
     """Release commissions once buyer confirms receipt (status: completed). Safe to call idempotently."""
-    if _order_already_commissioned(order.id):
-        return
     total = float(order.total_amount)
+    released_any = False
+
     # Rider
-    if order.picked_up_by:
+    rider_id = _order_rider_id(order)
+    if rider_id:
         delivery_fee = float(order.delivery_fee) if hasattr(order, 'delivery_fee') and order.delivery_fee else 36.0
-        credit_wallet(order.picked_up_by, delivery_fee, 'order_commission', order.id)
+        if _credit_wallet_once(rider_id, delivery_fee, 'order_commission', order.id):
+            released_any = True
+            try:
+                order.rider_earnings = delivery_fee
+            except Exception:
+                pass
+
     # Sellers: proportional by item subtotal
     seller_totals = {}
     for it in order.items:
-        seller_totals.setdefault(it.product.seller_id, 0.0)
-        seller_totals[it.product.seller_id] += float(it.price_at_time) * it.quantity
+        if it.product and it.product.seller_id:
+            seller_totals.setdefault(it.product.seller_id, 0.0)
+            seller_totals[it.product.seller_id] += float(it.price_at_time) * it.quantity
     seller_total_amount = sum(seller_totals.values()) or 0.0
     if seller_total_amount > 0:
         for sid, sub in seller_totals.items():
-            credit_wallet(sid, (sub / seller_total_amount) * (total * SELLER_EARNING_RATE), 'order_commission', order.id)
+            amount = (sub / seller_total_amount) * (total * SELLER_EARNING_RATE)
+            if _credit_wallet_once(sid, amount, 'order_commission', order.id):
+                released_any = True
+
     # Admins
     admins = _admins()
     if admins:
         admin_amount_each = (total * ADMIN_EARNING_RATE) / len(admins)
         for a in admins:
-            credit_wallet(a.id, admin_amount_each, 'order_commission', order.id)
-    db.session.commit()
+            admin_id = _entity_id(a)
+            if _credit_wallet_once(admin_id, admin_amount_each, 'order_commission', order.id):
+                released_any = True
+
+    if released_any:
+        db.session.commit()
 
 
 # Chat message model
@@ -3914,19 +4106,54 @@ def ensure_seller_application_background_column():
 def fix_sequence_for_table(table_name):
     """Fix PostgreSQL sequence for a table when it gets out of sync."""
     try:
+        last_key = f'_sequence_fixed_{table_name}'
+        last_fixed = app.config.get(last_key)
+        now = time.time()
+        if last_fixed and (now - last_fixed) < 300:
+            return
+
         # Only run for PostgreSQL
         if 'postgresql' not in str(db.engine.url).lower():
             return
-        
-        sequence_name = f"{table_name}_id_seq"
-        sql = f"SELECT setval('{sequence_name}', (SELECT COALESCE(MAX(id), 0) FROM {table_name}) + 1, false)"
-        db.session.execute(_sa_text(sql))
+
+        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', table_name):
+            raise ValueError(f'Invalid table name: {table_name}')
+
+        sql = (
+            "SELECT setval(pg_get_serial_sequence(:table_name, 'id'), "
+            f"(SELECT COALESCE(MAX(id), 0) FROM {table_name}) + 1, false)"
+        )
+        db.session.execute(_sa_text(sql), {'table_name': table_name})
         db.session.commit()
+        app.config[last_key] = now
         print(f"[OK] Fixed sequence for {table_name}")
     except Exception as e:
         db.session.rollback()
         print(f"[WARN] Could not fix sequence for {table_name}: {e}")
         pass
+
+def force_fix_sequence_for_table(table_name):
+    """Immediately fix a PostgreSQL serial sequence for request-time recovery."""
+    try:
+        if 'postgresql' not in str(db.engine.url).lower():
+            return False
+
+        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', table_name):
+            raise ValueError(f'Invalid table name: {table_name}')
+
+        sql = (
+            "SELECT setval(pg_get_serial_sequence(:table_name, 'id'), "
+            f"(SELECT COALESCE(MAX(id), 0) FROM {table_name}) + 1, false)"
+        )
+        db.session.execute(_sa_text(sql), {'table_name': table_name})
+        db.session.commit()
+        app.config[f'_sequence_fixed_{table_name}'] = time.time()
+        print(f"[OK] Fixed sequence for {table_name}")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"[WARN] Could not fix sequence for {table_name}: {e}")
+        return False
 
 @app.route('/')
 def index():
@@ -3935,16 +4162,16 @@ def index():
     Optimized with eager loading to prevent N+1 queries.
     """
     from sqlalchemy.orm import joinedload
-    
+
     # Get all active products with eager loading - ONE query instead of many
     products = Product.query.options(
         joinedload(Product.seller),
         joinedload(Product.category)
-    ).filter_by(status='active').order_by(Product.created_at.desc()).limit(24).all()
-    
+    ).filter(Product.status.in_(['approved', 'active'])).order_by(Product.created_at.desc()).limit(24).all()
+
     # Get hero slides for homepage banner
     hero_slides = HeroSlide.query.filter_by(is_active=True).order_by(HeroSlide.created_at.asc()).limit(6).all()
-    
+
     # Get unique categories
     all_categories = Category.query.filter_by(status='active').order_by(Category.name).all()
     seen_names = set()
@@ -3953,7 +4180,7 @@ def index():
         if cat.name not in seen_names:
             seen_names.add(cat.name)
             categories.append(cat)
-    
+
     return render_template('buyer_home.html',
         products=products,
         hero_slides=hero_slides,
@@ -6834,11 +7061,15 @@ def cancel_order_admin(order_id):
 def update_order_status_admin(order_id, status):
     order = Order.query.get_or_404(order_id)
     
-    valid_statuses = ['pending', 'processing', 'ready_for_pickup', 'to_ship', 'delivered', 'completed', 'returned', 'cancelled']
+    valid_statuses = ['pending', 'processing', 'ready_for_pickup', 'to_ship', 'delivered', 'completed', 'return_requested', 'returned', 'refunded', 'cancelled']
     if status in valid_statuses:
         order.status = status
         order.updated_at = datetime.utcnow()
         db.session.commit()
+        if status == 'completed':
+            _release_commissions(order)
+        elif status == 'refunded':
+            _release_rider_earning(order)
         log_admin_action('Order Status Updated', f'Order ID: {order.id} status changed to {status}')
         flash(f'Order #{order.id} status updated to {status}.', 'success')
     
@@ -8563,7 +8794,7 @@ def seller_orders():
         elif status == 'delivered':
             query = query.filter(Order.status == 'delivered')
         elif status == 'completed':
-            query = query.filter(Order.status.in_(['completed', 'delivered']))
+            query = query.filter(Order.status == 'completed')
         elif status == 'returns':
             # Orders with return requests
             query = query.join(ReturnRequest).filter(ReturnRequest.status != 'rejected')
@@ -8617,7 +8848,7 @@ def seller_orders():
             pending_orders += 1
         elif order.status == 'processing':
             processing_orders += 1
-        elif order.status in ['completed', 'delivered']:
+        elif order.status == 'completed':
             completed_orders += 1
     
     # Compute per-order seller summaries and "new" status for Manage Orders tabs
@@ -8654,8 +8885,8 @@ def seller_orders():
         order.is_completed_tab = (order.status == 'completed')
         
         # Returns tab: orders with return requests
-        completed_returns = [rr for rr in order.return_requests if rr.status != 'rejected']
-        order.is_returns_tab = len(completed_returns) > 0
+        active_returns = [rr for rr in order.return_requests if rr.status != 'rejected']
+        order.is_returns_tab = order.status in ['return_requested', 'refunded', 'returned'] or len(active_returns) > 0
 
     # Unread chat count for sidebar badge
     unread_chat_count = StoreChatMessage.query.filter_by(seller_id=seller_id, is_read=False, sender_role='buyer').count()
@@ -10059,11 +10290,13 @@ def process_order():
     payment_method = request.form['payment_method']
     coupon_code = request.form.get('coupon_code', '').strip()
 
+    default_address = None
     address_id = request.form.get('address_id')
     if address_id:
         selected_address = Address.query.filter_by(id=address_id, user_id=session['user_id']).first()
         if selected_address:
             shipping_address = selected_address.full_address
+            default_address = selected_address
         else:
             flash('Invalid address selected.', 'error')
             return redirect(url_for('checkout', ids=raw_ids))
@@ -10072,6 +10305,7 @@ def process_order():
         if not shipping_address:
             flash('Please select or enter a shipping address.', 'error')
             return redirect(url_for('checkout', ids=raw_ids))
+        default_address = Address.query.filter_by(user_id=session['user_id'], is_default=True).first()
 
     for cart_item in cart_items:
         if getattr(cart_item.product, 'status', 'active') != 'active':
@@ -11494,7 +11728,9 @@ def buyer_confirm_received(order_id):
 
     # Optional: notify admins as well
     for a in _admins():
-        push_notification(a.id, f'Order #{order.id} completed by buyer. Commissions released.')
+        admin_id = _entity_id(a)
+        if admin_id:
+            push_notification(admin_id, f'Order #{order.id} completed by buyer. Commissions released.')
 
     flash('Order confirmed. Thank you!', 'success')
     return redirect(url_for('my_orders'))
@@ -12667,10 +12903,12 @@ def seller_chat_rider(rider_id):
     
     rider_profile = DeliveryPersonnel.query.filter_by(user_id=rider_id).first()
     order = Order.query.get(order_id) if order_id else None
+    rider_avatar_url = get_user_avatar_url(rider.id, rider.role)
     
     return render_template('seller/rider_chat.html', 
                          chat_messages=chat_messages, 
-                         rider=rider, 
+                         rider=rider,
+                         rider_avatar_url=rider_avatar_url, 
                          rider_profile=rider_profile,
                          order=order,
                          seller_id=seller_id)
@@ -12716,12 +12954,16 @@ def seller_inbox():
         
         buyers = []
         for row in buyers_result:
+            peer_id = row[0]
+            peer_role = row[4] or 'buyer'
+            avatar_url = get_user_avatar_url(peer_id, peer_role)
             buyer_obj = type('obj', (object,), {
-                'id': row[0],
+                'id': peer_id,
                 'first_name': row[1],
                 'last_name': row[2],
-                'profile_picture': row[3] or '/static/user_avatar.png',
-                'role': row[4],
+                'profile_picture': avatar_url,
+                'avatar': avatar_url,
+                'role': peer_role,
                 'unread_count': row[5] or 0,
                 'last_message': type('obj', (object,), {
                     'message': row[6],
@@ -12769,20 +13011,32 @@ def seller_inbox():
             """), {'seller_id': seller_id, 'buyer_id': buyer_id})
             
             for row in messages_result:
+                sender_id = row[1]
+                sender_user = db.session.get(User, sender_id)
+                sender_role = (
+                    'seller' if sender_id == seller_id
+                    else (sender_user.role if sender_user else 'buyer')
+                )
+                sender_avatar = get_user_avatar_url(
+                    sender_id,
+                    sender_user.role if sender_user else sender_role,
+                )
                 msg_obj = type('obj', (object,), {
                     'id': row[0],
-                    'sender_id': row[1],
+                    'sender_id': sender_id,
                     'buyer_id': buyer_id,
                     'seller_id': seller_id,
                     'message': row[3],
                     'product_id': row[4],
                     'is_read': row[5],
                     'created_at': row[6],
-                    'sender_role': 'seller' if row[1] == seller_id else 'buyer',
+                    'sender_role': sender_role,
+                    'sender_avatar': sender_avatar,
                     'buyer': type('obj', (object,), {
                         'first_name': row[7] if row[1] == buyer_id else '',
                         'last_name': row[8] if row[1] == buyer_id else '',
-                        'profile_picture': row[9] if row[1] == buyer_id else '/static/user_avatar.png'
+                        'profile_picture': sender_avatar if row[1] == buyer_id else get_user_avatar_url(buyer_id, 'buyer'),
+                        'avatar': sender_avatar if row[1] == buyer_id else get_user_avatar_url(buyer_id, 'buyer'),
                     })(),
                     'seller': type('obj', (object,), {
                         'first_name': row[7] if row[1] == seller_id else '',
@@ -13979,7 +14233,7 @@ def seller_returns_index():
     # Get completed returns/refunds for this seller - only fully completed ones
     completed_returns = ReturnRequest.query.filter(
         ReturnRequest.seller_id == seller_id,
-        ReturnRequest.status.in_(['completed', 'refunded'])
+        ReturnRequest.status.in_(['completed', 'refunded', 'rejected'])
     ).order_by(ReturnRequest.updated_at.desc()).all()
 
     # Get statistics
@@ -14009,7 +14263,65 @@ def seller_return_detail(return_id):
         rr.status = 'waiting_seller_approval'
         db.session.commit()
     
-    return render_template('seller/return_detail.html', rr=rr)
+    def _parse_media_list(value):
+        if not value:
+            return []
+        if isinstance(value, list):
+            return [str(v).strip() for v in value if str(v).strip()]
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            if raw.startswith('['):
+                try:
+                    decoded = json.loads(raw)
+                    if isinstance(decoded, list):
+                        return [str(v).strip() for v in decoded if str(v).strip()]
+                except Exception:
+                    pass
+            return [raw]
+        return []
+
+    def _to_media_url(path):
+        if not path:
+            return None
+        p = str(path).strip()
+        if not p:
+            return None
+        if p.startswith('http://') or p.startswith('https://'):
+            return p
+        if p.startswith('/static/'):
+            return p
+        if p.startswith('static/'):
+            return f'/{p}'
+        clean = p.lstrip('/')
+        if clean.startswith('uploads/'):
+            return url_for('static', filename=clean)
+        return url_for('static', filename=f'uploads/{clean}')
+
+    rr_image_urls = [_to_media_url(v) for v in _parse_media_list(rr.images)]
+    rr_image_urls = [u for u in rr_image_urls if u]
+
+    rr_video_urls = [_to_media_url(v) for v in _parse_media_list(rr.video_filename)]
+    rr_video_urls = [u for u in rr_video_urls if u]
+
+    product = rr.order_item.product if rr.order_item and rr.order_item.product else None
+    if not product and rr.order_item and rr.order_item.product_id:
+        product = db.session.get(Product, rr.order_item.product_id)
+
+    product_name = product.name if product else 'Product unavailable'
+    product_image_url = None
+    if product and product.image_filename:
+        product_image_url = _to_media_url(product.image_filename)
+
+    return render_template(
+        'seller/return_detail.html',
+        rr=rr,
+        rr_image_urls=rr_image_urls,
+        rr_video_urls=rr_video_urls,
+        rr_product_name=product_name,
+        rr_product_image_url=product_image_url
+    )
 
 @app.route('/seller/returns/<int:return_id>/approve', methods=['POST'])
 @seller_required
@@ -14019,49 +14331,30 @@ def seller_return_approve(return_id):
         flash('Not allowed.', 'danger')
         return redirect(url_for('seller_returns_index'))
     
-    if rr.request_type == 'refund':
-        # REFUND ONLY - No rider involvement
-        rr.status = 'refund_approved'
-        # Process refund immediately
-        try:
-            amount = float(rr.order_item.price_at_time) * int(rr.order_item.quantity)
+    # As requested: when seller accepts, set item to refunded and move to returns tab.
+    rr.status = 'refunded'
+    rr.processed_at = datetime.utcnow()
+    rr.processed_by = session['user_id']
+
+    try:
+        amount = float(rr.order_item.price_at_time or 0) * int(rr.quantity or 1)
+        if amount > 0:
             credit_wallet(rr.buyer_id, amount, 'return_refund', rr.order_id)
             rr.refund_amount = amount
-            rr.status = 'refunded'
-            # Update order status
-            rr.order.status = 'refunded'
-            rr.order.updated_at = datetime.utcnow()
-        except Exception as e:
-            app.logger.error(f"Refund processing error: {e}")
-            rr.status = 'refund_processing'
-        
-        db.session.commit()
-        push_notification(rr.buyer_id, f'Refund for RR-{rr.id} has been approved and processed.')
-        _emit_return_update(rr)
-        
-    else:  # rr.request_type == 'return'
-        # RETURN ITEM - Rider involvement required
-        rr.status = 'return_approved'
-        # Update order status to refunded
-        rr.order.status = 'refunded'
-        rr.order.updated_at = datetime.utcnow()
-        # Create rider pickup task
-        buyer_addr = rr.order.shipping_address
-        seller_addr = None
-        try:
-            appq = SellerApplication.query.filter_by(user_id=rr.seller_id, status='approved').first()
-            seller_addr = appq.business_address if appq and appq.business_address else ''
-        except Exception:
-            seller_addr = ''
-        task = ReturnPickup(return_request_id=rr.id, buyer_address=buyer_addr, seller_address=seller_addr, status='available')
-        db.session.add(task)
-        db.session.commit()
-        push_notification(rr.buyer_id, f'Return request RR-{rr.id} approved. A rider will pick up your item.')
-        try:
-            socketio.emit('return_pickup_available', {'return_id': rr.id}, room='riders')
-        except Exception:
-            pass
-        _emit_return_update(rr)
+    except Exception as e:
+        app.logger.error(f"Refund processing error: {e}")
+
+    rr.order.status = 'refunded'
+    rr.order.payment_status = 'refunded'
+    rr.order.updated_at = datetime.utcnow()
+
+    db.session.commit()
+    rider_earning_released = _finalize_rider_earning_after_return(rr.order, refund_approved=True)
+    push_notification(rr.buyer_id, f'Return request RR-{rr.id} has been approved and refunded.')
+    rider_id = _order_rider_id(rr.order)
+    if rider_id and rider_earning_released:
+        push_notification(rider_id, f'Order #{rr.order_id} delivery earnings have been released.')
+    _emit_return_update(rr)
     
     return redirect(url_for('seller_return_detail', return_id=return_id))
 
@@ -14074,6 +14367,8 @@ def seller_return_reject(return_id):
         return redirect(url_for('seller_returns_index'))
     rr.status = 'rejected'
     rr.seller_response_reason = (request.form.get('seller_reason') or 'No reason provided.').strip()
+    rr.processed_at = datetime.utcnow()
+    rr.processed_by = session['user_id']
     
     # Keep order status as completed when return is rejected
     if rr.order.status != 'completed':
@@ -14081,8 +14376,12 @@ def seller_return_reject(return_id):
         rr.order.updated_at = datetime.utcnow()
     
     db.session.commit()
+    _finalize_rider_earning_after_return(rr.order, refund_approved=False)
         
     push_notification(rr.buyer_id, f'Return request RR-{rr.id} was rejected. Reason: {rr.seller_response_reason}')
+    rider_id = _order_rider_id(rr.order)
+    if rider_id:
+        push_notification(rider_id, f'Order #{rr.order_id} completed. Your delivery earnings have been released.')
     _emit_return_update(rr)
     return redirect(url_for('seller_return_detail', return_id=return_id))
 
@@ -14130,11 +14429,8 @@ def seller_return_complete(return_id):
     except Exception:
         app.logger.exception('Failed to credit refund for RR-%s', rr.id)
     
-    # Update status to completed
-    if rr.request_type == 'return':
-        rr.status = 'return_refunded'
-    else:
-        rr.status = 'refunded'
+    # Update status to final refunded state
+    rr.status = 'refunded'
     
     # Update order status
     rr.order.status = 'refunded'
@@ -14142,8 +14438,12 @@ def seller_return_complete(return_id):
     rr.order.updated_at = datetime.utcnow()
     
     db.session.commit()
+    rider_earning_released = _finalize_rider_earning_after_return(rr.order, refund_approved=True)
     _emit_return_update(rr)
     push_notification(rr.buyer_id, f'Refund for RR-{rr.id} completed. Amount credited to your wallet.')
+    rider_id = _order_rider_id(rr.order)
+    if rider_id and rider_earning_released:
+        push_notification(rider_id, f'Order #{rr.order_id} delivery earnings have been released.')
     try:
         user = db.session.get(User, rr.buyer_id)
         _send_refund_email(user, amount, rr.order_id)
@@ -14560,6 +14860,8 @@ ARCH_ORDER_STATUSES = {
     'picked_up',
     'out_for_delivery',
     'delivered',
+    'return_requested',
+    'refunded',
     'cancelled',
 }
 
@@ -14585,6 +14887,8 @@ BUYER_STATUS_LABELS = {
     'picked_up': 'Out for Delivery',
     'out_for_delivery': 'Out for Delivery',
     'delivered': 'Delivered',
+    'return_requested': 'Return & Refund Requested',
+    'refunded': 'Refunded',
     'cancelled': 'Cancelled',
 }
 
@@ -14613,19 +14917,30 @@ def _normalize_status(status_value):
 
 def _serialize_user_api_dict(user):
     """Serialize user dict from Supabase for API response"""
+    uid = user.get('id')
+    role = user.get('role')
+    profile_image = None
+    if uid:
+        try:
+            profile_image = get_user_avatar_url(uid, role)
+        except Exception:
+            profile_image = user.get('profile_picture') or user.get('profile_image')
     return {
-        'id': user.get('id'),
+        'id': uid,
         'name': f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
         'first_name': user.get('first_name'),
         'last_name': user.get('last_name'),
         'email': user.get('email'),
         'phone': user.get('phone'),
         'address': user.get('address'),
-        'role': user.get('role'),
+        'role': role,
         'status': user.get('status'),
+        'profile_image': profile_image,
+        'profile_picture': profile_image,
     }
 
 def _serialize_user_api(user):
+    profile_image = get_user_avatar_url(user.id, user.role)
     return {
         'id': user.id,
         'name': f'{user.first_name} {user.last_name}'.strip(),
@@ -14636,6 +14951,8 @@ def _serialize_user_api(user):
         'address': user.address,
         'role': user.role,
         'status': user.status,
+        'profile_image': profile_image,
+        'profile_picture': profile_image,
     }
 
 def _serialize_product_api_dict(product):
@@ -15305,7 +15622,7 @@ def api_products():
         in_stock = request.args.get('in_stock')
 
         # Build filters for Supabase
-        filters = {'status': 'active'}
+        filters = {'status': ['approved', 'active']}
         if seller_id:
             filters['seller_id'] = seller_id
         
@@ -15805,11 +16122,14 @@ def api_user_profile():
     """Get/update current user profile via non-versioned API for Flutter compatibility (Supabase version)."""
     try:
         user_id = request.current_user_id
+        orm_user = db.session.get(User, user_id)
         user = get_data_by_id('user', user_id)
-        if not user:
+        if not user and not orm_user:
             return jsonify({'error': 'User not found'}), 404
 
         if request.method == 'GET':
+            if orm_user:
+                return jsonify({'success': True, 'user': _serialize_user_api(orm_user)})
             return jsonify({'success': True, 'user': _serialize_user_api_dict(user)})
 
         data = request.get_json(silent=True) or {}
@@ -15824,10 +16144,19 @@ def api_user_profile():
             update_data['address'] = str(data.get('address') or '').strip()
 
         if update_data:
-            updated_user = update_data_by_id('user', user_id, update_data)
-            if updated_user:
-                user = updated_user
+            if orm_user:
+                for key, value in update_data.items():
+                    if hasattr(orm_user, key):
+                        setattr(orm_user, key, value)
+                db.session.commit()
+            else:
+                updated_user = update_data_by_id('user', user_id, update_data)
+                if updated_user:
+                    user = updated_user
 
+        if orm_user:
+            db.session.refresh(orm_user)
+            return jsonify({'success': True, 'user': _serialize_user_api(orm_user)})
         return jsonify({'success': True, 'user': _serialize_user_api_dict(user)})
     except Exception as e:
         app.logger.error(f'/api/user/profile error: {e}')
@@ -15844,10 +16173,10 @@ def api_rider_earnings():
         rider_id = request.current_user_id
         return jsonify({
             'success': True,
-            'total': get_user_earnings(rider_id, None),
-            'today': get_user_earnings(rider_id, 'today'),
-            'week': get_user_earnings(rider_id, 'week'),
-            'month': get_user_earnings(rider_id, 'month'),
+            'total': get_user_earnings(rider_id, None, RIDER_WALLET_SOURCES),
+            'today': get_user_earnings(rider_id, 'today', RIDER_WALLET_SOURCES),
+            'week': get_user_earnings(rider_id, 'week', RIDER_WALLET_SOURCES),
+            'month': get_user_earnings(rider_id, 'month', RIDER_WALLET_SOURCES),
         })
     except Exception as e:
         app.logger.error(f'/api/rider/earnings error: {e}')
@@ -15891,14 +16220,12 @@ def api_product_reviews(product_id):
             user = get_data_by_id('user', review.get('user_id'))
             user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip() if user else 'Anonymous'
             
-            # Get user avatar
             user_avatar = None
             if user and user.get('id'):
-                user_role = user.get('role', 'buyer')
-                if user_role == 'admin':
-                    user_avatar = f"/static/uploads/admin_avatars/admin_avatar_{user.get('id')}.png"
-                else:
-                    user_avatar = f"/static/uploads/user_avatars/user_avatar_{user.get('id')}.png"
+                try:
+                    user_avatar = get_user_avatar_url(user.get('id'), user.get('role', 'buyer'))
+                except Exception:
+                    user_avatar = user.get('profile_picture')
             
             media = review.get('media') or []
             # Parse media if it's a JSON string
@@ -16378,6 +16705,16 @@ def api_update_order_status():
         updated_order = update_data_by_id('order', order_id, update_data)
         if updated_order:
             order = updated_order
+
+        try:
+            order_orm = db.session.get(Order, order_id)
+            if order_orm:
+                if new_status == 'completed':
+                    _release_commissions(order_orm)
+                elif new_status == 'refunded':
+                    _release_rider_earning(order_orm)
+        except Exception as e:
+            app.logger.error(f'Failed to release earnings for order {order_id}: {e}')
         
         return jsonify({'success': True, 'order': _serialize_order_api_dict(order)})
     except Exception as e:
@@ -16797,7 +17134,7 @@ def api_v1_products():
         sort_order = request.args.get('sort_order', 'desc')
         
         # Build filters
-        filters = {'status': 'active'}
+        filters = {'status': ['approved', 'active']}
         if category_id:
             filters['category_id'] = category_id
         if subcategory_id:
@@ -18505,6 +18842,16 @@ def api_v1_update_order_status():
                 update_fields['rider_id'] = request.current_user_id
 
         updated_order = update_data_by_id('order', order_id, update_fields)
+
+        try:
+            order_orm = db.session.get(Order, order_id)
+            if order_orm:
+                if new_status == 'completed':
+                    _release_commissions(order_orm)
+                elif new_status == 'refunded':
+                    _release_rider_earning(order_orm)
+        except Exception as e:
+            app.logger.error(f'Failed to release earnings for order {order_id}: {e}')
         
         # Use Shopee-style notifications based on status changes
         try:
@@ -19536,9 +19883,8 @@ def buyer_get_orders_by_status():
         to_ship = [o for o in all_orders if o.get('status') in ['processing', 'ready_for_pickup']]
         to_receive = [o for o in all_orders if o.get('status') in ['to_ship', 'in_transit', 'delivered']]
         completed = [o for o in all_orders if o.get('status') == 'completed']
+        returns = [o for o in all_orders if o.get('status') in ['return_requested', 'returned', 'refunded']]
         cancelled = [o for o in all_orders if o.get('status') == 'cancelled']
-        
-        # Returns are handled separately via returns endpoint
         
         return jsonify({
             'success': True,
@@ -19546,12 +19892,14 @@ def buyer_get_orders_by_status():
             'to_ship': [_serialize_order_api_dict(order) for order in to_ship],
             'to_receive': [_serialize_order_api_dict(order) for order in to_receive],
             'completed': [_serialize_order_api_dict(order) for order in completed],
+            'returns': [_serialize_order_api_dict(order) for order in returns],
             'cancelled': [_serialize_order_api_dict(order) for order in cancelled],
             'counts': {
                 'to_pay': len(to_pay),
                 'to_ship': len(to_ship),
                 'to_receive': len(to_receive),
                 'completed': len(completed),
+                'returns': len(returns),
                 'cancelled': len(cancelled)
             }
         })
@@ -19646,7 +19994,11 @@ def buyer_confirm_delivery(order_id):
         
         # Notify rider
         try:
-            rider_id = order.get('rider_id')
+            rider_id = (
+                order.get('rider_id')
+                or order.get('picked_up_by')
+                or order.get('delivered_by')
+            )
             if rider_id:
                 push_notification(
                     rider_id,
@@ -19827,6 +20179,7 @@ def buyer_profile_api():
             return jsonify({'success': False, 'error': 'User not found'}), 404
         
         if request.method == 'GET':
+            profile_image = get_user_avatar_url(user.id, user.role)
             return jsonify({
                 'success': True,
                 'user': {
@@ -19838,7 +20191,9 @@ def buyer_profile_api():
                     'address': user.address,
                     'role': user.role,
                     'status': user.status,
-                    'email_verified': user.email_verified
+                    'email_verified': user.email_verified,
+                    'profile_image': profile_image,
+                    'profile_picture': profile_image,
                 }
             })
         
@@ -19857,6 +20212,7 @@ def buyer_profile_api():
             
             db.session.commit()
             
+            profile_image = get_user_avatar_url(user.id, user.role)
             return jsonify({
                 'success': True,
                 'message': 'Profile updated successfully',
@@ -19868,12 +20224,56 @@ def buyer_profile_api():
                     'phone': user.phone,
                     'address': user.address,
                     'role': user.role,
-                    'status': user.status
+                    'status': user.status,
+                    'profile_image': profile_image,
+                    'profile_picture': profile_image,
                 }
             })
     except Exception as e:
         app.logger.error(f'buyer_profile error: {e}')
         return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/v1/user/profile/picture', methods=['POST'])
+@app.route('/api/v1/buyer/profile/picture', methods=['POST'])
+@app.route('/api/v1/rider/profile/picture', methods=['POST'])
+@token_required
+def api_upload_profile_picture():
+    """Upload profile photo for buyer, rider, or seller (mobile + API clients)."""
+    try:
+        user = db.session.get(User, request.current_user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        avatar_file = (
+            request.files.get('avatar')
+            or request.files.get('profile_picture')
+            or request.files.get('image')
+        )
+        if not avatar_file or not avatar_file.filename:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+        image_url = _save_user_profile_avatar(user, avatar_file)
+        db.session.refresh(user)
+        app.logger.info(
+            'Profile picture saved for user %s: %s',
+            user.id,
+            user.profile_picture,
+        )
+        return jsonify({
+            'success': True,
+            'message': 'Profile picture updated successfully',
+            'image_url': image_url,
+            'profile_image': image_url,
+            'profile_picture': image_url,
+            'user': _serialize_user_api(user),
+        })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'api_upload_profile_picture error: {e}')
+        return jsonify({'success': False, 'error': 'Failed to upload profile picture'}), 500
         
 # Optimized endpoints disabled - routes already exist in app.py
 # register_optimized_endpoints(app, db, {
@@ -19888,13 +20288,39 @@ def buyer_profile_api():
 
 # Register mobile rating endpoints
 register_mobile_rating_endpoints(app, db, Order, Review, token_required)
+app.extensions['return_refund_deps'] = {
+    'db': db,
+    'Order': Order,
+    'OrderItem': OrderItem,
+    'ReturnRequest': ReturnRequest,
+    'Product': Product,
+    'push_notification': push_notification,
+    '_emit_return_update': _emit_return_update,
+    'force_fix_sequence_for_table': force_fix_sequence_for_table,
+    'release_commissions': _release_commissions,
+    'release_rider_earning': _release_rider_earning,
+    'finalize_rider_earning_after_return': _finalize_rider_earning_after_return,
+}
 register_return_refund_api(app, db, token_required)
+
+# Register unified chat (must run after get_user_avatar_url is defined)
+register_unified_chat_api(app, socketio, db, get_avatar_url=get_user_avatar_url)
 
 # Ensure notification table has all required columns for Shopee-style notifications
 ensure_notification_table_on_startup()
 
 # Rider mobile API endpoints are already defined in app.py
 # Do not import rider_mobile_only_api to avoid duplicate endpoint registration
+
+# Favicon handler - prevent 500 errors on missing favicon
+@app.route('/favicon.ico')
+def favicon():
+    """Serve favicon or return 204 No Content if not found"""
+    favicon_path = os.path.join(app.static_folder, 'favicon.ico')
+    if os.path.exists(favicon_path):
+        return app.send_static_file('favicon.ico')
+    # Return 204 No Content instead of 404 or 500
+    return '', 204
 
 if __name__ == "__main__":
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)

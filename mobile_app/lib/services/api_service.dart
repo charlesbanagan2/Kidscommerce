@@ -32,7 +32,7 @@ class ApiService {
     }
   }
 
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 60); // Increased for slow connections
   static final http.Client _client = http.Client();
   static bool debugMode = true;
 
@@ -89,7 +89,15 @@ class ApiService {
         final accessToken = prefs.getString('access_token');
         final refreshToken = prefs.getString('refresh_token');
         if (accessToken != null && refreshToken != null) {
-          setTokens(accessToken, refreshToken);
+          _accessToken = accessToken;
+          _refreshToken = refreshToken;
+          if (debugMode) {
+            debugPrint('✅ Tokens restored from storage');
+            final tokenPreview = accessToken.length > 20
+                ? '${accessToken.substring(0, 20)}...'
+                : accessToken;
+            debugPrint('🔑 Access token: $tokenPreview');
+          }
         }
       } catch (e) {
         if (debugMode) {
@@ -645,13 +653,68 @@ class ApiService {
   }
 
   static Future<User> getUserProfile() async {
-    final result = await request('GET', '/api/user/profile');
-    return User.fromJson(result['user'] ?? result);
+    const paths = [
+      '/api/user/profile',
+      '/api/v1/buyer/profile',
+    ];
+    ApiException? lastError;
+    for (final path in paths) {
+      try {
+        final result = await request('GET', path, auth: true);
+        final userJson = result['user'];
+        if (result['success'] == true && userJson is Map<String, dynamic>) {
+          return User.fromJson(userJson);
+        }
+      } on ApiException catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError ?? ApiException(message: 'Failed to load user profile');
   }
 
   static Future<User> updateUserProfile(Map<String, dynamic> updates) async {
     final result = await request('PUT', '/api/user/profile', body: updates);
     return User.fromJson(result['user'] ?? result);
+  }
+
+  /// Upload profile photo for the current user (buyer, rider, seller).
+  static Future<String> uploadProfilePicture(File imageFile) async {
+    final paths = [
+      '/api/v1/user/profile/picture',
+      '/api/v1/buyer/profile/picture',
+      '/api/v1/rider/profile/picture',
+    ];
+
+    ApiException? lastError;
+    for (final path in paths) {
+      try {
+        final result = await uploadMultipart(
+          'POST',
+          path,
+          files: {'avatar': imageFile},
+          auth: true,
+        );
+        if (result['success'] == true) {
+          final url = (result['profile_image'] ??
+                  result['image_url'] ??
+                  result['profile_picture'])
+              ?.toString();
+          if (url != null && url.isNotEmpty) {
+            return url;
+          }
+        }
+        lastError = ApiException(
+          message: result['error']?.toString() ??
+              result['message']?.toString() ??
+              'Failed to upload profile picture',
+        );
+      } on ApiException catch (e) {
+        lastError = e;
+      }
+    }
+
+    throw lastError ??
+        ApiException(message: 'Failed to upload profile picture');
   }
 
   static Future<String> uploadDeliveryProof({

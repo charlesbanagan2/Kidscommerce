@@ -653,12 +653,22 @@
               {% elif order.status == 'to_ship' %}<i class="fas fa-motorcycle"></i>
               {% elif order.status == 'delivered' %}<i class="fas fa-check-circle"></i>
               {% elif order.status == 'completed' %}<i class="fas fa-star"></i>
+              {% elif order.status == 'return_requested' %}<i class="fas fa-undo"></i>
+              {% elif order.status == 'refunded' %}<i class="fas fa-money-bill-wave"></i>
               {% elif order.status == 'cancelled' %}<i class="fas fa-times-circle"></i>
               {% else %}<i class="fas fa-box"></i>{% endif %}
             </div>
             <div>
               <div class="sod-banner-status-label">Order Status</div>
-              <div class="sod-banner-status-value">{{ order.status.replace('_',' ')|title }}</div>
+              <div class="sod-banner-status-value">
+                {% if order.status == 'return_requested' %}
+                  Return &amp; Refund Requested
+                {% elif order.status == 'refunded' %}
+                  Refunded
+                {% else %}
+                  {{ order.status.replace('_',' ')|title }}
+                {% endif %}
+              </div>
             </div>
           </div>
           <div class="sod-banner-actions">
@@ -677,6 +687,10 @@
               <span class="sod-status-chip delivered"><i class="fas fa-check-circle"></i> Delivered</span>
             {% elif order.status == 'completed' %}
               <span class="sod-status-chip completed"><i class="fas fa-check-circle"></i> Completed</span>
+            {% elif order.status == 'return_requested' %}
+              <span class="sod-status-chip delivered"><i class="fas fa-undo"></i> Return &amp; Refund Requested</span>
+            {% elif order.status == 'refunded' %}
+              <span class="sod-status-chip completed"><i class="fas fa-money-bill-wave"></i> Refunded</span>
             {% endif %}
           </div>
         </div>
@@ -689,9 +703,11 @@
             ('ready_for_pickup', 'fas fa-box-open',     'Ready'),
             ('to_ship',          'fas fa-motorcycle',   'Shipped'),
             ('delivered',        'fas fa-truck',        'Delivered'),
+            ('return_requested',  'fas fa-undo',         'Return & Refund Requested'),
             ('completed',        'fas fa-star',         'Completed'),
+            ('refunded',         'fas fa-money-bill-wave', 'Refunded'),
           ] %}
-          {% set order_flow = ['pending','processing','ready_for_pickup','to_ship','delivered','completed'] %}
+          {% set order_flow = ['pending','processing','ready_for_pickup','to_ship','delivered','return_requested','completed','refunded'] %}
           {% set curr_idx = order_flow.index(order.status) if order.status in order_flow else 0 %}
           <div class="sod-steps">
             <div class="sod-steps-fill" data-progress="{{ (curr_idx / (steps|length - 1) * 100)|round|int }}"></div>
@@ -867,7 +883,15 @@
                 </div>
                 <div class="sod-kv">
                   <span class="sod-kv-label">Status</span>
-                  <span class="sod-badge sod-badge-{{ order.status }}">{{ order.status.replace('_',' ')|title }}</span>
+                  <span class="sod-badge sod-badge-{{ order.status }}">
+                    {% if order.status == 'return_requested' %}
+                      Return &amp; Refund Requested
+                    {% elif order.status == 'refunded' %}
+                      Refunded
+                    {% else %}
+                      {{ order.status.replace('_',' ')|title }}
+                    {% endif %}
+                  </span>
                 </div>
                 <hr class="sod-kv-divider">
                 <div class="sod-kv sod-kv-padding-top">
@@ -885,11 +909,13 @@
               <div class="sod-card-body sod-card-body-timeline">
                 {% set tl = [
                   ('placed',           'Order Placed',       'fas fa-check',       True,                                                                                    order.created_at|ph_time('%b %d, %Y %I:%M %p')),
-                  ('processing',       'Processing',         'fas fa-cog',         order.status in ['processing','ready_for_pickup','to_ship','delivered','completed'],     'Seller accepted the order'),
-                  ('ready_for_pickup', 'Ready for Pick Up',  'fas fa-box-open',    order.status in ['ready_for_pickup','to_ship','delivered','completed'],                  'Waiting for rider'),
-                  ('to_ship',          'Out for Delivery',   'fas fa-motorcycle',  order.status in ['to_ship','delivered','completed'],                                     'Rider is on the way'),
-                  ('delivered',        'Delivered',          'fas fa-truck',       order.status in ['delivered','completed'],                                               'Package delivered'),
+                  ('processing',       'Processing',         'fas fa-cog',         order.status in ['processing','ready_for_pickup','to_ship','delivered','return_requested','completed','refunded'],     'Seller accepted the order'),
+                  ('ready_for_pickup', 'Ready for Pick Up',  'fas fa-box-open',    order.status in ['ready_for_pickup','to_ship','delivered','return_requested','completed','refunded'],                  'Waiting for rider'),
+                  ('to_ship',          'Out for Delivery',   'fas fa-motorcycle',  order.status in ['to_ship','delivered','return_requested','completed','refunded'],                                     'Rider is on the way'),
+                  ('delivered',        'Delivered',          'fas fa-truck',       order.status in ['delivered','return_requested','completed','refunded'],                                               'Package delivered'),
+                  ('return_requested', 'Return & Refund Requested', 'fas fa-undo', order.status in ['return_requested','refunded'],                                          'Buyer requested return and refund'),
                   ('completed',        'Completed',          'fas fa-star',        order.status == 'completed',                                                             'Buyer confirmed receipt'),
+                  ('refunded',         'Refunded',           'fas fa-money-bill-wave', order.status == 'refunded',                                                          'Seller approved the refund'),
                 ] %}
                 <div class="sod-timeline">
                   <div class="sod-timeline-line"></div>

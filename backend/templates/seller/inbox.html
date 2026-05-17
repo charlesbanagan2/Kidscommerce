@@ -426,13 +426,18 @@
                             {% set last_msg = buyer.last_message if buyer.last_message else None %}
                             <li class="list-group-item p-2 {% if buyer.id == selected_buyer_id %}active{% endif %}">
                                 <a href="{{ url_for('seller_inbox', buyer_id=buyer.id) }}" class="text-decoration-none d-flex align-items-start gap-2">
-                                    <img src="{{ buyer.avatar or '/static/default_avatar.png' }}" class="rounded-circle" style="width:40px;height:40px;">
+                                    <img src="{{ buyer.avatar or buyer.profile_picture or url_for('static', filename='user_avatar.png') }}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;" alt="{{ buyer.first_name }}">
                                     <div class="flex-grow-1">
                                         <div class="d-flex align-items-center justify-content-between">
                                             <div>
                                                 <span class="{% if unread > 0 %}fw-bold{% endif %}" style="color: var(--muted-700);">
                                                     {{ buyer.first_name }} {{ buyer.last_name }}
                                                 </span>
+                                                {% if buyer.role == 'rider' %}
+                                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Rider</span>
+                                                {% elif buyer.role == 'buyer' %}
+                                                    <span class="badge bg-info ms-1" style="font-size:0.65rem;">Buyer</span>
+                                                {% endif %}
                                             </div>
                                             <div class="ms-2">
                                                 {% if unread > 0 %}
@@ -464,9 +469,12 @@
                     {% set selected_buyer = (buyers|selectattr('id', 'equalto', selected_buyer_id)|list)[0] if selected_buyer_id else None %}
                     {% if selected_buyer %}
                         <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <strong style="color:var(--muted-700);">Chat with {{ selected_buyer.first_name }}</strong>
-                                <div class="small text-muted">You and {{ selected_buyer.first_name }} can message here</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="{{ selected_buyer.avatar or selected_buyer.profile_picture or url_for('static', filename='user_avatar.png') }}" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;" alt="{{ selected_buyer.first_name }}">
+                                <div>
+                                    <strong style="color:var(--muted-700);">Chat with {{ selected_buyer.first_name }} {{ selected_buyer.last_name }}</strong>
+                                    <div class="small text-muted">{% if selected_buyer.role == 'rider' %}Rider{% else %}Buyer{% endif %} conversation</div>
+                                </div>
                             </div>
                             <div class="text-muted small">{{ moment().strftime('%b %d, %Y') if moment else '' }}</div>
                         </div>
@@ -481,13 +489,7 @@
                             <div class="message-row-inner {% if msg.sender_role == 'seller' %}seller-side{% else %}buyer-side{% endif %}">
                                 {% if msg.sender_role != 'seller' %}
                                     <div class="message-avatar">
-                                        {% if msg.sender_role == 'buyer' %}
-                                            <img src="{{ selected_buyer.avatar or '/static/default_avatar.png' }}" alt="Buyer Avatar">
-                                        {% elif msg.sender_role == 'rider' %}
-                                            <img src="{{ url_for('static', filename='rider_default_avatar.png') }}" alt="Rider Avatar">
-                                        {% else %}
-                                            <img src="{{ url_for('static', filename='default_avatar.png') }}" alt="User Avatar">
-                                        {% endif %}
+                                        <img src="{{ msg.sender_avatar or selected_buyer.avatar or selected_buyer.profile_picture or url_for('static', filename='user_avatar.png') }}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">
                                     </div>
                                 {% endif %}
                                 <div class="message-bubble {% if msg.sender_role == 'seller' %}seller{% else %}buyer{% endif %}">

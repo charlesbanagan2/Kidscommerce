@@ -48,7 +48,7 @@ class _RiderAvailableOrdersScreenState
       debugPrint('✅ Received ${data.length} available orders');
 
       final orders = data.map((json) => Order.fromJson(json)).toList();
-      
+
       // Sort by order ID descending (latest orders first)
       orders.sort((a, b) => b.id.compareTo(a.id));
 
@@ -729,30 +729,6 @@ class _RiderAvailableOrdersScreenState
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: _surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _border),
-            ),
-            child: const CircularProgressIndicator(
-                color: _primary, strokeWidth: 3),
-          ),
-          const SizedBox(height: 16),
-          const Text('Finding orders near you...',
-              style: TextStyle(
-                  color: _textSub, fontSize: 13, fontWeight: FontWeight.w500)),
-        ],
       ),
     );
   }

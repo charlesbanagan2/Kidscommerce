@@ -419,41 +419,48 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
                   // Status and Price Row
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Status Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(order.status)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _getStatusIcon(order.status),
-                            const SizedBox(width: 4),
-                            Text(
-                              _statusLabel(order.status, contextTab),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: _getStatusColor(order.status),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(order.status)
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              _getStatusIcon(order.status),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _compactStatusLabel(
+                                    order.status,
+                                    contextTab,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: _getStatusColor(order.status),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-
-                      // Total Price
+                      const SizedBox(width: 6),
                       Text(
                         '₱${order.totalAmount.toStringAsFixed(2)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1e4db7),
                         ),
@@ -591,7 +598,39 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return const SizedBox.shrink();
   }
 
+  /// Shorter labels for order list cards to avoid horizontal overflow.
+  String _compactStatusLabel(String status, String contextTab) {
+    final normalized = status.toLowerCase();
+    if (normalized == 'return_requested') {
+      return 'Return Requested';
+    }
+    if (contextTab == 'returns') {
+      if (normalized.contains('refund')) return 'Refunded';
+      if (normalized.contains('return')) return 'Returned';
+    }
+    switch (normalized) {
+      case 'return_requested':
+        return 'Return Requested';
+      case 'refund_approved':
+      case 'refund_processing':
+      case 'refunded':
+        return 'Refunded';
+      case 'return_approved':
+      case 'returned':
+        return 'Returned';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'ready_for_pickup':
+        return 'Ready for Pickup';
+      default:
+        return _statusLabel(status, contextTab);
+    }
+  }
+
   String _statusLabel(String status, String contextTab) {
+    if (status.toLowerCase() == 'return_requested') {
+      return 'Return & Refund Requested';
+    }
     if (contextTab == 'returns') {
       if (status.toLowerCase().contains('refund')) {
         return 'Refunded';
@@ -625,8 +664,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
         return 'Refunded';
       case 'returned':
       case 'return_approved':
-      case 'return_requested':
         return 'Returned';
+      case 'return_requested':
+        return 'Return & Refund Requested';
       case 'rejected':
         return 'Rejected';
       default:
@@ -700,7 +740,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Items with approved returns will appear here',
+              'Return and refund requests will appear here',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
             ),
           ],
@@ -786,7 +826,9 @@ class OrderStatusLabel {
         return 'Refunded';
       case 'return_approved':
       case 'return_requested':
-        return 'Return Approved';
+        return raw.toLowerCase() == 'return_requested'
+            ? 'Return & Refund Requested'
+            : 'Return Approved';
       case 'rejected':
         return 'Rejected';
       default:

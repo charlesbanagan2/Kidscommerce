@@ -560,25 +560,6 @@ class _RiderActiveDeliveryScreenState extends State<RiderActiveDeliveryScreen>
     );
   }
 
-  // ── Loading ──────────────────────────────────
-  Widget _buildLoading() {
-    return Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _border)),
-        child: const CircularProgressIndicator(color: _primary, strokeWidth: 3),
-      ),
-      const SizedBox(height: 16),
-      const Text('Loading deliveries...',
-          style: TextStyle(
-              color: _textSub, fontSize: 13, fontWeight: FontWeight.w500)),
-    ]));
-  }
-
   // ── Empty ────────────────────────────────────
   Widget _buildEmpty() {
     return Center(

@@ -1,7 +1,15 @@
 import 'dart:io';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import '../../config/url_config.dart';
+import '../../models/order.dart';
+import '../../providers/buyer_provider.dart';
 import '../../services/api_service.dart';
 
 /// Return & Refund Screen
@@ -24,6 +32,8 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
   String? _selectedReason;
   String _additionalDetails = '';
   final List<File> _evidencePhotos = [];
+  final List<File> _evidenceVideos = [];
+  final Map<String, Uint8List> _videoThumbnails = {};
   String _refundMethod = 'original';
   bool _isSubmitting = false;
   bool _isSubmitted = false;
@@ -46,12 +56,15 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
   void initState() {
     super.initState();
     // Initialize return items from order
-    for (var item in widget.order.items) {
-      _returnItems.add(_ReturnItem(
-        item: item,
-        isSelected: false,
-        quantity: 1,
-      ));
+    final orderItems = widget.order.items;
+    if (orderItems is Iterable) {
+      for (final item in orderItems) {
+        _returnItems.add(_ReturnItem(
+          item: item,
+          isSelected: false,
+          quantity: 1,
+        ));
+      }
     }
   }
 
@@ -66,7 +79,10 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
   bool get _canProceedStep0 => _selectedItemCount > 0;
 
   bool get _canProceedStep1 =>
-      _selectedReason != null && _selectedReason!.isNotEmpty;
+      _selectedReason != null &&
+      _selectedReason!.isNotEmpty &&
+      _evidencePhotos.isNotEmpty &&
+      _evidenceVideos.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +327,8 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
   Widget _buildItemSelector(_ReturnItem returnItem, int index) {
     final item = returnItem.item;
     final isSelected = returnItem.isSelected;
+    final productName = _getItemProductName(item);
+    final productImageUrl = _getItemImageUrl(item);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -358,12 +376,27 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
               const SizedBox(width: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  color: Colors.grey.shade100,
-                  child: const Icon(Icons.image, color: Colors.grey, size: 22),
-                ),
+                child: productImageUrl != null && productImageUrl.isNotEmpty
+                    ? Image.network(
+                        productImageUrl,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 54,
+                          height: 54,
+                          color: Colors.grey.shade100,
+                          child: const Icon(Icons.image,
+                              color: Colors.grey, size: 22),
+                        ),
+                      )
+                    : Container(
+                        width: 54,
+                        height: 54,
+                        color: Colors.grey.shade100,
+                        child: const Icon(Icons.image,
+                            color: Colors.grey, size: 22),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -371,7 +404,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.productName,
+                      productName,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
@@ -638,103 +671,244 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
           const SizedBox(height: 16),
           _buildSectionCard(
             icon: LucideIcons.camera,
-            title: 'Evidence Photos',
-            subtitle: 'Upload photos to support your return (optional, max 5)',
+            title: 'Evidence Photos & Videos',
+            subtitle: 'Upload at least 1 photo and 1 video (required)',
             child: Column(
               children: [
+                // Photos section
                 if (_evidencePhotos.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.image,
+                          size: 14, color: Color(0xFF1e4db7)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Photos (${_evidencePhotos.length})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1e4db7),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   SizedBox(
                     height: 90,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: _evidencePhotos.length,
                       itemBuilder: (ctx, i) {
-                        return Stack(
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              width: 84,
-                              height: 84,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                image: DecorationImage(
-                                  image: FileImage(_evidencePhotos[i]),
-                                  fit: BoxFit.cover,
-                                ),
+                        final photo = _evidencePhotos[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Stack(
+                            children: [
+                              _buildImageThumbnail(
+                                file: photo,
+                                size: 84,
+                                onTap: () => _openImagePreview(photo),
                               ),
-                            ),
-                            Positioned(
-                              top: 4,
-                              right: 12,
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _evidencePhotos.removeAt(i)),
-                                child: Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.red,
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setState(
+                                      () => _evidencePhotos.removeAt(i)),
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red,
+                                    ),
+                                    child: const Icon(Icons.close,
+                                        size: 12, color: Colors.white),
                                   ),
-                                  child: const Icon(Icons.close,
-                                      size: 12, color: Colors.white),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         );
                       },
                     ),
                   ),
                   const SizedBox(height: 12),
                 ],
-                if (_evidencePhotos.length < 5)
-                  InkWell(
-                    onTap: _pickImage,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF1e4db7).withValues(alpha: 0.3),
-                          style: BorderStyle.solid,
-                          width: 1.5,
+
+                // Videos section
+                if (_evidenceVideos.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.video,
+                          size: 14, color: Color(0xFF1e4db7)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Videos (${_evidenceVideos.length})',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1e4db7),
                         ),
-                        color: const Color(0xFF1e4db7).withValues(alpha: 0.03),
                       ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1e4db7)
-                                  .withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(LucideIcons.imagePlus,
-                                color: Color(0xFF1e4db7), size: 22),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 90,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _evidenceVideos.length,
+                      itemBuilder: (ctx, i) {
+                        final video = _evidenceVideos[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Stack(
+                            children: [
+                              _buildVideoThumbnail(
+                                file: video,
+                                size: 84,
+                                onTap: () => _openVideoPreview(video),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    final removed = _evidenceVideos.removeAt(i);
+                                    _videoThumbnails.remove(removed.path);
+                                  }),
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.red,
+                                    ),
+                                    child: const Icon(Icons.close,
+                                        size: 12, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Tap to upload photo',
-                            style: TextStyle(
-                              color: Color(0xFF1e4db7),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'JPG, PNG up to 10MB',
-                            style: TextStyle(
-                                color: Colors.grey.shade500, fontSize: 11),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Upload buttons
+                Row(
+                  children: [
+                    if (_evidencePhotos.length < 5)
+                      Expanded(
+                        child: InkWell(
+                          onTap: _showImageSourceSheet,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _evidencePhotos.isEmpty
+                                    ? Colors.red.withValues(alpha: 0.5)
+                                    : const Color(0xFF1e4db7)
+                                        .withValues(alpha: 0.3),
+                                width: 1.5,
+                              ),
+                              color: const Color(0xFF1e4db7)
+                                  .withValues(alpha: 0.03),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  LucideIcons.imagePlus,
+                                  color: _evidencePhotos.isEmpty
+                                      ? Colors.red
+                                      : const Color(0xFF1e4db7),
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _evidencePhotos.isEmpty
+                                      ? 'Photo *'
+                                      : 'Add Photo',
+                                  style: TextStyle(
+                                    color: _evidencePhotos.isEmpty
+                                        ? Colors.red
+                                        : const Color(0xFF1e4db7),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_evidencePhotos.length < 5 &&
+                        _evidenceVideos.length < 3)
+                      const SizedBox(width: 8),
+                    if (_evidenceVideos.length < 3)
+                      Expanded(
+                        child: InkWell(
+                          onTap: _showVideoSourceSheet,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _evidenceVideos.isEmpty
+                                    ? Colors.red.withValues(alpha: 0.5)
+                                    : const Color(0xFF1e4db7)
+                                        .withValues(alpha: 0.3),
+                                width: 1.5,
+                              ),
+                              color: const Color(0xFF1e4db7)
+                                  .withValues(alpha: 0.03),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  LucideIcons.video,
+                                  color: _evidenceVideos.isEmpty
+                                      ? Colors.red
+                                      : const Color(0xFF1e4db7),
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _evidenceVideos.isEmpty
+                                      ? 'Video *'
+                                      : 'Add Video',
+                                  style: TextStyle(
+                                    color: _evidenceVideos.isEmpty
+                                        ? Colors.red
+                                        : const Color(0xFF1e4db7),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'At least 1 photo and 1 video required',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: (_evidencePhotos.isEmpty || _evidenceVideos.isEmpty)
+                        ? Colors.red
+                        : Colors.grey.shade500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -920,19 +1094,36 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
             title: 'Items to Return',
             child: Column(
               children: selectedItems.map((ri) {
+                final productName = _getItemProductName(ri.item);
+                final productImageUrl = _getItemImageUrl(ri.item);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          color: Colors.grey.shade100,
-                          child: const Icon(Icons.image,
-                              size: 18, color: Colors.grey),
-                        ),
+                        child: productImageUrl != null &&
+                                productImageUrl.isNotEmpty
+                            ? Image.network(
+                                productImageUrl,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 44,
+                                  height: 44,
+                                  color: Colors.grey.shade100,
+                                  child: const Icon(Icons.image,
+                                      size: 18, color: Colors.grey),
+                                ),
+                              )
+                            : Container(
+                                width: 44,
+                                height: 44,
+                                color: Colors.grey.shade100,
+                                child: const Icon(Icons.image,
+                                    size: 18, color: Colors.grey),
+                              ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -940,7 +1131,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              ri.item.productName,
+                              productName,
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12,
@@ -1050,46 +1241,66 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
           ),
           const SizedBox(height: 16),
 
-          // Evidence photos count
-          if (_evidencePhotos.isNotEmpty)
+          // Evidence photos and videos
+          if (_evidencePhotos.isNotEmpty || _evidenceVideos.isNotEmpty)
             _buildSectionCard(
               icon: LucideIcons.image,
-              title: 'Evidence Photos',
-              child: Row(
+              title: 'Evidence',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ..._evidencePhotos.take(3).map(
-                        (f) => Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(f),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                  if (_evidencePhotos.length > 3)
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '+${_evidencePhotos.length - 3}',
-                          style: const TextStyle(
-                            color: Color(0xFF1e4db7),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                  if (_evidencePhotos.isNotEmpty) ...[
+                    const Text(
+                      'Photos',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1e4db7),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _evidencePhotos
+                          .take(6)
+                          .map(
+                            (f) => _buildImageThumbnail(
+                              file: f,
+                              onTap: () => _openImagePreview(f),
+                              size: 56,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                  if (_evidencePhotos.isNotEmpty && _evidenceVideos.isNotEmpty)
+                    const SizedBox(height: 12),
+                  if (_evidenceVideos.isNotEmpty) ...[
+                    const Text(
+                      'Videos',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1e4db7),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _evidenceVideos
+                          .take(3)
+                          .map(
+                            (f) => _buildVideoThumbnail(
+                              file: f,
+                              onTap: () => _openVideoPreview(f),
+                              size: 56,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1431,13 +1642,307 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
     );
   }
 
-  Future<void> _pickImage() async {
+  String _getItemProductName(dynamic item) {
+    if (item is OrderItem) {
+      return item.productName;
+    }
+    if (item is Map<String, dynamic>) {
+      return (item['product_name'] ?? item['name'] ?? '').toString();
+    }
+    try {
+      final value = item.productName;
+      return value?.toString() ?? 'Item';
+    } catch (_) {
+      return 'Item';
+    }
+  }
+
+  String? _getItemImageUrl(dynamic item) {
+    if (item is OrderItem) {
+      return UrlConfig.toAbsoluteImageUrl(item.productImage);
+    }
+    if (item is Map<String, dynamic>) {
+      final value = item['product_image'] ?? item['image_url'] ?? item['image'];
+      return UrlConfig.toAbsoluteImageUrl(value?.toString());
+    }
+    try {
+      final value = item.productImage;
+      return UrlConfig.toAbsoluteImageUrl(value?.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildImageThumbnail({
+    required File file,
+    required VoidCallback onTap,
+    double size = 56,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: kIsWeb
+              ? Image.network(
+                  file.path,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey.shade100,
+                    child:
+                        const Icon(Icons.image, color: Colors.grey, size: 22),
+                  ),
+                )
+              : Image.file(
+                  file,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey.shade100,
+                    child:
+                        const Icon(Icons.image, color: Colors.grey, size: 22),
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoThumbnail({
+    required File file,
+    required VoidCallback onTap,
+    double size = 56,
+  }) {
+    final thumb = _videoThumbnails[file.path];
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: thumb != null && !kIsWeb
+                    ? Image.memory(
+                        thumb,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          child: const Icon(
+                            LucideIcons.video,
+                            color: Color(0xFF1e4db7),
+                            size: 24,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        child: const Icon(
+                          LucideIcons.video,
+                          color: Color(0xFF1e4db7),
+                          size: 24,
+                        ),
+                      ),
+              ),
+            ),
+            if (thumb != null && !kIsWeb)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.25),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Positioned.fill(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Container(
+                  margin: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_arrow,
+                      size: 12, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openImagePreview(File file) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(16),
+          child: Stack(
+            children: [
+              InteractiveViewer(
+                child: kIsWeb
+                    ? Image.network(file.path, fit: BoxFit.contain)
+                    : Image.file(file, fit: BoxFit.contain),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openVideoPreview(File file) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _LocalVideoPreviewScreen(videoFile: file),
+      ),
+    );
+  }
+
+  void _showImageSourceSheet() {
+    if (kIsWeb) {
+      _pickImageFromSource(ImageSource.gallery);
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageFromSource(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImageFromSource(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showVideoSourceSheet() {
+    if (kIsWeb) {
+      _pickVideoFromSource(ImageSource.gallery);
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.videocam),
+                title: const Text('Record Video'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickVideoFromSource(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.video_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickVideoFromSource(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
     final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 80,
     );
     if (picked != null) {
       setState(() => _evidencePhotos.add(File(picked.path)));
+    }
+  }
+
+  Future<void> _pickVideoFromSource(ImageSource source) async {
+    final picked = await _picker.pickVideo(
+      source: source,
+      maxDuration: const Duration(minutes: 2),
+    );
+    if (picked != null) {
+      final file = File(picked.path);
+      setState(() => _evidenceVideos.add(file));
+      _generateVideoThumbnail(file);
+    }
+  }
+
+  Future<void> _generateVideoThumbnail(File file) async {
+    if (kIsWeb) return;
+
+    try {
+      final thumb = await VideoThumbnail.thumbnailData(
+        video: file.path,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 256,
+        quality: 60,
+      );
+
+      if (!mounted || thumb == null) return;
+      setState(() {
+        _videoThumbnails[file.path] = thumb;
+      });
+    } catch (_) {
+      // Keep icon fallback when thumbnail generation fails.
     }
   }
 
@@ -1446,60 +1951,105 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
 
     try {
       final selectedItems = _returnItems.where((i) => i.isSelected).toList();
-      
-      // Upload images first
+
+      // Upload images and videos
       List<String> uploadedImageUrls = [];
-      if (_evidencePhotos.isNotEmpty) {
-        for (var photo in _evidencePhotos) {
+      List<String> uploadedVideoUrls = [];
+
+      // Upload photos
+      for (var photo in _evidencePhotos) {
+        try {
           final url = await ApiService.uploadReturnEvidence(photo);
           if (url != null) {
             uploadedImageUrls.add(url);
           }
+        } catch (e) {
+          debugPrint('Photo upload failed: $e');
         }
       }
-      
+
+      // Upload videos
+      for (var video in _evidenceVideos) {
+        try {
+          final url = await ApiService.uploadReturnEvidence(video);
+          if (url != null) {
+            uploadedVideoUrls.add(url);
+          }
+        } catch (e) {
+          debugPrint('Video upload failed: $e');
+        }
+      }
+
       // Prepare request data
       final requestData = {
-        'items': selectedItems.map((ri) => {
-          'order_item_id': ri.item.id,
-          'quantity': ri.quantity,
-          'reason': _selectedReason,
-        }).toList(),
+        'items': selectedItems
+            .map((ri) => {
+                  'order_item_id': ri.item.id,
+                  'quantity': ri.quantity,
+                  'reason': _selectedReason,
+                })
+            .toList(),
         'reason': _selectedReason,
         'additional_details': _additionalDetails,
         'refund_method': _refundMethod,
         'images': uploadedImageUrls,
+        'videos': uploadedVideoUrls,
       };
 
-      // Call API
+      // Call API with timeout
       final response = await ApiService.createReturnRequest(
         widget.order.id,
         requestData,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw TimeoutException('Request timeout'),
       );
 
       if (mounted) {
         if (response['success'] == true) {
+          try {
+            await context.read<BuyerProvider>().fetchOrdersByStatus();
+            await context.read<BuyerProvider>().selectOrder(widget.order.id);
+          } catch (e) {
+            debugPrint('Return request submitted, but order refresh failed: $e');
+          }
+
           setState(() {
             _isSubmitting = false;
             _isSubmitted = true;
           });
         } else {
           setState(() => _isSubmitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['error'] ?? 'Failed to submit request'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response['error'] ?? 'Failed to submit request'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         }
+      }
+    } on TimeoutException {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Request timeout. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -1519,4 +2069,107 @@ class _ReturnItem {
     required this.isSelected,
     required this.quantity,
   });
+}
+
+class _LocalVideoPreviewScreen extends StatefulWidget {
+  final File videoFile;
+
+  const _LocalVideoPreviewScreen({required this.videoFile});
+
+  @override
+  State<_LocalVideoPreviewScreen> createState() =>
+      _LocalVideoPreviewScreenState();
+}
+
+class _LocalVideoPreviewScreenState extends State<_LocalVideoPreviewScreen> {
+  late final VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = kIsWeb
+        ? VideoPlayerController.networkUrl(Uri.parse(widget.videoFile.path))
+        : VideoPlayerController.file(widget.videoFile)
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _initialized = true);
+        _controller.play();
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Center(
+        child: _initialized && _controller.value.isInitialized
+            ? AspectRatio(
+                aspectRatio: _controller.value.aspectRatio,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    VideoPlayer(_controller),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _controller.value.isPlaying
+                              ? _controller.pause()
+                              : _controller.play();
+                        });
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                        child: AnimatedOpacity(
+                          opacity: _controller.value.isPlaying ? 0.0 : 1.0,
+                          duration: const Duration(milliseconds: 150),
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow,
+                              color: Colors.white,
+                              size: 42,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : const CircularProgressIndicator(color: Colors.white),
+      ),
+      floatingActionButton: _initialized
+          ? FloatingActionButton(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              onPressed: () {
+                setState(() {
+                  _controller.value.isPlaying
+                      ? _controller.pause()
+                      : _controller.play();
+                });
+              },
+              child: Icon(
+                _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+              ),
+            )
+          : null,
+    );
+  }
 }

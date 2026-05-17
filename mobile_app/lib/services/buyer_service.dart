@@ -707,19 +707,7 @@ class BuyerService {
   /// Update profile picture
   static Future<String> updateProfilePicture(String imagePath) async {
     try {
-      // This would typically use multipart form data
-      // For now, we'll assume image is already uploaded and we get URL
-      final result = await ApiService.request(
-        'POST',
-        '$baseVersion/buyer/profile/picture',
-        auth: true,
-        body: {'image_path': imagePath},
-      );
-
-      if (result['success'] == true && result['image_url'] != null) {
-        return result['image_url'];
-      }
-      throw Exception(result['error'] ?? 'Failed to update picture');
+      return await ApiService.uploadProfilePicture(File(imagePath));
     } catch (e) {
       throw Exception('Error updating profile picture: $e');
     }

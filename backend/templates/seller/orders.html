@@ -329,6 +329,8 @@
 .seller-orders-scope .order-status-to_ship        { background: #fef3c7; color: #92400e; }
 .seller-orders-scope .order-status-delivered      { background: #d1fae5; color: #065f46; }
 .seller-orders-scope .order-status-completed      { background: #d1fae5; color: #065f46; }
+.seller-orders-scope .order-status-return_requested { background: #fef3c7; color: #92400e; }
+.seller-orders-scope .order-status-refunded       { background: #d1fae5; color: #065f46; }
 .seller-orders-scope .order-status-cancelled      { background: #fee2e2; color: #991b1b; }
 
 /* Payment Badges */
@@ -694,7 +696,13 @@
                                         <span class="payment-badge badge bg-secondary text-white">{{ order.payment_method|title }}</span>
                                     {% endif %}
                                     <span class="order-status-badge order-status-{{ order.status }}">
-                                        {{ order.status.replace('_', ' ')|title }}
+                                        {% if order.status == 'return_requested' %}
+                                            Return &amp; Refund Requested
+                                        {% elif order.status == 'refunded' %}
+                                            Refunded
+                                        {% else %}
+                                            {{ order.status.replace('_', ' ')|title }}
+                                        {% endif %}
                                     </span>
                                     {% if order.proof_photo_url %}
                                         <span class="badge bg-success cursor-pointer proof-photo-badge" onclick="viewProofPhoto('{{ order.proof_photo_url }}', event)" title="Click to view delivery proof">
@@ -1153,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const allCards        = document.querySelectorAll('.order-card-col');
         const pendingCards    = document.querySelectorAll('.order-card-col[data-status="pending"]');
         const processingCards = document.querySelectorAll('.order-card-col[data-status="processing"]');
-        const completedCards  = document.querySelectorAll('.order-card-col[data-status="completed"], .order-card-col[data-status="delivered"]');
+        const completedCards  = document.querySelectorAll('.order-card-col[data-status="completed"]');
         const cancelledCards  = document.querySelectorAll('.order-card-col[data-status="cancelled"]');
 
         const update = (sel, text) => { const el = document.querySelector(sel); if (el) el.textContent = text; };

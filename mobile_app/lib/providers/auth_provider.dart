@@ -205,6 +205,18 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Refresh user profile from API (includes latest profile photo).
+  Future<void> refreshUser() async {
+    if (!_isAuthenticated) return;
+    try {
+      _user = await ApiService.getUserProfile();
+      await _saveData();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to refresh user profile: $e');
+    }
+  }
+
   /// Update user profile
   Future<bool> updateProfile(Map<String, dynamic> updates) async {
     _setLoading(true);

@@ -15,8 +15,13 @@ from datetime import datetime
 from sqlalchemy import or_, and_, func
 from functools import wraps
 
-def register_unified_chat_api(app, socketio, db):
-    """Register unified chat system with Flask app"""
+def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs):
+    """Register unified chat system with Flask app.
+
+    get_avatar_url: optional callable(user_id, user_role) -> str for profile photo URLs.
+    """
+    if get_avatar_url is None and _kwargs.get('get_avatar_url'):
+        get_avatar_url = _kwargs['get_avatar_url']
     
     # Create blueprint FIRST before defining routes
     chat_bp = Blueprint('unified_chat', __name__)
@@ -111,8 +116,12 @@ def register_unified_chat_api(app, socketio, db):
                 if not peer_row:
                     continue
                 
-                # Use store_logo for sellers, profile_picture for others
-                profile_pic = peer_row[5] if peer_row[5] else peer_row[4]  # store_logo or profile_picture
+                if peer_row[3] == 'seller' and peer_row[5]:
+                    profile_pic = peer_row[5]
+                elif get_avatar_url:
+                    profile_pic = get_avatar_url(peer_row[0], peer_row[3])
+                else:
+                    profile_pic = peer_row[4]
                 display_name = peer_row[6] if peer_row[6] else f"{peer_row[1]} {peer_row[2]}"  # store_name or full name
                 
                 # Get last message
@@ -203,8 +212,12 @@ def register_unified_chat_api(app, socketio, db):
                     )
                     sender_row = sender_result.fetchone()
                     if sender_row:
-                        # Use store_logo for sellers, profile_picture for others
-                        profile_pic = sender_row[5] if sender_row[5] else sender_row[4]
+                        if sender_row[3] == 'seller' and sender_row[5]:
+                            profile_pic = sender_row[5]
+                        elif get_avatar_url:
+                            profile_pic = get_avatar_url(sender_row[0], sender_row[3])
+                        else:
+                            profile_pic = sender_row[4]
                         display_name = sender_row[6] if sender_row[6] else f"{sender_row[1]} {sender_row[2]}"
                         sender_cache[msg.sender_id] = {
                             'id': sender_row[0],

@@ -215,6 +215,10 @@ class Order {
         return 'Delivered';
       case 'completed':
         return 'Completed';
+      case 'return_requested':
+        return 'Return & Refund Requested';
+      case 'refunded':
+        return 'Refunded';
       case 'cancelled':
         return 'Cancelled';
       case 'returned':

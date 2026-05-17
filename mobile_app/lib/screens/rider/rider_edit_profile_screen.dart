@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../config/url_config.dart';
+import '../../utils/profile_photo_helper.dart';
 
 class RiderEditProfileScreen extends StatefulWidget {
   const RiderEditProfileScreen({super.key});
@@ -15,6 +17,8 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   bool _saving = false;
+  bool _uploadingImage = false;
+  String? _profileImageUrl;
 
   static const Color _primary = Color(0xFFFA6B02);
   static const Color _bg = Color(0xFFF4F5F9);
@@ -29,6 +33,7 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
     _name.text = user?.fullName ?? '';
     _email.text = user?.email ?? '';
     _phone.text = user?.phone ?? '';
+    _profileImageUrl = user?.profileImage;
   }
 
   @override
@@ -37,6 +42,34 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
     _email.dispose();
     _phone.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    setState(() => _uploadingImage = true);
+    try {
+      final imageUrl =
+          await ProfilePhotoHelper.pickAndUploadProfilePhoto(context);
+      if (imageUrl == null) return;
+
+      await Provider.of<AuthProvider>(context, listen: false).refreshUser();
+
+      if (!mounted) return;
+      setState(() => _profileImageUrl = imageUrl);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Profile photo updated'),
+        backgroundColor: Color(0xFF059669),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to upload photo: $e'),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
   }
 
   Future<void> _save() async {
@@ -61,13 +94,13 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
       if (!mounted) return;
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text('Profile updated successfully'),
-          backgroundColor: const Color(0xFF059669),
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Profile updated successfully'),
+          backgroundColor: Color(0xFF059669),
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14))),
+          margin: EdgeInsets.all(16),
         ));
         Navigator.pop(context, true);
       } else {
@@ -76,9 +109,6 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
               Text('Error: ${authProvider.errorMessage ?? "Update failed"}'),
           backgroundColor: Colors.red.shade600,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          margin: const EdgeInsets.all(16),
         ));
       }
     } catch (e) {
@@ -87,8 +117,6 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
         content: Text('Error: $e'),
         backgroundColor: Colors.red.shade600,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        margin: const EdgeInsets.all(16),
       ));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -210,33 +238,66 @@ class _RiderEditProfileScreenState extends State<RiderEditProfileScreen> {
 
   Widget _avatarSection() {
     final initial = _name.text.isNotEmpty ? _name.text[0].toUpperCase() : 'R';
+    final imageUrl = _profileImageUrl;
+
     return Center(
       child: Stack(children: [
         Container(
           width: 100,
           height: 100,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFA6B02), Color(0xFFFF9A3C)]),
+            gradient: imageUrl == null || imageUrl.isEmpty
+                ? const LinearGradient(
+                    colors: [Color(0xFFFA6B02), Color(0xFFFF9A3C)],
+                  )
+                : null,
             borderRadius: BorderRadius.circular(28),
           ),
-          child: Center(
-              child: Text(initial,
-                  style: const TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white))),
+          child: imageUrl != null && imageUrl.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.network(
+                    UrlConfig.toAbsoluteImageUrl(imageUrl),
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(initial,
+                          style: const TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(initial,
+                      style: const TextStyle(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ),
         ),
+        if (_uploadingImage)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ),
+          ),
         Positioned(
           bottom: 0,
           right: 0,
           child: GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content:
-                      Text('Photo upload — connect to image_picker package'),
-                  behavior: SnackBarBehavior.floating));
-            },
+            onTap: _uploadingImage ? null : _pickAndUploadImage,
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(

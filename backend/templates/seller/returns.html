@@ -463,19 +463,20 @@
                   </thead>
                   <tbody>
                     {% for r in requests %}
+                    {% set product = r.order_item.product if r.order_item and r.order_item.product else none %}
                     <tr>
                       <td class="fw-bold text-primary">RR-{{ r.id }}</td>
                       <td class="fw-bold">#{{ r.order_id }}</td>
                       <td>
                         <div class="d-flex align-items-center">
-                          {% if r.order_item.product.image_filename %}
-                          <img src="{{ url_for('static', filename='uploads/' + r.order_item.product.image_filename) }}"
-                               alt="{{ r.order_item.product.name }}"
+                           {% if product and product.image_filename %}
+                           <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}"
+                               alt="{{ product.name if product else 'Product' }}"
                                class="product-image me-3">
                           {% endif %}
                           <div>
-                            <div class="fw-semibold">{{ r.order_item.product.name }}</div>
-                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time) }}</small>
+                            <div class="fw-semibold">{{ product.name if product else 'Product unavailable' }}</div>
+                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time if r.order_item else 0) }}</small>
                           </div>
                         </div>
                       </td>
@@ -485,13 +486,13 @@
                       </td>
                       <td class="text-center">
                         {% if r.status == 'submitted' %}
-                          <span class="badge badge-modern bg-warning">Submitted</span>
+                          <span class="badge badge-modern bg-warning text-dark">Return &amp; Refund Requested</span>
                         {% elif r.status == 'seller_reviewing' %}
                           <span class="badge badge-modern bg-primary">Under Review</span>
                         {% elif r.status == 'waiting_rider_pickup' %}
-                          <span class="badge badge-modern bg-info">Waiting Rider</span>
+                          <span class="badge badge-modern bg-warning text-dark">Return &amp; Refund Requested</span>
                         {% elif r.status == 'rider_to_seller' %}
-                          <span class="badge badge-modern bg-info">Rider Pickup</span>
+                          <span class="badge badge-modern bg-warning text-dark">Return &amp; Refund Requested</span>
                         {% elif r.status == 'item_received_by_seller' %}
                           <span class="badge badge-modern bg-success">Item Received</span>
                         {% elif r.status == 'refund_processing' %}
@@ -541,23 +542,25 @@
                       <th>Qty</th>
                       <th>Status</th>
                       <th>Completed</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for r in completed_returns %}
+                    {% set product = r.order_item.product if r.order_item and r.order_item.product else none %}
                     <tr>
                       <td class="fw-bold text-primary">RR-{{ r.id }}</td>
                       <td class="fw-bold">#{{ r.order_id }}</td>
                       <td>
                         <div class="d-flex align-items-center">
-                          {% if r.order_item.product.image_filename %}
-                          <img src="{{ url_for('static', filename='uploads/' + r.order_item.product.image_filename) }}"
-                               alt="{{ r.order_item.product.name }}"
+                          {% if product and product.image_filename %}
+                          <img src="{{ url_for('static', filename='uploads/' + product.image_filename) }}"
+                               alt="{{ product.name if product else 'Product' }}"
                                class="product-image me-3">
                           {% endif %}
                           <div>
-                            <div class="fw-semibold">{{ r.order_item.product.name }}</div>
-                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time) }}</small>
+                            <div class="fw-semibold">{{ product.name if product else 'Product unavailable' }}</div>
+                            <small class="text-muted">₱{{ "%.2f"|format(r.order_item.price_at_time if r.order_item else 0) }}</small>
                           </div>
                         </div>
                       </td>
@@ -570,6 +573,8 @@
                           <span class="badge badge-modern bg-success">Completed</span>
                         {% elif r.status == 'refunded' %}
                           <span class="badge badge-modern bg-success">Refunded</span>
+                        {% elif r.status == 'rejected' %}
+                          <span class="badge badge-modern bg-danger">Rejected</span>
                         {% else %}
                           <span class="badge badge-modern bg-secondary">{{ r.status.replace('_',' ')|title }}</span>
                         {% endif %}
@@ -577,6 +582,11 @@
                       <td>
                         <div class="fw-semibold">{{ r.updated_at.strftime('%b %d, %Y') }}</div>
                         <small class="text-muted">{{ r.updated_at.strftime('%I:%M %p') }}</small>
+                      </td>
+                      <td>
+                        <a href="{{ url_for('seller_return_detail', return_id=r.id) }}" class="btn btn-modern btn-primary btn-sm">
+                          <i class="fas fa-eye me-1"></i>View
+                        </a>
                       </td>
                     </tr>
                     {% endfor %}

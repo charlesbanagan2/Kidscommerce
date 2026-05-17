@@ -299,6 +299,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (order.status == 'completed') normalizedStatus = 'delivered';
 
     final currentIndex = statusOrder.indexOf(normalizedStatus);
+    final statusLower = order.status.toString().toLowerCase();
 
     if (order.status == 'cancelled') {
       return Container(
@@ -319,6 +320,44 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: Colors.red,
                     fontSize: 13,
                     fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (statusLower == 'return_requested' || statusLower == 'refunded') {
+      final isRefunded = statusLower == 'refunded';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: (isRefunded ? Colors.green : Colors.orange)
+              .withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: (isRefunded ? Colors.green : Colors.orange)
+                .withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isRefunded ? LucideIcons.badgeCheck : LucideIcons.undo2,
+              color: isRefunded ? Colors.green : Colors.orange,
+              size: 18,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                isRefunded
+                    ? 'Your return and refund request has been approved. This order is refunded.'
+                    : 'Your return and refund request is waiting for seller review.',
+                style: TextStyle(
+                  color: isRefunded ? Colors.green : Colors.orange,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -681,6 +720,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         riderNameStr.toLowerCase() != 'n/a';
 
     final hasRider = hasRiderId && hasRiderName;
+    if (status.contains('return') || status.contains('refund')) {
+      return false;
+    }
 
     debugPrint(
         '🔍🔍🔍 DETAILED RIDER INFO CHECK FOR ORDER #${widget.orderId}:');
@@ -1267,6 +1309,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       return const SizedBox.shrink();
     }
 
+    if (status.contains('return') || status.contains('refund')) {
+      return const SizedBox.shrink();
+    }
+
     // DELIVERED STATUS: Show Order Received and Return & Refund
     if (status == 'delivered') {
       return Column(
@@ -1720,6 +1766,10 @@ IconData _getStatusIconData(String status) {
       return LucideIcons.checkCircle2;
     case 'completed':
       return LucideIcons.checkCircle2;
+    case 'return_requested':
+      return LucideIcons.undo2;
+    case 'refunded':
+      return LucideIcons.badgeCheck;
     case 'cancelled':
       return LucideIcons.xCircle;
     default:
@@ -1744,10 +1794,13 @@ Color _getStatusColor(String status) {
       return const Color(0xFF10B981);
     case 'completed':
       return const Color(0xFF059669);
+    case 'return_requested':
+      return const Color(0xFFF59E0B);
     case 'cancelled':
       return const Color(0xFFEF4444);
-    case 'returned':
     case 'refunded':
+      return const Color(0xFF059669);
+    case 'returned':
       return const Color(0xFF991B1B);
     default:
       return const Color(0xFF3B82F6);

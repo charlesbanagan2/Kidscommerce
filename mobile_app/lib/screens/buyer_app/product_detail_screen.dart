@@ -1399,9 +1399,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         ),
                         child: ClipOval(
                           child: Image.network(
-                            userAvatar.startsWith('http')
-                                ? userAvatar
-                                : '${UrlConfig.baseUrl}$userAvatar',
+                            UrlConfig.toAbsoluteImageUrl(userAvatar),
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Container(
                               color: _primary,

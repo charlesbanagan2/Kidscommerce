@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../providers/buyer_provider.dart';
+import '../../utils/profile_photo_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/api_service.dart';
+import '../../config/url_config.dart';
 import 'liked_products_screen.dart';
 
 /// Buyer Profile Screen
@@ -20,7 +19,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
-  final ImagePicker _imagePicker = ImagePicker();
   List<dynamic> _addresses = [];
   bool _isUploadingImage = false;
   late AnimationController _animationController;
@@ -88,47 +86,24 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _pickAndUploadImage() async {
+    setState(() => _isUploadingImage = true);
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-
-      if (image == null) return;
-
-      setState(() {
-        _isUploadingImage = true;
-      });
-
-      final uri =
-          Uri.parse('${ApiService.baseUrl}/api/v1/buyer/profile/picture');
-      final request = http.MultipartRequest('POST', uri)
-        ..files.add(await http.MultipartFile.fromPath('avatar', image.path))
-        ..headers['Authorization'] = 'Bearer ${ApiService.accessToken}';
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      final result = json.decode(responseBody);
+      final imageUrl =
+          await ProfilePhotoHelper.pickAndUploadProfilePhoto(context);
+      if (imageUrl == null) return;
 
       if (mounted) {
-        if (result['success'] == true) {
-          _showSnackBar('Profile image updated successfully', isSuccess: true);
-          context.read<BuyerProvider>().fetchProfile();
-        } else {
-          _showSnackBar(result['message'] ?? 'Failed to upload image');
-        }
-        setState(() {
-          _isUploadingImage = false;
-        });
+        _showSnackBar('Profile image updated successfully', isSuccess: true);
+        await context.read<AuthProvider>().refreshUser();
+        context.read<BuyerProvider>().fetchProfile();
       }
     } catch (e) {
       if (mounted) {
         _showSnackBar('Failed to upload image: $e');
-        setState(() {
-          _isUploadingImage = false;
-        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
       }
     }
   }
@@ -1181,7 +1156,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(20),
                               child: Image.network(
-                                authProvider.user!.profileImage!,
+                                UrlConfig.toAbsoluteImageUrl(
+                                    authProvider.user!.profileImage!),
                                 fit: BoxFit.cover,
                                 errorBuilder: (c, e, s) => Center(
                                   child: Text(

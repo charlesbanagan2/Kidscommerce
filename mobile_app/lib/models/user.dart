@@ -43,7 +43,7 @@ class User {
       role: json['role'] ?? 'buyer',
       status: json['status'] ?? 'active',
       validId: json['valid_id'],
-      profileImage: json['profile_image'],
+      profileImage: json['profile_image'] ?? json['profile_picture'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),

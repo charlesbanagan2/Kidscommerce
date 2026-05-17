@@ -646,9 +646,7 @@ class _ProductReviewsScreenState extends State<ProductReviewsScreen> {
         ),
         child: ClipOval(
           child: Image.network(
-            userAvatar.startsWith('http')
-                ? userAvatar
-                : '${UrlConfig.baseUrl}$userAvatar',
+            UrlConfig.toAbsoluteImageUrl(userAvatar),
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
                 _avatarFallback(userName, size),
