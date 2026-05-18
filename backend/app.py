@@ -12328,6 +12328,316 @@ def delete_address(address_id):
 def google_login():
     return redirect(url_for("google.login"))
 
+
+# ============================
+# Mobile Address API Endpoints
+# ============================
+@app.route('/api/v1/buyer/addresses', methods=['POST'])
+@token_required
+@active_user_required
+def buyer_add_address():
+    """Add a new address for the current buyer"""
+    try:
+        user_id = request.current_user_id
+        data = request.get_json() or {}
+        
+        # Validate required fields
+        label = (data.get('label') or '').strip()
+        full_address = (data.get('full_address') or '').strip()
+        
+        if not label:
+            return jsonify({'success': False, 'message': 'Address label is required'}), 400
+        if not full_address:
+            return jsonify({'success': False, 'message': 'Full address is required'}), 400
+        
+        # Create new address
+        new_address = Address(
+            user_id=user_id,
+            label=label,
+            full_address=full_address,
+            street=data.get('street_address'),
+            city=data.get('city'),
+            province=data.get('province'),
+            barangay=data.get('barangay'),
+            region=data.get('region'),
+            latitude=data.get('latitude'),
+            longitude=data.get('longitude'),
+            is_default=data.get('is_default', False)
+        )
+        
+        db.session.add(new_address)
+        
+        # If this is set as default, unset other defaults for this user
+        if new_address.is_default:
+            Address.query.filter(
+                Address.user_id == user_id,
+                Address.id != new_address.id
+            ).update({Address.is_default: False})
+        
+        db.session.commit()
+        
+        # Return the created address
+        response = {
+            'success': True,
+            'message': 'Address added successfully',
+            'address': {
+                'id': new_address.id,
+                'label': new_address.label,
+                'full_address': new_address.full_address,
+                'street_address': new_address.street,
+                'city': new_address.city,
+                'province': new_address.province,
+                'barangay': new_address.barangay,
+                'region': new_address.region,
+                'is_default': new_address.is_default,
+                'latitude': new_address.latitude,
+                'longitude': new_address.longitude,
+                'created_at': new_address.created_at.isoformat() if new_address.created_at else None
+            }
+        }
+        return jsonify(response), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Error adding address')
+        return jsonify({'success': False, 'message': f'Error adding address: {str(e)}'}), 500
+
+
+@app.route('/api/v1/buyer/addresses', methods=['GET'])
+@token_required
+@active_user_required
+def buyer_get_addresses():
+    """Get all addresses for the current buyer"""
+    try:
+        user_id = request.current_user_id
+        addresses = Address.query.filter_by(user_id=user_id).order_by(Address.is_default.desc(), Address.created_at.desc()).all()
+        
+        result = []
+        for addr in addresses:
+            result.append({
+                'id': addr.id,
+                'label': addr.label,
+                'full_address': addr.full_address,
+                'street_address': addr.street,
+                'city': addr.city,
+                'province': addr.province,
+                'barangay': addr.barangay,
+                'region': addr.region,
+                'is_default': addr.is_default,
+                'latitude': addr.latitude,
+                'longitude': addr.longitude,
+                'created_at': addr.created_at.isoformat() if addr.created_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'addresses': result,
+            'count': len(result)
+        }), 200
+        
+    except Exception as e:
+        app.logger.exception('Error fetching addresses')
+        return jsonify({'success': False, 'message': 'Error fetching addresses'}), 500
+
+
+@app.route('/api/v1/buyer/addresses/<int:address_id>/default', methods=['PUT'])
+@token_required
+@active_user_required
+def buyer_set_default_address(address_id):
+    """Set the active/default address for the current buyer."""
+    try:
+        user_id = request.current_user_id
+        address = Address.query.filter_by(id=address_id, user_id=user_id).first()
+        if not address:
+            return jsonify({'success': False, 'message': 'Address not found'}), 404
+
+        Address.query.filter_by(user_id=user_id).update({Address.is_default: False})
+        address.is_default = True
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Active address updated',
+            'address': {
+                'id': address.id,
+                'label': address.label,
+                'full_address': address.full_address,
+                'street_address': address.street,
+                'city': address.city,
+                'province': address.province,
+                'barangay': address.barangay,
+                'region': address.region,
+                'is_default': address.is_default,
+                'latitude': address.latitude,
+                'longitude': address.longitude,
+                'created_at': address.created_at.isoformat() if address.created_at else None
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Error setting default address')
+        return jsonify({'success': False, 'message': 'Error updating active address'}), 500
+
+
+@app.route('/api/v1/buyer/addresses/<int:address_id>', methods=['DELETE'])
+@token_required
+@active_user_required
+def buyer_delete_address(address_id):
+    """Delete an address for the current buyer."""
+    try:
+        user_id = request.current_user_id
+        address = Address.query.filter_by(id=address_id, user_id=user_id).first()
+        if not address:
+            return jsonify({'success': False, 'message': 'Address not found'}), 404
+
+        was_default = address.is_default
+        db.session.delete(address)
+        db.session.commit()
+
+        if was_default:
+            replacement = Address.query.filter_by(user_id=user_id).order_by(Address.created_at.desc()).first()
+            if replacement:
+                replacement.is_default = True
+                db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Address deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.exception('Error deleting address')
+        return jsonify({'success': False, 'message': 'Error deleting address'}), 500
+
+
+# ============================
+# Mobile Google Login API
+# ============================
+@app.route('/api/v1/google-login', methods=['POST'])
+def api_v1_google_login():
+    """Mobile API Google OAuth login.
+
+    Expects JSON body:
+      { "id_token": <string>, "access_token": <string> }
+
+    Returns JSON compatible with mobile_app/lib/providers/auth_provider.dart
+    -> {"tokens": {"access_token":..., "refresh_token":...}, "user": {...}} OR flat tokens/user.
+
+    Notes:
+    - Enforces admin approval using User.status == 'active'.
+    - Creates a new user with status='pending' if email not found.
+    - Does NOT automatically log in pending users.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        id_token = (data.get('id_token') or '').strip()
+        access_token = (data.get('access_token') or '').strip()
+
+        if not id_token:
+            return jsonify({'success': False, 'error': 'id_token is required'}), 400
+
+        # Verify the id token with Google
+        # Use Google's tokeninfo endpoint (simple verification for this backend).
+        # id_token verification is sufficient for mapping email.
+        verify_url = 'https://oauth2.googleapis.com/tokeninfo'
+        resp = requests.get(verify_url, params={'id_token': id_token}, timeout=15)
+        if resp.status_code != 200:
+            return jsonify({'success': False, 'error': 'Invalid Google id_token'}), 401
+
+        info = resp.json() or {}
+        email = info.get('email')
+        if not email:
+            return jsonify({'success': False, 'error': 'Google token missing email'}), 401
+
+        given_name = info.get('given_name') or info.get('givenName') or 'Google'
+        family_name = info.get('family_name') or info.get('familyName') or 'User'
+        google_sub = str(info.get('sub') or info.get('user_id') or '')
+
+        if not google_sub:
+            # We still can operate without sub, but we need to store OAuth mapping.
+            # Use id_token hash as fallback unique key.
+            google_sub = str(abs(hash(id_token)))
+
+        # Find existing OAuth mapping first
+        oauth_record = OAuth.query.filter_by(
+            provider='google',
+            provider_user_id=google_sub,
+        ).first()
+
+        if oauth_record:
+            user = oauth_record.user
+        else:
+            user = User.query.filter_by(email=email).first()
+
+            # Create pending user if not exists
+            if not user:
+                user = User(
+                    first_name=given_name,
+                    last_name=family_name,
+                    email=email,
+                    password='google_oauth',
+                    phone='',
+                    address='',
+                    role='buyer',
+                    status='pending',
+                    email_verified=True,
+                )
+                db.session.add(user)
+                db.session.commit()
+
+                # Link OAuth record
+                oauth_record = OAuth(
+                    provider='google',
+                    provider_user_id=google_sub,
+                    user=user,
+                    token={},
+                )
+                db.session.add(oauth_record)
+                db.session.commit()
+
+            else:
+                # Existing user found but no OAuth mapping: create OAuth record
+                oauth_record = OAuth(
+                    provider='google',
+                    provider_user_id=google_sub,
+                    user=user,
+                    token={},
+                )
+                db.session.add(oauth_record)
+                db.session.commit()
+
+        # Enforce approval
+        if user.status != 'active':
+            # Keep consistent behavior with web OAuth handler
+            return jsonify({
+                'success': False,
+                'error': 'Your account is pending admin approval. Please wait until your account is active.'
+            }), 403
+
+        # Issue mobile JWTs
+        role = user.role
+        tokens = generate_tokens(user.id, role)
+        ApiService.setTokens(tokens['access_token'], tokens['refresh_token']) if 'ApiService' in globals() else None
+
+        # Return user payload compatible with mobile_app/lib/models/user.dart
+        # The mobile code expects: role, id, email, first_name/last_name, status, phone, etc.
+        user_payload = {
+            'id': user.id,
+            'role': user.role,
+            'status': user.status,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone': user.phone,
+            'fullName': f"{user.first_name} {user.last_name}",
+            'email_verified': bool(getattr(user, 'email_verified', False)),
+            'two_factor_enabled': bool(getattr(user, 'two_factor_enabled', False)),
+            'profile_picture': user.profile_picture,
+        }
+
+        return jsonify({'tokens': tokens, 'user': user_payload, 'success': True}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Google login failed: {str(e)}'}), 500
+
+
 @app.route('/check-password-strength', methods=['POST'])
 def check_password_strength():
     """API endpoint for real-time password strength checking"""
@@ -19593,7 +19903,17 @@ def api_buyer_checkout():
         
         if not recipient_name or not recipient_phone or not shipping_address:
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
-        
+
+        active_address = Address.query.filter_by(
+            user_id=request.current_user_id,
+            is_default=True
+        ).first()
+        if not active_address:
+            return jsonify({
+                'success': False,
+                'error': 'Shipping Address Required: Please add a delivery address in your profile before proceeding to checkout.'
+            }), 400
+
         # Get cart items or direct product purchases
         if selected_items:
             # Check if these are cart item IDs or product IDs

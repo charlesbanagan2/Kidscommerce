@@ -19,8 +19,14 @@ import 'notification_screen.dart';
 class BuyerHomeScreen extends StatefulWidget {
   final int initialTab;
   final String? ordersInitialFilter;
-  
-  const BuyerHomeScreen({super.key, this.initialTab = 0, this.ordersInitialFilter});
+  final bool showAddressSetup;
+
+  const BuyerHomeScreen({
+    super.key,
+    this.initialTab = 0,
+    this.ordersInitialFilter,
+    this.showAddressSetup = false,
+  });
 
   @override
   State<BuyerHomeScreen> createState() => _BuyerHomeScreenState();
@@ -117,7 +123,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           ),
           OrdersScreen(initialFilter: widget.ordersInitialFilter),
           const ChatConversationsScreen(),
-          const ProfileScreen(),
+          ProfileScreen(showAddressSetup: widget.showAddressSetup),
         ],
       ),
       bottomNavigationBar: _buildModernBottomNav(),

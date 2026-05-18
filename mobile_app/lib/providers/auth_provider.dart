@@ -12,6 +12,9 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isAuthenticated = false;
+  bool _pendingApproval = false;
+  String? _pendingApprovalMessage;
+  bool _requiresAddressSetup = false;
 
   // Getters
   User? get user => _user;
@@ -19,6 +22,9 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _isAuthenticated;
+  bool get pendingApproval => _pendingApproval;
+  String? get pendingApprovalMessage => _pendingApprovalMessage;
+  bool get requiresAddressSetup => _requiresAddressSetup;
 
   // Role checks
   bool get isBuyer => _user?.role == 'buyer';
@@ -129,15 +135,22 @@ class AuthProvider with ChangeNotifier {
       }
 
       _isAuthenticated = true;
+      _pendingApproval = false;
+      _pendingApprovalMessage = null;
 
       // Save to preferences
       await _saveData();
 
+      await _checkAddressSetup();
       notifyListeners();
       debugPrint('=== LOGIN COMPLETE ===');
       return true;
     } on ApiException catch (e) {
       debugPrint('âŒ API Exception: ${e.message}');
+      if (_isPendingApprovalError(e)) {
+        _setPendingApproval(e.message);
+        return false;
+      }
       _setErrorMessage(e.message);
       return false;
     } catch (e) {
@@ -182,6 +195,90 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Registration Exception: $e');
       _setErrorMessage('An unexpected error occurred during registration.');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Login with Google OAuth
+  Future<bool> loginWithGoogle(String idToken, String accessToken) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await ApiService.request(
+        'POST',
+        '/api/v1/google-login',
+        body: {
+          'id_token': idToken,
+          'access_token': accessToken,
+        },
+      );
+
+      debugPrint('=== GOOGLE LOGIN RESPONSE ===');
+      debugPrint('Full result: $result');
+
+      // Get tokens from response
+      final tokensData = result['tokens'] as Map<String, dynamic>?;
+      debugPrint('Tokens data: $tokensData');
+
+      if (tokensData != null) {
+        if (tokensData['access_token'] != null &&
+            tokensData['refresh_token'] != null) {
+          _tokens = AuthTokens(
+            accessToken: tokensData['access_token'],
+            refreshToken: tokensData['refresh_token'],
+            expiresIn: tokensData['expires_in'] ?? 86400,
+            issuedAt: DateTime.now(),
+          );
+          ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+          debugPrint('✓ Tokens set from Google login');
+        }
+      } else if (result['access_token'] != null &&
+          result['refresh_token'] != null) {
+        _tokens = AuthTokens(
+          accessToken: result['access_token'],
+          refreshToken: result['refresh_token'],
+          expiresIn: result['expires_in'] ?? 86400,
+          issuedAt: DateTime.now(),
+        );
+        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+        debugPrint('✓ Tokens set from flat format');
+      }
+
+      // Extract user data
+      final userData = result['user'] ?? result;
+      debugPrint('User data: $userData');
+
+      if (userData is Map<String, dynamic>) {
+        _user = User.fromJson(userData);
+        debugPrint(
+            '✓ User created: ${_user?.fullName}, Role: ${_user?.role}');
+      }
+
+      _isAuthenticated = true;
+      _pendingApproval = false;
+      _pendingApprovalMessage = null;
+
+      // Save to preferences
+      await _saveData();
+
+      await _checkAddressSetup();
+      notifyListeners();
+      debugPrint('=== GOOGLE LOGIN COMPLETE ===');
+      return true;
+    } on ApiException catch (e) {
+      debugPrint('❌ Google Login API Exception: ${e.message}');
+      if (_isPendingApprovalError(e)) {
+        _setPendingApproval(e.message);
+        return false;
+      }
+      _setErrorMessage(e.message);
+      return false;
+    } catch (e) {
+      debugPrint('❌ Google Login Exception: $e');
+      _setErrorMessage('Google login failed: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -278,6 +375,9 @@ class AuthProvider with ChangeNotifier {
     _user = null;
     _tokens = null;
     _isAuthenticated = false;
+    _pendingApproval = false;
+    _pendingApprovalMessage = null;
+    _requiresAddressSetup = false;
     ApiService.clearTokens();
     _clearError();
   }
@@ -297,6 +397,42 @@ class AuthProvider with ChangeNotifier {
   /// Clear error message
   void _clearError() {
     _errorMessage = null;
+    _pendingApproval = false;
+    _pendingApprovalMessage = null;
+  }
+
+  bool _isPendingApprovalError(ApiException e) {
+    final message = e.message.toLowerCase();
+    return e.statusCode == 403 &&
+        (message.contains('pending') || message.contains('approval'));
+  }
+
+  void _setPendingApproval(String message) {
+    _pendingApproval = true;
+    _pendingApprovalMessage = message;
+    _user = null;
+    _tokens = null;
+    _isAuthenticated = false;
+    _requiresAddressSetup = false;
+    ApiService.clearTokens();
+    notifyListeners();
+  }
+
+  Future<void> _checkAddressSetup() async {
+    _requiresAddressSetup = false;
+    if (_user?.role != 'buyer') return;
+    try {
+      final result =
+          await ApiService.request('GET', '/api/v1/buyer/addresses');
+      if (result is Map<String, dynamic>) {
+        final addresses = result['addresses'];
+        if (addresses is List && addresses.isEmpty) {
+          _requiresAddressSetup = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to check address setup: $e');
+    }
   }
 
   /// Get access token

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/buyer_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../buyer_app/buyer_home_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'pending_approval_screen.dart';
 
 class WebStyleLoginScreen extends StatefulWidget {
   const WebStyleLoginScreen({super.key});
@@ -40,6 +43,9 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
   String? _emailError;
   String? _passwordError;
   bool _hasSubmitted = false;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: '668360708226-q79n83ttq956po4cj3pd5qig0thiqp6c.apps.googleusercontent.com',
+  );
 
   // ─── Design Tokens ──────────────────────────────────────────────────────────
   static const Color navyDark = Color(0xFF0B1628);
@@ -166,6 +172,125 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
     if (!_shakeController.isAnimating) _shakeController.forward(from: 0);
   }
 
+  Future<void> _navigateToBuyerHome({required bool showAddressSetup}) async {
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BuyerHomeScreen(
+          initialTab: showAddressSetup ? 3 : 0,
+          showAddressSetup: showAddressSetup,
+        ),
+      ),
+      (route) => false,
+    );
+  }
+
+  // ─── Google Sign In ──────────────────────────────────────────────────────────
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Sign in with Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Use AuthProvider to handle Google login
+      final authProvider = context.read<AuthProvider>();
+      final success = await authProvider.loginWithGoogle(
+        googleAuth.idToken ?? '',
+        googleAuth.accessToken ?? '',
+      );
+
+      if (!mounted) return;
+
+       if (success && authProvider.isAuthenticated) {
+         final userRole = authProvider.user!.role.toLowerCase();
+         if (userRole == 'buyer' || userRole == 'rider') {
+           // Refresh data after login
+           if (userRole == 'buyer') {
+             final buyerProvider = context.read<BuyerProvider>();
+             final cartProvider = context.read<CartProvider>();
+             await buyerProvider.fetchOrders();
+             await cartProvider.loadCart();
+           }
+           if (mounted) {
+             // Navigate to appropriate screen based on role
+             if (userRole == 'rider') {
+               Navigator.pushNamedAndRemoveUntil(
+                 context,
+                 '/rider-dashboard',
+                 (route) => false,
+               );
+             } else {
+               await _navigateToBuyerHome(
+                 showAddressSetup: authProvider.requiresAddressSetup,
+               );
+             }
+           }
+         } else {
+           await _googleSignIn.signOut();
+           await authProvider.logout();
+          if (mounted)
+            setState(() {
+              _errorMessage =
+                  'This account is not authorized to access the mobile app. Only Buyer and Rider accounts can log in.';
+              _isLoading = false;
+            });
+        }
+       } else {
+         if (authProvider.pendingApproval) {
+           await _googleSignIn.signOut();
+           if (mounted) {
+             setState(() {
+               _isLoading = false;
+               _errorMessage = null;
+             });
+             Navigator.push(
+               context,
+               MaterialPageRoute(
+                 builder: (context) => PendingApprovalScreen(
+                   email: googleUser.email,
+                   message: authProvider.pendingApprovalMessage,
+                 ),
+               ),
+             );
+           }
+           return;
+         }
+         await _googleSignIn.signOut();
+         if (mounted) {
+           setState(() {
+             _errorMessage = authProvider.errorMessage ??
+                 'Google sign-in failed. Please try again.';
+             _isLoading = false;
+           });
+         }
+         _triggerShake();
+       }
+     } catch (e) {
+       await _googleSignIn.signOut();
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Google sign-in failed: ${e.toString()}';
+          _isLoading = false;
+        });
+        _triggerShake();
+      }
+    }
+  }
+
   // ─── Login ──────────────────────────────────────────────────────────────────
   Future<void> _login() async {
     final prefs = await SharedPreferences.getInstance();
@@ -199,48 +324,65 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
 
       if (!mounted) return;
 
-      if (authProvider.isAuthenticated && authProvider.user != null) {
-        final userRole = authProvider.user!.role.toLowerCase();
-        if (userRole == 'buyer' || userRole == 'rider') {
-          // Refresh data after login
-          if (userRole == 'buyer') {
-            final buyerProvider = context.read<BuyerProvider>();
-            final cartProvider = context.read<CartProvider>();
-            await buyerProvider.fetchOrders();
-            await cartProvider.loadCart();
-          }
-          if (mounted) {
-            // Navigate to appropriate screen based on role
-            if (userRole == 'rider') {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/rider-dashboard',
-                (route) => false,
-              );
-            } else {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/home',
-                (route) => false,
-              );
-            }
-          }
-        } else {
-          await authProvider.logout();
-          if (mounted)
+       if (authProvider.isAuthenticated && authProvider.user != null) {
+         final userRole = authProvider.user!.role.toLowerCase();
+         if (userRole == 'buyer' || userRole == 'rider') {
+           // Refresh data after login
+           if (userRole == 'buyer') {
+             final buyerProvider = context.read<BuyerProvider>();
+             final cartProvider = context.read<CartProvider>();
+             await buyerProvider.fetchOrders();
+             await cartProvider.loadCart();
+           }
+           if (mounted) {
+             // Navigate to appropriate screen based on role
+             if (userRole == 'rider') {
+               Navigator.pushNamedAndRemoveUntil(
+                 context,
+                 '/rider-dashboard',
+                 (route) => false,
+               );
+             } else {
+               await _navigateToBuyerHome(
+                 showAddressSetup: authProvider.requiresAddressSetup,
+               );
+             }
+           }
+         } else {
+           await authProvider.logout();
+           if (mounted)
             setState(() {
               _errorMessage =
                   'This account is not authorized to access the mobile app. Only Buyer and Rider accounts can log in.';
               _isLoading = false;
             });
         }
-      } else {
-        setState(() {
-          _errorMessage = authProvider.errorMessage ?? 'Invalid credentials. Please try again.';
-          _isLoading = false;
-        });
-        _triggerShake();
-      }
+       } else {
+         if (authProvider.pendingApproval) {
+           if (mounted) {
+             setState(() {
+               _isLoading = false;
+               _errorMessage = null;
+             });
+             Navigator.push(
+               context,
+               MaterialPageRoute(
+                 builder: (context) => PendingApprovalScreen(
+                   email: _emailController.text.trim(),
+                   message: authProvider.pendingApprovalMessage,
+                 ),
+               ),
+             );
+           }
+           return;
+         }
+         setState(() {
+           _errorMessage =
+               authProvider.errorMessage ?? 'Invalid credentials. Please try again.';
+           _isLoading = false;
+         });
+         _triggerShake();
+       }
     } on TimeoutException {
       if (mounted)
         setState(() {
@@ -731,7 +873,7 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
                 width: double.infinity,
                 height: 46,
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: _isLoading ? null : _handleGoogleSignIn,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                         color: Colors.white.withValues(alpha: 0.15),
