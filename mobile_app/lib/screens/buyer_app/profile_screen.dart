@@ -1152,7 +1152,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                         ],
                       ),
-                      child: authProvider.user?.profileImage != null
+                      child: authProvider.user?.profileImage != null &&
+                              authProvider.user!.profileImage!.isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(20),
                               child: Image.network(

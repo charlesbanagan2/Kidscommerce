@@ -635,7 +635,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             letterSpacing: 0.3,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         const Text(
           'How will you use Kids Kingdom?',
           style: TextStyle(
@@ -643,7 +643,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             color: textWhite70,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -790,7 +790,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         const Text(
           'Personal Information',
           style: const TextStyle(
@@ -805,7 +805,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           'Tell us a bit about yourself',
           style: const TextStyle(fontSize: 11, color: textWhite70),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -829,7 +829,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildTextField(
           label: 'Email Address',
           hint: 'your@email.com',
@@ -838,7 +838,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           keyboardType: TextInputType.emailAddress,
           prefixIcon: Icons.email_outlined,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildTextField(
           label: 'Phone Number',
           hint: '09123456789',
@@ -860,7 +860,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             }
           },
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         const Padding(
           padding: const EdgeInsets.only(left: 4),
           child: const Text(
@@ -868,7 +868,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             style: const TextStyle(fontSize: 10, color: Colors.white38),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildPasswordField(
           label: 'Password',
           hint: 'Create a strong password',
@@ -877,7 +877,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           isPasswordField: true,
         ),
         _buildPasswordStrengthIndicator(),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         _buildPasswordField(
           label: 'Confirm Password',
           hint: 'Re-enter your password',
@@ -1885,7 +1885,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                                 ),
                               ],
                             ),
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -1921,7 +1921,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
 
                                 // Step indicator
                                 _buildStepIndicator(),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 8),
 
                                 // Step content with fade
                                 FadeTransition(
@@ -1936,7 +1936,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                                   ),
                                 ),
 
-                                SizedBox(height: _currentStep == 1 ? 8 : 16),
+                                const SizedBox(height: 6),
 
                                 // Navigation button (Next / Complete)
                                 if (_currentStep != 1)
@@ -2015,7 +2015,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                             ),
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
 
                           // Sign in link
                           Row(

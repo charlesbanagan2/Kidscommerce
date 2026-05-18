@@ -188,6 +188,83 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Login with Google OAuth
+  Future<bool> loginWithGoogle(String idToken, String accessToken) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await ApiService.request(
+        'POST',
+        '/api/v1/google-login',
+        body: {
+          'id_token': idToken,
+          'access_token': accessToken,
+        },
+      );
+
+      debugPrint('=== GOOGLE LOGIN RESPONSE ===');
+      debugPrint('Full result: $result');
+
+      // Get tokens from response
+      final tokensData = result['tokens'] as Map<String, dynamic>?;
+      debugPrint('Tokens data: $tokensData');
+
+      if (tokensData != null) {
+        if (tokensData['access_token'] != null &&
+            tokensData['refresh_token'] != null) {
+          _tokens = AuthTokens(
+            accessToken: tokensData['access_token'],
+            refreshToken: tokensData['refresh_token'],
+            expiresIn: tokensData['expires_in'] ?? 86400,
+            issuedAt: DateTime.now(),
+          );
+          ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+          debugPrint('✓ Tokens set from Google login');
+        }
+      } else if (result['access_token'] != null &&
+          result['refresh_token'] != null) {
+        _tokens = AuthTokens(
+          accessToken: result['access_token'],
+          refreshToken: result['refresh_token'],
+          expiresIn: result['expires_in'] ?? 86400,
+          issuedAt: DateTime.now(),
+        );
+        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+        debugPrint('✓ Tokens set from flat format');
+      }
+
+      // Extract user data
+      final userData = result['user'] ?? result;
+      debugPrint('User data: $userData');
+
+      if (userData is Map<String, dynamic>) {
+        _user = User.fromJson(userData);
+        debugPrint(
+            '✓ User created: ${_user?.fullName}, Role: ${_user?.role}');
+      }
+
+      _isAuthenticated = true;
+
+      // Save to preferences
+      await _saveData();
+
+      notifyListeners();
+      debugPrint('=== GOOGLE LOGIN COMPLETE ===');
+      return true;
+    } on ApiException catch (e) {
+      debugPrint('❌ Google Login API Exception: ${e.message}');
+      _setErrorMessage(e.message);
+      return false;
+    } catch (e) {
+      debugPrint('❌ Google Login Exception: $e');
+      _setErrorMessage('Google login failed: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Logout user
   Future<void> logout() async {
     _setLoading(true);

@@ -79,7 +79,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-
+    
     _shakeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -159,13 +159,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
 
   void _triggerShake() {
     if (!mounted) return;
-
+    
     setState(() => _isShaking = true);
-
+    
     if (_shakeController.isAnimating) {
       _shakeController.stop();
     }
-
+    
     _shakeController.reset();
     _shakeController.forward().then((_) {
       if (mounted) {
@@ -180,7 +180,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
 
   void _triggerErrorPulse() {
     if (!mounted || _errorPulseController.isAnimating) return;
-
+    
     _errorPulseController.forward().then((_) {
       if (mounted) {
         _errorPulseController.reverse();
@@ -191,7 +191,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
   Future<void> _resetPassword() async {
     // Prevent multiple simultaneous requests
     if (_isLoading) return;
-
+    
     setState(() {
       _codeTouched = true;
       _passwordTouched = true;
@@ -226,18 +226,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       );
 
       if (!mounted) return;
-
+      
       setState(() => _isLoading = false);
 
       // Debug: Print the actual response
-      debugPrint('🔍 Reset Password Response: $result');
+      print ('🔍 Reset Password Response: $result');
 
       // Check if result is null or has error
       if (result == null) {
         if (!mounted) return;
         setState(() {
-          _message =
-              '📡 Connection error. Please check your internet and try again.';
+          _message = '📡 Connection error. Please check your internet and try again.';
           _isError = true;
         });
         return;
@@ -265,12 +264,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
         });
       } else {
         // Handle error response
-        final errorMsg =
-            result['error'] ?? result['message'] ?? 'Failed to reset password';
+        final errorMsg = result['error'] ?? result['message'] ?? 'Failed to reset password';
         final errorType = result['error_type'] ?? '';
         final attempts = result['attempts'] ?? 0;
         final remainingAttempts = result['remaining_attempts'] ?? 0;
-
+        
         String displayMessage = errorMsg;
         bool isCodeError = false;
 
@@ -278,26 +276,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
         if (errorType == 'invalid_code') {
           isCodeError = true;
           _codeAttempts = attempts;
-
+          
           if (remainingAttempts > 0) {
-            displayMessage =
-                '❌ Invalid verification code. $remainingAttempts attempt(s) remaining.';
+            displayMessage = '❌ Invalid verification code. $remainingAttempts attempt(s) remaining.';
           } else if (_codeAttempts == 1) {
-            displayMessage =
-                '❌ Invalid verification code. Please check your email and try again.';
+            displayMessage = '❌ Invalid verification code. Please check your email and try again.';
           } else if (_codeAttempts == 2) {
-            displayMessage =
-                '❌ Invalid code. Attempt $_codeAttempts of 3. Double-check your email.';
+            displayMessage = '❌ Invalid code. Attempt $_codeAttempts of 3. Double-check your email.';
           } else if (_codeAttempts >= 3) {
-            displayMessage =
-                '🚫 Too many failed attempts. Please request a new code.';
+            displayMessage = '🚫 Too many failed attempts. Please request a new code.';
           }
         } else if (errorType == 'expired_code') {
           displayMessage = '⏰ Code has expired. Please request a new one.';
           isCodeError = true;
         } else if (errorType == 'too_many_attempts') {
-          displayMessage =
-              '🚫 Too many failed attempts. Please request a new code.';
+          displayMessage = '🚫 Too many failed attempts. Please request a new code.';
           isCodeError = true;
         } else if (errorType == 'user_not_found') {
           displayMessage = '❌ User account not found. Please try again.';
@@ -308,25 +301,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
         } else {
           // Fallback: check error message content
           final errorLower = errorMsg.toLowerCase();
-
+          
           if (errorLower.contains('invalid') && errorLower.contains('code')) {
             isCodeError = true;
             _codeAttempts++;
             if (_codeAttempts == 1) {
-              displayMessage =
-                  '❌ Invalid verification code. Please check your email and try again.';
+              displayMessage = '❌ Invalid verification code. Please check your email and try again.';
             } else if (_codeAttempts == 2) {
-              displayMessage =
-                  '❌ Invalid code. Attempt $_codeAttempts of 3. Double-check your email.';
+              displayMessage = '❌ Invalid code. Attempt $_codeAttempts of 3. Double-check your email.';
             } else if (_codeAttempts >= 3) {
-              displayMessage =
-                  '🚫 Too many failed attempts. Please request a new code.';
+              displayMessage = '🚫 Too many failed attempts. Please request a new code.';
             }
           } else if (errorLower.contains('expired')) {
             displayMessage = '⏰ Code has expired. Please request a new one.';
             isCodeError = true;
-          } else if (errorLower.contains('not found') ||
-              errorLower.contains('incorrect')) {
+          } else if (errorLower.contains('not found') || errorLower.contains('incorrect')) {
             displayMessage = '❌ Invalid verification code. Please try again.';
             isCodeError = true;
             _codeAttempts++;
@@ -356,15 +345,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-
+      
       // Handle API errors (400, 401, etc.)
       String displayMessage;
       bool isCodeError = false;
-
+      
       if (e.statusCode == 400) {
         // This is likely an invalid_code error
         displayMessage = e.message;
-        if (displayMessage.toLowerCase().contains('invalid') &&
+        if (displayMessage.toLowerCase().contains('invalid') && 
             displayMessage.toLowerCase().contains('code')) {
           isCodeError = true;
           _codeAttempts++;
@@ -374,33 +363,32 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       } else {
         displayMessage = '📡 ${e.message}';
       }
-
+      
       setState(() {
         _message = displayMessage;
         _isError = true;
         _isLoading = false;
         _codeFieldHasError = isCodeError;
       });
-
+      
       _triggerShake();
       _triggerErrorPulse();
-
+      
       if (isCodeError) {
         _codeController.clear();
         _codeTouched = false;
       }
-
-      debugPrint('Reset password error: $e');
+      
+      print('Reset password error: $e');
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _message =
-            '📡 Connection error. Please check your internet and try again.';
+        _message = '📡 Connection error. Please check your internet and try again.';
         _isError = true;
         _isLoading = false;
       });
       _triggerShake();
-      debugPrint('Reset password error: $e');
+      print('Reset password error: $e');
     }
   }
 
@@ -479,9 +467,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                               // Simple sine wave shake
                               double offset = 0.0;
                               if (_isShaking && _shakeController.isAnimating) {
-                                offset = math.sin(
-                                        _shakeAnimation.value * math.pi * 2) *
-                                    8.0;
+                                offset = math.sin(_shakeAnimation.value * math.pi * 2) * 8.0;
                               }
                               return Transform.translate(
                                 offset: Offset(offset, 0),

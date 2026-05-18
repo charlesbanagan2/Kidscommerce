@@ -12328,6 +12328,138 @@ def delete_address(address_id):
 def google_login():
     return redirect(url_for("google.login"))
 
+
+# ============================
+# Mobile Google Login API
+# ============================
+@app.route('/api/v1/google-login', methods=['POST'])
+def api_v1_google_login():
+    """Mobile API Google OAuth login.
+
+    Expects JSON body:
+      { "id_token": <string>, "access_token": <string> }
+
+    Returns JSON compatible with mobile_app/lib/providers/auth_provider.dart
+    -> {"tokens": {"access_token":..., "refresh_token":...}, "user": {...}} OR flat tokens/user.
+
+    Notes:
+    - Enforces admin approval using User.status == 'active'.
+    - Creates a new user with status='pending' if email not found.
+    - Does NOT automatically log in pending users.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        id_token = (data.get('id_token') or '').strip()
+        access_token = (data.get('access_token') or '').strip()
+
+        if not id_token:
+            return jsonify({'success': False, 'error': 'id_token is required'}), 400
+
+        # Verify the id token with Google
+        # Use Google's tokeninfo endpoint (simple verification for this backend).
+        # id_token verification is sufficient for mapping email.
+        verify_url = 'https://oauth2.googleapis.com/tokeninfo'
+        resp = requests.get(verify_url, params={'id_token': id_token}, timeout=15)
+        if resp.status_code != 200:
+            return jsonify({'success': False, 'error': 'Invalid Google id_token'}), 401
+
+        info = resp.json() or {}
+        email = info.get('email')
+        if not email:
+            return jsonify({'success': False, 'error': 'Google token missing email'}), 401
+
+        given_name = info.get('given_name') or info.get('givenName') or 'Google'
+        family_name = info.get('family_name') or info.get('familyName') or 'User'
+        google_sub = str(info.get('sub') or info.get('user_id') or '')
+
+        if not google_sub:
+            # We still can operate without sub, but we need to store OAuth mapping.
+            # Use id_token hash as fallback unique key.
+            google_sub = str(abs(hash(id_token)))
+
+        # Find existing OAuth mapping first
+        oauth_record = OAuth.query.filter_by(
+            provider='google',
+            provider_user_id=google_sub,
+        ).first()
+
+        if oauth_record:
+            user = oauth_record.user
+        else:
+            user = User.query.filter_by(email=email).first()
+
+            # Create pending user if not exists
+            if not user:
+                user = User(
+                    first_name=given_name,
+                    last_name=family_name,
+                    email=email,
+                    password='google_oauth',
+                    phone='',
+                    address='',
+                    role='buyer',
+                    status='pending',
+                    email_verified=True,
+                )
+                db.session.add(user)
+                db.session.commit()
+
+                # Link OAuth record
+                oauth_record = OAuth(
+                    provider='google',
+                    provider_user_id=google_sub,
+                    user=user,
+                    token={},
+                )
+                db.session.add(oauth_record)
+                db.session.commit()
+
+            else:
+                # Existing user found but no OAuth mapping: create OAuth record
+                oauth_record = OAuth(
+                    provider='google',
+                    provider_user_id=google_sub,
+                    user=user,
+                    token={},
+                )
+                db.session.add(oauth_record)
+                db.session.commit()
+
+        # Enforce approval
+        if user.status != 'active':
+            # Keep consistent behavior with web OAuth handler
+            return jsonify({
+                'success': False,
+                'error': 'Your account is pending admin approval. Please wait until your account is active.'
+            }), 403
+
+        # Issue mobile JWTs
+        role = user.role
+        tokens = generate_tokens(user.id, role)
+        ApiService.setTokens(tokens['access_token'], tokens['refresh_token']) if 'ApiService' in globals() else None
+
+        # Return user payload compatible with mobile_app/lib/models/user.dart
+        # The mobile code expects: role, id, email, first_name/last_name, status, phone, etc.
+        user_payload = {
+            'id': user.id,
+            'role': user.role,
+            'status': user.status,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone': user.phone,
+            'fullName': f"{user.first_name} {user.last_name}",
+            'email_verified': bool(getattr(user, 'email_verified', False)),
+            'two_factor_enabled': bool(getattr(user, 'two_factor_enabled', False)),
+            'profile_picture': user.profile_picture,
+        }
+
+        return jsonify({'tokens': tokens, 'user': user_payload, 'success': True}), 200
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Google login failed: {str(e)}'}), 500
+
+
 @app.route('/check-password-strength', methods=['POST'])
 def check_password_strength():
     """API endpoint for real-time password strength checking"""
