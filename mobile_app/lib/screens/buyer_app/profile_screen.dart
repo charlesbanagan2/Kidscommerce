@@ -11,7 +11,8 @@ import 'liked_products_screen.dart';
 
 /// Buyer Profile Screen
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final bool showAddressSetup;
+  const ProfileScreen({super.key, this.showAddressSetup = false});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -52,10 +53,17 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
   }
 
-  void _loadProfile() {
+  Future<void> _loadProfile() async {
     final buyerProvider = context.read<BuyerProvider>();
     buyerProvider.fetchProfile();
-    _fetchAddresses();
+    await _fetchAddresses();
+
+    if (widget.showAddressSetup && _addresses.isEmpty && mounted) {
+      _showSnackBar(
+        'Please add your delivery address to continue.',
+      );
+      await _showAddAddressSheet();
+    }
   }
 
   @override
@@ -730,6 +738,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                     height: 44,
                     child: ElevatedButton(
                       onPressed: selectedLabel != null &&
+                              (selectedLabel != 'Other' ||
+                                  customLabelController.text.trim().isNotEmpty) &&
                               selectedProvince != null &&
                               selectedCity != null &&
                               selectedBarangay != null &&
@@ -764,7 +774,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     if (result == true && mounted) {
       final finalLabel = selectedLabel == 'Other'
-          ? customLabelController.text
+          ? customLabelController.text.trim()
           : selectedLabel ?? '';
 
       await _addAddress(
@@ -772,6 +782,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         street: streetController.text,
         city: selectedCity ?? '',
         province: selectedProvince ?? '',
+        barangay: selectedBarangay,
         zip: '',
         isDefault: isDefault,
       );
@@ -851,12 +862,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     required String street,
     required String city,
     required String province,
+    String? barangay,
     required String zip,
     required bool isDefault,
   }) async {
     try {
+      final trimmedBarangay = (barangay ?? '').trim();
       final fullAddress =
-          '$street, $city, $province${zip.isNotEmpty ? ', $zip' : ''}';
+          '$street, ${trimmedBarangay.isNotEmpty ? '$trimmedBarangay, ' : ''}$city, $province${zip.isNotEmpty ? ', $zip' : ''}';
 
       final response =
           await ApiService.request('POST', '/api/v1/buyer/addresses', body: {
@@ -865,6 +878,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         'street_address': street,
         'city': city,
         'province': province,
+        'barangay': trimmedBarangay,
         'zip_code': zip,
         'is_default': isDefault,
       });
