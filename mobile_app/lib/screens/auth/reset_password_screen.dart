@@ -229,9 +229,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       
       setState(() => _isLoading = false);
 
-      // Debug: Print the actual response
-      print ('🔍 Reset Password Response: $result');
-
       // Check if result is null or has error
       if (result == null) {
         if (!mounted) return;
@@ -378,8 +375,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
         _codeController.clear();
         _codeTouched = false;
       }
-      
-      print('Reset password error: $e');
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -388,7 +383,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
         _isLoading = false;
       });
       _triggerShake();
-      print('Reset password error: $e');
     }
   }
 

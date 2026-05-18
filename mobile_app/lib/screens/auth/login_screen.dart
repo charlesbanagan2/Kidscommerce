@@ -43,10 +43,7 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
   String? _emailError;
   String? _passwordError;
   bool _hasSubmitted = false;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId:
-        '668360708226-q79n83ttq956po4cj3pd5qig0thiqp6c.apps.googleusercontent.com',
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // ─── Design Tokens ──────────────────────────────────────────────────────────
   static const Color navyDark = Color(0xFF0B1628);
@@ -171,6 +168,92 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
 
   void _triggerShake() {
     if (!_shakeController.isAnimating) _shakeController.forward(from: 0);
+  }
+
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+  Future<void> _navigateToBuyerHome({bool showAddressSetup = false}) async {
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/buyer-home',
+      (route) => false,
+    );
+  }
+
+  // ─── Google Sign In ─────────────────────────────────────────────────────────
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final authProvider = context.read<AuthProvider>();
+
+      await authProvider.loginWithGoogle(
+        googleAuth.accessToken ?? '',
+        googleAuth.idToken ?? '',
+      );
+
+      if (!mounted) return;
+
+      if (authProvider.isAuthenticated && authProvider.user != null) {
+        final userRole = authProvider.user!.role.toLowerCase();
+        if (userRole == 'buyer' || userRole == 'rider') {
+          if (userRole == 'buyer') {
+            final buyerProvider = context.read<BuyerProvider>();
+            final cartProvider = context.read<CartProvider>();
+            await buyerProvider.fetchOrders();
+            await cartProvider.loadCart();
+          }
+          if (mounted) {
+            if (userRole == 'rider') {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/rider-dashboard',
+                (route) => false,
+              );
+            } else {
+              await _navigateToBuyerHome(
+                showAddressSetup: authProvider.requiresAddressSetup,
+              );
+            }
+          }
+        } else {
+          await authProvider.logout();
+          if (mounted) {
+            setState(() {
+              _errorMessage =
+                  'This account is not authorized to access the mobile app.';
+              _isLoading = false;
+            });
+            _triggerShake();
+          }
+        }
+      } else {
+        setState(() {
+          _errorMessage =
+              authProvider.errorMessage ?? 'Google sign-in failed.';
+          _isLoading = false;
+        });
+        _triggerShake();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Google sign-in error. Please try again.';
+          _isLoading = false;
+        });
+        _triggerShake();
+      }
+    }
   }
 
   // ─── Login ──────────────────────────────────────────────────────────────────

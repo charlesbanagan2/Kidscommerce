@@ -28,7 +28,7 @@ class ProfilePhotoHelper {
       }
 
       final file = File(image.path);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         throw Exception('Selected image file was not found');
       }
 
