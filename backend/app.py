@@ -1496,10 +1496,6 @@ def avatar_helper():
     return dict(get_user_avatar_url=get_user_avatar_url)
 
 
-# Register Google Sign-In API endpoint for mobile apps
-register_google_login_api(app, db, User)
-
-
 def fetch_psgc(endpoint, params=None, timeout=15, max_pages=0, per_page=None, retry=2, backoff=1.0):
     """
     Fetch JSON list from PSGC and support pagination.
@@ -2493,6 +2489,13 @@ try:
     print("[OK] Notification API initialized")
 except Exception as e:
     print(f"[ERROR] Notification API: {e}")
+
+# Register Google Sign-In API endpoint for mobile apps (after User model is defined)
+try:
+    register_google_login_api(app, db, User)
+    print("[OK] Google Login API initialized")
+except Exception as e:
+    print(f"[ERROR] Google Login API: {e}")
 
 # Initialize Email Verification API
 try:
