@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../../services/api_service.dart';
-import 'registration_success_screen.dart';
+import 'pending_approval_screen.dart';
 
 /// Kids Kingdom - Modern Register Screen
 /// Matches the login screen's deep blue gradient, gold branding, and fun-professional vibe
@@ -496,14 +496,15 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
       final result = await ApiService.register(body);
       if (mounted) {
         if (result['message'] != null) {
-          Navigator.pushReplacement(
+          Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (context) => RegistrationSuccessScreen(
+              builder: (context) => PendingApprovalScreen(
                 email: _emailController.text.trim(),
                 role: _selectedRole,
               ),
             ),
+            (route) => false,
           );
         } else {
           setState(() {

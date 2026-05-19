@@ -398,6 +398,40 @@ class ApiService {
     return result;
   }
 
+  /// Login with Google credentials (accessToken or idToken from Google SDK)
+  static Future<Map<String, dynamic>> loginWithGoogle(
+    String accessToken,
+    String idToken,
+  ) async {
+    final result = await request(
+      'POST',
+      '/api/v1/auth/google-login',
+      auth: false,
+      body: {
+        'access_token': accessToken,
+        'id_token': idToken,
+      },
+    );
+    
+    // Handle tokens from response
+    final tokensData = result['tokens'] as Map<String, dynamic>?;
+    String? resultAccessToken;
+    String? refreshToken;
+
+    if (tokensData != null) {
+      resultAccessToken = tokensData['access_token']?.toString();
+      refreshToken = tokensData['refresh_token']?.toString();
+    } else {
+      resultAccessToken = result['access_token']?.toString();
+      refreshToken = result['refresh_token']?.toString();
+    }
+
+    if (resultAccessToken != null && refreshToken != null) {
+      setTokens(resultAccessToken, refreshToken);
+    }
+    return result;
+  }
+
   static Future<Map<String, dynamic>> register(
     Map<String, dynamic> regRequest,
   ) async {

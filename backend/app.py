@@ -34,6 +34,7 @@ from mobile_rating_api import register_mobile_rating_endpoints
 from return_refund_api import register_return_refund_api
 from notification_api_endpoints import register_notification_api
 from notification_service import NotificationService
+from google_login_api import register_google_login_api
 from shopee_notification_system import (
     ensure_notification_table,
     notify_order_placed,
@@ -1493,6 +1494,10 @@ def _save_user_profile_avatar(user: 'User', file_storage) -> str:
 def avatar_helper():
     """Make avatar helper function available in all templates"""
     return dict(get_user_avatar_url=get_user_avatar_url)
+
+
+# Register Google Sign-In API endpoint for mobile apps
+register_google_login_api(app, db, User)
 
 
 def fetch_psgc(endpoint, params=None, timeout=15, max_pages=0, per_page=None, retry=2, backoff=1.0):

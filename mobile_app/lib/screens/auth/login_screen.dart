@@ -6,7 +6,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/buyer_provider.dart';
 import '../../providers/cart_provider.dart';
-import '../buyer_app/buyer_home_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'pending_approval_screen.dart';
@@ -239,8 +238,7 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
         }
       } else {
         setState(() {
-          _errorMessage =
-              authProvider.errorMessage ?? 'Google sign-in failed.';
+          _errorMessage = authProvider.errorMessage ?? 'Google sign-in failed.';
           _isLoading = false;
         });
         _triggerShake();

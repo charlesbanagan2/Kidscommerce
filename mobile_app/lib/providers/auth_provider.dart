@@ -162,6 +162,84 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Login with Google credentials
+  Future<bool> loginWithGoogle(String accessToken, String idToken) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await ApiService.loginWithGoogle(accessToken, idToken);
+      debugPrint('=== GOOGLE LOGIN RESPONSE ===');
+      debugPrint('Full result: $result');
+
+      // Get tokens from response (handles both nested and flat formats)
+      final tokensData = result['tokens'] as Map<String, dynamic>?;
+      debugPrint('Tokens data: $tokensData');
+
+      if (tokensData != null) {
+        // New format: tokens are nested in 'tokens' object
+        if (tokensData['access_token'] != null &&
+            tokensData['refresh_token'] != null) {
+          _tokens = AuthTokens(
+            accessToken: tokensData['access_token'],
+            refreshToken: tokensData['refresh_token'],
+            expiresIn: tokensData['expires_in'] ?? 86400,
+            issuedAt: DateTime.now(),
+          );
+          ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+          debugPrint('✅ Tokens set from nested format (Google)');
+        }
+      } else if (result['access_token'] != null &&
+          result['refresh_token'] != null) {
+        // Old format: tokens at top level
+        _tokens = AuthTokens(
+          accessToken: result['access_token'],
+          refreshToken: result['refresh_token'],
+          expiresIn: result['expires_in'] ?? 86400,
+          issuedAt: DateTime.now(),
+        );
+        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+        debugPrint('✅ Tokens set from flat format (Google)');
+      }
+
+      // Extract user data directly from login response
+      final userData = result['user'] ?? result;
+      debugPrint('User data: $userData');
+
+      if (userData is Map<String, dynamic>) {
+        _user = User.fromJson(userData);
+        debugPrint(
+            '✅ User created: ${_user?.fullName}, Role: ${_user?.role}, Authenticated: $_isAuthenticated');
+      }
+
+      _isAuthenticated = true;
+      _pendingApproval = false;
+      _pendingApprovalMessage = null;
+
+      // Save to preferences
+      await _saveData();
+
+      await _checkAddressSetup();
+      notifyListeners();
+      debugPrint('=== GOOGLE LOGIN COMPLETE ===');
+      return true;
+    } on ApiException catch (e) {
+      debugPrint('❌ Google Login API Exception: ${e.message}');
+      if (_isPendingApprovalError(e)) {
+        _setPendingApproval(e.message);
+        return false;
+      }
+      _setErrorMessage(e.message);
+      return false;
+    } catch (e) {
+      debugPrint('❌ Google Login Exception: $e');
+      _setErrorMessage('Google sign-in failed: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Register new user
   Future<bool> register(Map<String, dynamic> request) async {
     _setLoading(true);
