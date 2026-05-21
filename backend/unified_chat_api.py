@@ -62,7 +62,10 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
         if auth_header:
             try:
                 token = auth_header.split(" ")[1]
-                JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-mobile-jwt-secret-key-change-in-production')
+                # Load JWT_SECRET_KEY from environment (REQUIRED)
+                JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+                if not JWT_SECRET_KEY:
+                    return None
                 payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
                 return payload.get('user_id')
             except:
@@ -164,19 +167,24 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     @chat_bp.route('/api/chat/messages/<int:other_user_id>', methods=['GET'])
     @chat_bp.route('/api/v1/chat/messages/<int:other_user_id>', methods=['GET'])
     def get_messages(other_user_id):
-        """Get all messages with a specific user"""
+        """Get all messages with a specific user (includes product chat messages)"""
         try:
             user_id = get_user_from_token()
+            print(f"[DEBUG] get_messages called: user_id={user_id}, other_user_id={other_user_id}")
+            
             if not user_id:
+                print(f"[ERROR] No user_id extracted from token")
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            # Get messages
+            # Get ALL messages (including product chats) between these two users
             messages = ChatMessage.query.filter(
                 or_(
                     and_(ChatMessage.sender_id == user_id, ChatMessage.receiver_id == other_user_id),
                     and_(ChatMessage.sender_id == other_user_id, ChatMessage.receiver_id == user_id)
                 )
             ).order_by(ChatMessage.created_at.asc()).all()
+            
+            print(f"[DEBUG] Found {len(messages)} messages between user {user_id} and {other_user_id}")
             
             # Mark as read
             unread = ChatMessage.query.filter(
@@ -190,6 +198,14 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
             
             if unread:
                 db.session.commit()
+                # Emit unread_cleared event to update conversation list badge
+                try:
+                    socketio.emit('unread_cleared', {
+                        'peer_id': other_user_id,
+                        'unread_count': 0
+                    }, room=f'user_{user_id}')
+                except Exception as e:
+                    print(f"[WARNING] Socket.IO emit unread_cleared failed: {e}")
             
             # Get sender info for all messages using raw SQL
             from sqlalchemy import text
@@ -240,6 +256,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
                     'message': msg.message,
                     'is_read': msg.is_read,
                     'created_at': msg.created_at.isoformat(),
+                    'product_id': msg.product_id,  # Include product_id if exists
                     'sender': sender_info
                 })
             
@@ -252,6 +269,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
             print(f"[ERROR] Error fetching messages: {e}")
             import traceback
             traceback.print_exc()
+            print(f"[ERROR] user_id={user_id if 'user_id' in locals() else 'N/A'}, other_user_id={other_user_id}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     @chat_bp.route('/api/chat/send', methods=['POST'])
@@ -285,18 +303,36 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
             try:
                 from sqlalchemy import text
                 result = db.session.execute(
-                    text("SELECT first_name, last_name, role FROM \"user\" WHERE id = :user_id"),
+                    text("SELECT first_name, last_name, role, profile_picture FROM \"user\" WHERE id = :user_id"),
                     {'user_id': user_id}
                 )
                 sender_row = result.fetchone()
                 if sender_row:
+                    # Emit new_message to receiver
                     socketio.emit('new_message', {
                         'message_id': chat_msg.id,
                         'sender_id': user_id,
+                        'receiver_id': receiver_id,
                         'sender_name': f"{sender_row[0]} {sender_row[1]}",
                         'sender_role': sender_row[2],
                         'message': message,
                         'created_at': chat_msg.created_at.isoformat()
+                    }, room=f'user_{receiver_id}')
+                    
+                    # Emit conversation_updated to BOTH sender and receiver for list re-sort
+                    timestamp = chat_msg.created_at.isoformat()
+                    socketio.emit('conversation_updated', {
+                        'peer_id': receiver_id,
+                        'last_message': message,
+                        'last_message_time': timestamp,
+                        'sender_id': user_id
+                    }, room=f'user_{user_id}')
+                    
+                    socketio.emit('conversation_updated', {
+                        'peer_id': user_id,
+                        'last_message': message,
+                        'last_message_time': timestamp,
+                        'sender_id': user_id
                     }, room=f'user_{receiver_id}')
             except Exception as e:
                 print(f"[WARNING] Socket.IO emit failed: {e}")
@@ -337,6 +373,46 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
             
         except Exception as e:
             print(f"[ERROR] Error getting unread count: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    @chat_bp.route('/api/chat/mark-read/<int:other_user_id>', methods=['POST'])
+    @chat_bp.route('/api/v1/chat/mark-read/<int:other_user_id>', methods=['POST'])
+    def mark_messages_read(other_user_id):
+        """Mark all messages from a specific user as read"""
+        try:
+            user_id = get_user_from_token()
+            if not user_id:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            # Mark messages as read
+            unread = ChatMessage.query.filter(
+                ChatMessage.sender_id == other_user_id,
+                ChatMessage.receiver_id == user_id,
+                ChatMessage.is_read == False
+            ).all()
+            
+            for msg in unread:
+                msg.is_read = True
+            
+            if unread:
+                db.session.commit()
+                # Emit unread_cleared event to update conversation list badge
+                try:
+                    socketio.emit('unread_cleared', {
+                        'peer_id': other_user_id,
+                        'unread_count': 0
+                    }, room=f'user_{user_id}')
+                except Exception as e:
+                    print(f"[WARNING] Socket.IO emit unread_cleared failed: {e}")
+            
+            return jsonify({
+                'success': True,
+                'marked_count': len(unread)
+            }), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"[ERROR] Error marking messages as read: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
     
     # Mobile app endpoints with /api/v1 prefix
@@ -397,13 +473,30 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
                     )
                     sender_row = result.fetchone()
                     if sender_row:
+                        timestamp = chat_msg.created_at.isoformat()
                         socketio.emit('new_message', {
                             'message_id': chat_msg.id,
                             'sender_id': user_id,
+                            'receiver_id': seller_id,
                             'sender_name': f"{sender_row[0]} {sender_row[1]}",
                             'message': initial_message,
                             'product_id': product_id,
-                            'created_at': chat_msg.created_at.isoformat()
+                            'created_at': timestamp
+                        }, room=f'user_{seller_id}')
+                        
+                        # Emit conversation_updated for list re-sort
+                        socketio.emit('conversation_updated', {
+                            'peer_id': seller_id,
+                            'last_message': initial_message,
+                            'last_message_time': timestamp,
+                            'sender_id': user_id
+                        }, room=f'user_{user_id}')
+                        
+                        socketio.emit('conversation_updated', {
+                            'peer_id': user_id,
+                            'last_message': initial_message,
+                            'last_message_time': timestamp,
+                            'sender_id': user_id
                         }, room=f'user_{seller_id}')
                 except Exception as e:
                     print(f"[WARNING] Socket.IO emit failed: {e}")

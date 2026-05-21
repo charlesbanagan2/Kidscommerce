@@ -194,17 +194,18 @@ def notify_order_accepted_by_rider(order):
     )
     
     # Notify seller
+    sellers_notified = set()
     for item in order.items:
-        create_notification(
-            user_id=item.product.seller_id,
-            title="Order Picked Up by Rider",
-            message=f"Order #{order.id} has been picked up by {rider_name}.",
-            notification_type='order',
-            order_id=order.id,
-            action_url=f'/seller/orders/{order.id}',
-            metadata={'rider_id': order.rider_id, 'rider_name': rider_name}
-        )
-        break  # Only notify once per order
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Order Picked Up by Rider",
+                message=f"Rider {rider_name} has picked up order #{order.id} for delivery.",
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/seller/orders/{order.id}'
+            )
 
 
 def notify_order_in_transit(order):
@@ -212,12 +213,12 @@ def notify_order_in_transit(order):
     from app import db, User
     
     rider = db.session.get(User, order.rider_id) if order.rider_id else None
-    rider_name = f"{rider.first_name} {rider.last_name}" if rider else "The rider"
+    rider_name = f"{rider.first_name} {rider.last_name}" if rider else "Your rider"
     
     create_notification(
         user_id=order.buyer_id,
-        title="Out for Delivery",
-        message=f"Your order #{order.id} is on the way! {rider_name} is delivering it now.",
+        title="Order Out for Delivery",
+        message=f"Your order #{order.id} is now out for delivery by {rider_name}.",
         notification_type='order',
         order_id=order.id,
         action_url=f'/buyer/orders/{order.id}'
@@ -226,89 +227,98 @@ def notify_order_in_transit(order):
 
 def notify_order_delivered(order):
     """Notify when order is delivered"""
+    from app import db, User
+    
     # Notify buyer
     create_notification(
         user_id=order.buyer_id,
         title="Order Delivered",
-        message=f"Your order #{order.id} has been delivered. Please confirm receipt.",
+        message=f"Your order #{order.id} has been successfully delivered. Please confirm receipt.",
         notification_type='order',
         order_id=order.id,
         action_url=f'/buyer/orders/{order.id}'
     )
     
-    # Notify seller
+    # Notify sellers
+    sellers_notified = set()
     for item in order.items:
-        create_notification(
-            user_id=item.product.seller_id,
-            title="Order Delivered",
-            message=f"Order #{order.id} has been delivered to the buyer.",
-            notification_type='order',
-            order_id=order.id,
-            action_url=f'/seller/orders/{order.id}'
-        )
-        break
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Order Delivered",
+                message=f"Order #{order.id} has been delivered to the customer.",
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/seller/orders/{order.id}'
+            )
 
 
 def notify_order_completed(order):
-    """Notify when buyer confirms receipt (order completed)"""
+    """Notify when order is completed (buyer confirmed receipt)"""
     from app import db, User
     
-    # Notify seller
+    # Notify sellers
+    sellers_notified = set()
     for item in order.items:
-        create_notification(
-            user_id=item.product.seller_id,
-            title="Order Completed",
-            message=f"Order #{order.id} has been confirmed by the buyer. Payment will be released.",
-            notification_type='order',
-            order_id=order.id,
-            action_url=f'/seller/orders/{order.id}'
-        )
-        break
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Order Completed",
+                message=f"Order #{order.id} has been completed. Payment will be released soon.",
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/seller/orders/{order.id}'
+            )
     
     # Notify rider
     if order.rider_id:
         create_notification(
             user_id=order.rider_id,
             title="Delivery Completed",
-            message=f"Order #{order.id} has been confirmed. Your earnings have been credited.",
-            notification_type='order',
+            message=f"Order #{order.id} delivery completed. Earnings have been credited.",
+            notification_type='payment',
             order_id=order.id,
             action_url=f'/rider/earnings'
         )
 
 
-def notify_order_cancelled(order, cancelled_by='buyer'):
+def notify_order_cancelled(order, cancelled_by='system'):
     """Notify when order is cancelled"""
+    from app import db, User
+    
     # Notify buyer
     if cancelled_by != 'buyer':
         create_notification(
             user_id=order.buyer_id,
             title="Order Cancelled",
-            message=f"Your order #{order.id} has been cancelled.",
+            message=f"Your order #{order.id} has been cancelled. Refund will be processed if payment was made.",
             notification_type='order',
             order_id=order.id,
             action_url=f'/buyer/orders/{order.id}'
         )
     
-    # Notify seller
+    # Notify sellers
+    sellers_notified = set()
     for item in order.items:
-        if cancelled_by != 'seller':
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
             create_notification(
                 user_id=item.product.seller_id,
                 title="Order Cancelled",
-                message=f"Order #{order.id} has been cancelled by the buyer.",
+                message=f"Order #{order.id} has been cancelled by {cancelled_by}.",
                 notification_type='order',
                 order_id=order.id,
                 action_url=f'/seller/orders/{order.id}'
             )
-        break
     
     # Notify rider if assigned
-    if order.rider_id and cancelled_by != 'rider':
+    if order.rider_id:
         create_notification(
             user_id=order.rider_id,
             title="Delivery Cancelled",
-            message=f"Order #{order.id} has been cancelled.",
+            message=f"Order #{order.id} delivery has been cancelled.",
             notification_type='order',
             order_id=order.id,
             action_url=f'/rider/orders'
@@ -319,79 +329,188 @@ def notify_order_cancelled(order, cancelled_by='buyer'):
 
 def notify_payment_confirmed(order):
     """Notify when payment is confirmed"""
+    # Notify buyer
     create_notification(
         user_id=order.buyer_id,
         title="Payment Confirmed",
-        message=f"Your payment for order #{order.id} has been confirmed.",
-        notification_type='order',
+        message=f"Payment for order #{order.id} has been confirmed. Your order will be processed soon.",
+        notification_type='payment',
         order_id=order.id,
         action_url=f'/buyer/orders/{order.id}'
     )
     
-    # Notify seller
+    # Notify sellers
+    sellers_notified = set()
     for item in order.items:
-        create_notification(
-            user_id=item.product.seller_id,
-            title="Payment Received",
-            message=f"Payment for order #{order.id} has been confirmed. Please process the order.",
-            notification_type='order',
-            order_id=order.id,
-            action_url=f'/seller/orders/{order.id}'
-        )
-        break
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Payment Received",
+                message=f"Payment confirmed for order #{order.id}. Please process the order.",
+                notification_type='payment',
+                order_id=order.id,
+                action_url=f'/seller/orders/{order.id}'
+            )
 
 
-# ============= RETURN/REFUND NOTIFICATIONS =============
+# ============= RETURN & REFUND NOTIFICATIONS =============
 
-def notify_return_requested(return_request):
-    """Notify when buyer requests return/refund"""
+def notify_return_requested(order, reason=''):
+    """Notify when buyer requests return"""
+    sellers_notified = set()
+    for item in order.items:
+        if item.product.seller_id not in sellers_notified:
+            sellers_notified.add(item.product.seller_id)
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Return Request",
+                message=f"Buyer requested return for order #{order.id}. Reason: {reason}",
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/seller/returns/{order.id}'
+            )
+
+
+def notify_return_approved(order):
+    """Notify when return is approved"""
     create_notification(
-        user_id=return_request.seller_id,
-        title="Return/Refund Request",
-        message=f"Buyer requested a return/refund for order #{return_request.order_id}.",
-        notification_type='order',
-        order_id=return_request.order_id,
-        action_url=f'/seller/returns/{return_request.id}'
-    )
-
-
-def notify_return_approved(return_request):
-    """Notify when seller approves return"""
-    create_notification(
-        user_id=return_request.buyer_id,
+        user_id=order.buyer_id,
         title="Return Approved",
-        message=f"Your return request for order #{return_request.order_id} has been approved.",
+        message=f"Your return request for order #{order.id} has been approved. Please send the item back.",
         notification_type='order',
-        order_id=return_request.order_id,
-        action_url=f'/buyer/orders/{return_request.order_id}'
+        order_id=order.id,
+        action_url=f'/buyer/returns/{order.id}'
     )
 
 
-def notify_return_rejected(return_request):
-    """Notify when seller rejects return"""
+def notify_return_rejected(order, reason=''):
+    """Notify when return is rejected"""
     create_notification(
-        user_id=return_request.buyer_id,
+        user_id=order.buyer_id,
         title="Return Rejected",
-        message=f"Your return request for order #{return_request.order_id} has been rejected.",
+        message=f"Your return request for order #{order.id} has been rejected. Reason: {reason}",
         notification_type='order',
-        order_id=return_request.order_id,
-        action_url=f'/buyer/orders/{return_request.order_id}'
+        order_id=order.id,
+        action_url=f'/buyer/orders/{order.id}'
     )
 
 
-def notify_refund_processed(return_request, amount):
+def notify_refund_processed(order, amount):
     """Notify when refund is processed"""
     create_notification(
-        user_id=return_request.buyer_id,
+        user_id=order.buyer_id,
         title="Refund Processed",
-        message=f"Your refund of ₱{amount:,.2f} for order #{return_request.order_id} has been processed.",
-        notification_type='order',
-        order_id=return_request.order_id,
+        message=f"Refund of ₱{amount:.2f} for order #{order.id} has been processed to your account.",
+        notification_type='payment',
+        order_id=order.id,
         action_url=f'/buyer/wallet'
     )
 
 
 # ============= PRODUCT NOTIFICATIONS =============
+
+def notify_product_approved(product):
+    """Notify seller when product is approved"""
+    create_notification(
+        user_id=product.seller_id,
+        title="Product Approved",
+        message=f"Your product '{product.name}' has been approved and is now live in the store.",
+        notification_type='product',
+        action_url=f'/seller/products/{product.id}'
+    )
+
+
+def notify_product_rejected(product, reason=''):
+    """Notify seller when product is rejected"""
+    create_notification(
+        user_id=product.seller_id,
+        title="Product Rejected",
+        message=f"Your product '{product.name}' has been rejected. Reason: {reason}",
+        notification_type='product',
+        action_url=f'/seller/products/{product.id}'
+    )
+
+
+def notify_low_stock(product):
+    """Notify seller when product stock is low"""
+    create_notification(
+        user_id=product.seller_id,
+        title="Low Stock Alert",
+        message=f"Your product '{product.name}' is running low on stock ({product.stock} remaining).",
+        notification_type='product',
+        action_url=f'/seller/products/{product.id}'
+    )
+
+
+def notify_out_of_stock(product):
+    """Notify seller when product is out of stock"""
+    create_notification(
+        user_id=product.seller_id,
+        title="Out of Stock",
+        message=f"Your product '{product.name}' is now out of stock. Please restock to continue sales.",
+        notification_type='product',
+        action_url=f'/seller/products/{product.id}'
+    )
+
+
+# ============= SYSTEM NOTIFICATIONS =============
+
+def notify_account_approved(user):
+    """Notify user when account is approved"""
+    role_name = user.role.title()
+    create_notification(
+        user_id=user.id,
+        title="Account Approved",
+        message=f"Congratulations! Your {role_name} account has been approved. You can now start using the platform.",
+        notification_type='system',
+        action_url=f'/{user.role}/dashboard'
+    )
+
+
+def notify_account_rejected(user, reason=''):
+    """Notify user when account is rejected"""
+    role_name = user.role.title()
+    create_notification(
+        user_id=user.id,
+        title="Account Rejected",
+        message=f"Your {role_name} account application has been rejected. Reason: {reason}",
+        notification_type='system'
+    )
+
+
+def notify_promotion_available(user, promo_title, promo_description):
+    """Notify user about new promotions"""
+    create_notification(
+        user_id=user.id,
+        title=f"New Promotion: {promo_title}",
+        message=promo_description,
+        notification_type='promotion',
+        action_url='/buyer/promotions'
+    )
+
+
+def notify_system_maintenance(user, maintenance_message):
+    """Notify user about system maintenance"""
+    create_notification(
+        user_id=user.id,
+        title="System Maintenance Notice",
+        message=maintenance_message,
+        notification_type='system'
+    )
+
+
+# ============= CHAT NOTIFICATIONS =============
+
+def notify_new_message(recipient_id, sender_name, message_preview):
+    """Notify user about new chat message"""
+    create_notification(
+        user_id=recipient_id,
+        title=f"New message from {sender_name}",
+        message=message_preview[:100] + "..." if len(message_preview) > 100 else message_preview,
+        notification_type='chat',
+        action_url='/chat'
+    )
 
 def notify_product_approved(product):
     """Notify seller when product is approved"""

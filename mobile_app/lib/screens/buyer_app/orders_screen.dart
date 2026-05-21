@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../providers/buyer_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -27,6 +27,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
   void initState() {
     super.initState();
     _selectedFilter = widget.initialFilter ?? 'all';
+    // Load orders when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOrders();
+    });
   }
 
   Future<void> _loadOrders() async {
@@ -38,13 +42,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
       return;
     }
 
+    // Clear cache to force fresh fetch
     ApiService.clearOrdersCache();
 
     try {
-      debugPrint('🔍 Orders screen - fetching orders...');
+      debugPrint('🔍 Orders screen - fetching orders (fresh)...');
       await buyerProvider.fetchOrdersByStatus();
       if (mounted) {
         debugPrint('✅ Orders loaded: ${buyerProvider.allOrders.length} total');
+        debugPrint('📊 Orders by status: ${buyerProvider.ordersByStatus.keys.toList()}');
+        buyerProvider.ordersByStatus.forEach((status, orders) {
+          debugPrint('   $status: ${orders.length} orders');
+        });
         LoadingTimeSnackbar.show(context, 'Fetch Orders');
       }
     } catch (e) {
@@ -100,7 +109,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
@@ -216,17 +225,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
     // Use allOrders from provider which is now populated
     final allOrders = List.from(buyerProvider.allOrders);
 
-    // Sort by order date descending (latest first)
+    // Sort by order date descending (latest first) - using created_at
     allOrders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
 
     debugPrint('📊 Building all orders list: ${allOrders.length} orders');
+    if (allOrders.isNotEmpty) {
+      debugPrint('   First order: #${allOrders.first.id} - ${allOrders.first.orderDate}');
+      debugPrint('   Last order: #${allOrders.last.id} - ${allOrders.last.orderDate}');
+    }
 
     if (allOrders.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.inbox, size: 80, color: Colors.grey.shade300),
+            Icon(Icons.inbox, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             const Text(
               'No orders yet',
@@ -399,7 +412,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       ),
                       const SizedBox(width: 4),
                       Icon(
-                        LucideIcons.chevronRight,
+                        Icons.chevron_right,
                         size: 14,
                         color: Colors.grey.shade400,
                       ),
@@ -409,7 +422,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
                   // Order ID and Date
                   Text(
-                    'Order #${order.id} · ${order.orderDate.toString().split(' ')[0]}',
+                    'Order #${order.id} · ${_formatOrderDate(order.orderDate)}',
                     style: TextStyle(
                       fontSize: 10,
                       color: Colors.grey.shade500,
@@ -483,41 +496,41 @@ class _OrdersScreenState extends State<OrdersScreen> {
     switch (status.toLowerCase()) {
       case 'pending':
       case 'to_pay':
-        icon = LucideIcons.clock;
+        icon = Icons.access_time;
         color = Colors.orange;
         break;
       case 'to_ship':
       case 'processing':
-        icon = LucideIcons.package;
+        icon = Icons.inventory_2_outlined;
         color = Colors.blue;
         break;
       case 'in_transit':
       case 'to_receive':
-        icon = LucideIcons.truck;
+        icon = Icons.local_shipping;
         color = Colors.purple;
         break;
       case 'delivered':
       case 'completed':
-        icon = LucideIcons.checkCircle2;
+        icon = Icons.check_circle;
         color = Colors.green;
         break;
       case 'cancelled':
-        icon = LucideIcons.xCircle;
+        icon = Icons.cancel;
         color = Colors.red;
         break;
       case 'returned':
       case 'refunded':
       case 'return_approved':
       case 'refund_approved':
-        icon = LucideIcons.undo2;
+        icon = Icons.undo;
         color = Colors.purple;
         break;
       default:
         if (status.contains('return') || status.contains('refund')) {
-          icon = LucideIcons.undo2;
+          icon = Icons.undo;
           color = Colors.purple;
         } else {
-          icon = LucideIcons.helpCircle;
+          icon = Icons.help_outline;
           color = Colors.grey;
         }
     }
@@ -526,75 +539,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildInfoBanner(String status, List<dynamic> orders) {
-    if (orders.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    if (status == 'to_pay' || status == 'to_ship') {
-      final bool isCod =
-          orders.any((o) => (o.paymentMethod as String).toLowerCase() == 'cod');
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFDBEAFE),
-          borderRadius: BorderRadius.circular(8),
-          border: const Border(
-              left: BorderSide(color: Color(0xFF3B82F6), width: 4)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.info, color: Color(0xFF3B82F6), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                isCod
-                    ? 'Cash on Delivery. No payment action needed. Waiting for seller to process your order.'
-                    : 'Order placed successfully. Waiting for seller to process your order.',
-                style: const TextStyle(
-                    color: Color(0xFF1E40AF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (status == 'to_receive') {
-      final bool delivered =
-          orders.any((o) => (o.status as String) == 'delivered');
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFDCFCE7),
-          borderRadius: BorderRadius.circular(8),
-          border: const Border(
-              left: BorderSide(color: Color(0xFF22C55E), width: 4)),
-        ),
-        child: Row(
-          children: [
-            Icon(delivered ? Icons.check_circle : Icons.local_shipping,
-                color: const Color(0xFF22C55E), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                delivered
-                    ? 'Your order has been delivered. Confirm receipt to complete.'
-                    : 'Your order is on the way. Track it for real-time updates.',
-                style: const TextStyle(
-                    color: Color(0xFF166534),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
+    // Info banners removed - cleaner UI
     return const SizedBox.shrink();
   }
 
@@ -732,7 +677,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.undo2, size: 80, color: Colors.grey.shade300),
+            Icon(Icons.undo, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             const Text(
               'No returns or refunds',
@@ -794,6 +739,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
         return Colors.blue;
     }
   }
+
+  // ✅ FIX: Add proper date formatting helper
+  String _formatOrderDate(DateTime date) {
+    final now = DateTime.now();
+    final localDate = date.toLocal(); // Convert to local timezone
+    final diff = now.difference(localDate);
+    
+    if (diff.inDays == 0) {
+      // Today - show time in 12-hour format
+      final hour = localDate.hour > 12 ? localDate.hour - 12 : (localDate.hour == 0 ? 12 : localDate.hour);
+      final minute = localDate.minute.toString().padLeft(2, '0');
+      final period = localDate.hour >= 12 ? 'PM' : 'AM';
+      return 'Today $hour:$minute $period';
+    } else if (diff.inDays == 1) {
+      return 'Yesterday';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} days ago';
+    } else {
+      // Format as DD/MM/YYYY for older dates
+      return '${localDate.day.toString().padLeft(2, '0')}/${localDate.month.toString().padLeft(2, '0')}/${localDate.year}';
+    }
+  }
 }
 
 class OrderStatusLabel {
@@ -842,3 +809,4 @@ class OrderStatusLabel {
     }
   }
 }
+

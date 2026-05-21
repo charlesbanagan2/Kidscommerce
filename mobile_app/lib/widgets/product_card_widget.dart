@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import '../config/url_config.dart';
 
 /// Reusable Product Card Widget
@@ -188,7 +188,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
                   Row(
                     children: [
                       const Icon(
-                        LucideIcons.star,
+                        Icons.star,
                         size: 10,
                         color: Color(0xFFFCD34D),
                       ),
@@ -282,8 +282,8 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
                                   )
                                 : Icon(
                                     _added
-                                        ? LucideIcons.check
-                                        : LucideIcons.shoppingCart,
+                                        ? Icons.check
+                                        : Icons.shopping_cart_outlined,
                                     color: Colors.white,
                                     size: 14,
                                   ),
@@ -311,7 +311,7 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
         errorBuilder: (context, error, stackTrace) {
           return Center(
             child: Icon(
-              LucideIcons.package,
+              Icons.inventory_2_outlined,
               size: 32,
               color: Colors.grey.shade300,
             ),
@@ -338,10 +338,11 @@ class _ProductCardWidgetState extends State<ProductCardWidget>
 
     return Center(
       child: Icon(
-        LucideIcons.package,
+        Icons.inventory_2_outlined,
         size: 32,
         color: Colors.grey.shade300,
       ),
     );
   }
 }
+

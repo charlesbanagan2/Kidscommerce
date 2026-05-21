@@ -70,7 +70,8 @@ class _RiderNotificationScreenState extends State<RiderNotificationScreen>
               time: _parseTime(notif['created_at']),
               isRead: notif['is_read'] ?? false,
             );
-          }).toList();
+          }).toList()
+            ..sort((a, b) => b.time.compareTo(a.time)); // Sort by time descending (latest first)
           _isLoading = false;
         });
       } else {

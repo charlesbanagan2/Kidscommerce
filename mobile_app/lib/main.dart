@@ -16,6 +16,7 @@ import 'screens/buyer_app/profile_screen.dart';
 // import 'screens/chat/chat_screen.dart'; // Removed: ChatScreen now requires parameters
 import 'screens/rider/rider_home_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/test/network_test_screen.dart';
 
 /// Kids Commerce Mobile App
 /// Unified platform for Buyers, Riders, and Admins
@@ -55,6 +56,7 @@ class KidsCommerceApp extends StatelessWidget {
           // '/messages': (context) => const ChatScreen(), // Removed: ChatScreen now requires parameters
           '/rider-dashboard': (context) => const RiderHomeScreen(),
           '/admin-dashboard': (context) => const AdminDashboardScreen(),
+          '/network-test': (context) => const NetworkTestScreen(),
         },
       ),
     );

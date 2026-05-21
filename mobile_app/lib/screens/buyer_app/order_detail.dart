@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../providers/buyer_provider.dart';
 import '../../config/url_config.dart';
 import '../../services/delivery_fee_service.dart';
@@ -117,7 +117,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(LucideIcons.arrowLeft,
+              child: const Icon(Icons.arrow_back,
                   color: Colors.white, size: 20),
             ),
           ),
@@ -166,7 +166,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               color: Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
-            child: Icon(LucideIcons.packageX,
+            child: Icon(Icons.inventory_2_outlined,
                 size: 56, color: Colors.grey.shade400),
           ),
           const SizedBox(height: 20),
@@ -216,7 +216,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: const Icon(LucideIcons.clipboardList,
+                child: const Icon(Icons.assignment,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -258,14 +258,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           const Divider(height: 1, color: Color(0xFFEEF0F5)),
           const SizedBox(height: 14),
           _buildInfoRow(
-            LucideIcons.calendar,
+            Icons.calendar_today,
             'Order placed on ${order.orderDate.toString().split(' ')[0]}',
             Colors.grey.shade600,
           ),
           if (order.expectedDelivery != null) ...[
             const SizedBox(height: 8),
             _buildInfoRow(
-              LucideIcons.truck,
+              Icons.local_shipping,
               'Expected delivery: ${order.expectedDelivery.toString().split(' ')[0]}',
               Colors.grey.shade600,
             ),
@@ -273,7 +273,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           if (order.trackingNumber != null) ...[
             const SizedBox(height: 8),
             _buildInfoRow(
-              LucideIcons.scanLine,
+              Icons.qr_code_scanner,
               'Tracking: ${order.trackingNumber}',
               const Color(0xFF1e4db7),
               fontWeight: FontWeight.w600,
@@ -286,10 +286,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildStatusTimeline(dynamic order) {
     final steps = [
-      ('to_pay', LucideIcons.clock, 'Pending'),
-      ('to_ship', LucideIcons.package, 'Processing'),
-      ('out_for_delivery', LucideIcons.truck, 'Out for Delivery'),
-      ('delivered', LucideIcons.checkCircle2, 'Delivered'),
+      ('to_pay', Icons.access_time, 'Pending'),
+      ('to_ship', Icons.inventory_2_outlined, 'Processing'),
+      ('out_for_delivery', Icons.local_shipping, 'Out for Delivery'),
+      ('delivered', Icons.check_circle, 'Delivered'),
     ];
 
     final statusOrder = ['to_pay', 'to_ship', 'out_for_delivery', 'delivered'];
@@ -311,7 +311,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         child: const Row(
           children: [
-            Icon(LucideIcons.xCircle, color: Colors.red, size: 18),
+            Icon(Icons.cancel, color: Colors.red, size: 18),
             SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -343,7 +343,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: Row(
           children: [
             Icon(
-              isRefunded ? LucideIcons.badgeCheck : LucideIcons.undo2,
+              isRefunded ? Icons.verified : Icons.undo,
               color: isRefunded ? Colors.green : Colors.orange,
               size: 18,
             ),
@@ -408,7 +408,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             : [],
                       ),
                       child: Icon(
-                        isCompleted ? LucideIcons.check : step.$2,
+                        isCompleted ? Icons.check : step.$2,
                         size: 16,
                         color: isCompleted || isActive
                             ? Colors.white
@@ -496,7 +496,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(11),
                 ),
-                child: const Icon(LucideIcons.shoppingBag,
+                child: const Icon(Icons.shopping_bag_outlined,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -633,7 +633,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildShippingInfo(dynamic order) {
     return _infoCard(
-      icon: LucideIcons.mapPin,
+      icon: Icons.location_on,
       title: 'Delivery Address',
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -653,7 +653,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(LucideIcons.user,
+                  child: const Icon(Icons.person,
                       size: 14, color: Color(0xFF1e4db7)),
                 ),
                 const SizedBox(width: 10),
@@ -691,7 +691,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: Colors.orange.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(LucideIcons.home,
+                  child: Icon(Icons.home,
                       size: 14, color: Colors.orange.shade700),
                 ),
                 const SizedBox(width: 10),
@@ -780,7 +780,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         riderPhoneStr.toLowerCase() != 'n/a';
 
     return _infoCard(
-      icon: LucideIcons.bike,
+      icon: Icons.pedal_bike,
       title: 'Assigned Rider',
       trailing: GestureDetector(
         onTap: () {
@@ -805,7 +805,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.messageCircle, color: Colors.white, size: 14),
+              Icon(Icons.chat_bubble_outline, color: Colors.white, size: 14),
               SizedBox(width: 6),
               Text(
                 'Chat',
@@ -837,7 +837,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(LucideIcons.user,
+                  child: const Icon(Icons.person,
                       size: 14, color: Color(0xFF1e4db7)),
                 ),
                 const SizedBox(width: 10),
@@ -864,7 +864,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       color: Colors.green.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(LucideIcons.phone,
+                    child: Icon(Icons.phone,
                         size: 14, color: Colors.green.shade600),
                   ),
                   const SizedBox(width: 10),
@@ -892,7 +892,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final photoUrl = UrlConfig.toAbsoluteImageUrl(order.proofPhotoUrl!);
 
     return _infoCard(
-      icon: LucideIcons.camera,
+      icon: Icons.camera_alt,
       iconBgColor: Colors.green.withValues(alpha: 0.1),
       iconColor: Colors.green,
       title: 'Delivery Proof',
@@ -905,7 +905,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.checkCircle2, color: Colors.green, size: 11),
+            Icon(Icons.check_circle, color: Colors.green, size: 11),
             SizedBox(width: 4),
             Text(
               'Verified',
@@ -943,7 +943,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(LucideIcons.imageOff,
+                        Icon(Icons.hide_image,
                             size: 36, color: Colors.grey.shade400),
                         const SizedBox(height: 8),
                         Text('Unable to load photo',
@@ -966,7 +966,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(LucideIcons.expand, color: Colors.white, size: 12),
+                        Icon(Icons.open_in_full, color: Colors.white, size: 12),
                         SizedBox(width: 4),
                         Text(
                           'Tap to view',
@@ -1006,7 +1006,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
                 child: Row(
                   children: [
-                    const Icon(LucideIcons.camera,
+                    const Icon(Icons.camera_alt,
                         color: Colors.white, size: 18),
                     const SizedBox(width: 10),
                     const Expanded(
@@ -1027,7 +1027,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(LucideIcons.x,
+                        child: const Icon(Icons.close,
                             color: Colors.white, size: 18),
                       ),
                     ),
@@ -1066,7 +1066,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(LucideIcons.imageOff,
+                                Icon(Icons.hide_image,
                                     size: 48, color: Colors.grey.shade400),
                                 const SizedBox(height: 10),
                                 Text(
@@ -1127,11 +1127,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         : rawDeliveryFee;
     final cappedDiscount =
         order.discount > order.subtotal ? order.subtotal : order.discount;
-    final subtotalAfterDiscount = order.subtotal - cappedDiscount;
-    final total = subtotalAfterDiscount + deliveryFee;
+    
+    // Use the total amount from the order object (from backend)
+    // This ensures consistency with the orders list screen
+    final total = order.totalAmount;
 
     return _infoCard(
-      icon: LucideIcons.receipt,
+      icon: Icons.receipt_long,
       title: 'Order Summary',
       child: Column(
         children: [
@@ -1195,7 +1197,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(LucideIcons.wallet,
+                  child: const Icon(Icons.account_balance_wallet,
                       size: 14, color: Color(0xFF1e4db7)),
                 ),
                 const SizedBox(width: 10),
@@ -1285,7 +1287,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           _actionButton(
             label: 'Cancel Order',
-            icon: LucideIcons.xCircle,
+            icon: Icons.cancel,
             style: _ButtonStyle.outline,
             color: Colors.red,
             onPressed: () =>
@@ -1319,7 +1321,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           _actionButton(
             label: 'Order Received',
-            icon: LucideIcons.packageCheck,
+            icon: Icons.inventory_2_outlined,
             style: _ButtonStyle.filled,
             color: Colors.green,
             onPressed: () async {
@@ -1340,7 +1342,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           _actionButton(
             label: 'Return & Refund',
-            icon: LucideIcons.rotateCw,
+            icon: Icons.refresh,
             style: _ButtonStyle.outline,
             color: Colors.orange,
             onPressed: () {
@@ -1363,7 +1365,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           if (!hasRating)
             _actionButton(
               label: 'Rate Now',
-              icon: LucideIcons.star,
+              icon: Icons.star,
               style: _ButtonStyle.filled,
               color: const Color(0xFFF59E0B),
               onPressed: () {
@@ -1377,7 +1379,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             ),
           _actionButton(
             label: 'Buy Again',
-            icon: LucideIcons.shoppingCart,
+            icon: Icons.shopping_cart_outlined,
             style: _ButtonStyle.outline,
             color: const Color(0xFF1e4db7),
             onPressed: () async {
@@ -1476,7 +1478,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   color: Colors.red.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(LucideIcons.xCircle,
+                child: const Icon(Icons.cancel,
                     color: Colors.red, size: 46),
               ),
               const SizedBox(height: 20),
@@ -1525,7 +1527,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               SnackBar(
                                 content: Row(
                                   children: [
-                                    const Icon(LucideIcons.alertCircle,
+                                    const Icon(Icons.error,
                                         color: Colors.white, size: 18),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -1641,7 +1643,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   color: Colors.green.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(LucideIcons.checkCircle2,
+                child: const Icon(Icons.check_circle,
                     color: Colors.green, size: 46),
               ),
               const SizedBox(height: 20),
@@ -1753,27 +1755,27 @@ IconData _getStatusIconData(String status) {
   switch (status.toLowerCase()) {
     case 'pending':
     case 'to_pay':
-      return LucideIcons.clock;
+      return Icons.access_time;
     case 'to_ship':
     case 'processing':
     case 'ready_for_pickup':
-      return LucideIcons.package;
+      return Icons.inventory_2_outlined;
     case 'in_transit':
     case 'to_receive':
     case 'out_for_delivery':
-      return LucideIcons.truck;
+      return Icons.local_shipping;
     case 'delivered':
-      return LucideIcons.checkCircle2;
+      return Icons.check_circle;
     case 'completed':
-      return LucideIcons.checkCircle2;
+      return Icons.check_circle;
     case 'return_requested':
-      return LucideIcons.undo2;
+      return Icons.undo;
     case 'refunded':
-      return LucideIcons.badgeCheck;
+      return Icons.verified;
     case 'cancelled':
-      return LucideIcons.xCircle;
+      return Icons.cancel;
     default:
-      return LucideIcons.helpCircle;
+      return Icons.help_outline;
   }
 }
 
@@ -1806,3 +1808,4 @@ Color _getStatusColor(String status) {
       return const Color(0xFF3B82F6);
   }
 }
+

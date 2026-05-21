@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
@@ -50,7 +50,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(LucideIcons.image),
+              leading: const Icon(Icons.image),
               title: const Text('Choose Photo'),
               onTap: () async {
                 Navigator.pop(context);
@@ -66,7 +66,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(LucideIcons.camera),
+              leading: const Icon(Icons.camera_alt),
               title: const Text('Take Photo'),
               onTap: () async {
                 Navigator.pop(context);
@@ -82,7 +82,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(LucideIcons.video),
+              leading: const Icon(Icons.videocam),
               title: const Text('Choose Video'),
               onTap: () async {
                 Navigator.pop(context);
@@ -193,7 +193,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -223,7 +223,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                           width: 60,
                           height: 60,
                           color: Colors.grey.shade200,
-                          child: const Icon(LucideIcons.image),
+                          child: const Icon(Icons.image),
                         ),
                       ),
                     ),
@@ -270,7 +270,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Icon(
-                            LucideIcons.star,
+                            Icons.star,
                             size: 40,
                             color: index < _rating
                                 ? Colors.amber
@@ -418,7 +418,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                                     ? Container(
                                         color: Colors.black87,
                                         child: const Icon(
-                                          LucideIcons.video,
+                                          Icons.videocam,
                                           color: Colors.white,
                                           size: 32,
                                         ),
@@ -441,7 +441,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
-                                    LucideIcons.x,
+                                    Icons.close,
                                     size: 14,
                                     color: Colors.white,
                                   ),
@@ -469,7 +469,7 @@ class _SubmitReviewScreenState extends State<SubmitReviewScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  LucideIcons.plus,
+                                  Icons.add,
                                   color: Color(0xFF1e4db7),
                                   size: 24,
                                 ),
@@ -652,7 +652,7 @@ class _ReviewSuccessOverlayState extends State<_ReviewSuccessOverlay>
                         ],
                       ),
                       child: const Icon(
-                        LucideIcons.checkCircle2,
+                        Icons.check_circle,
                         color: Colors.white,
                         size: 56,
                       ),
@@ -695,7 +695,7 @@ class _ReviewSuccessOverlayState extends State<_ReviewSuccessOverlay>
                             return Transform.scale(
                               scale: value,
                               child: const Icon(
-                                LucideIcons.star,
+                                Icons.star,
                                 color: Color(0xFFFCD34D),
                                 size: 24,
                                 fill: 0.9,
@@ -718,7 +718,7 @@ class _ReviewSuccessOverlayState extends State<_ReviewSuccessOverlay>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          LucideIcons.info,
+                          Icons.info,
                           size: 16,
                           color: Color(0xFF059669),
                         ),
@@ -746,3 +746,4 @@ class _ReviewSuccessOverlayState extends State<_ReviewSuccessOverlay>
     );
   }
 }
+

@@ -16,8 +16,20 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 notification_chat_bp = Blueprint('notification_chat', __name__)
 
-# JWT Secret
-JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-here')
+# JWT Secret - Will be loaded from environment when needed
+_JWT_SECRET = None
+
+def get_jwt_secret():
+    """Get JWT_SECRET_KEY from environment (lazy loading)"""
+    global _JWT_SECRET
+    if _JWT_SECRET is None:
+        _JWT_SECRET = os.getenv('JWT_SECRET_KEY')  # Use JWT_SECRET_KEY for consistency
+        if not _JWT_SECRET:
+            raise ValueError(
+                "JWT_SECRET_KEY environment variable is not set! "
+                "Please add JWT_SECRET_KEY to your .env file."
+            )
+    return _JWT_SECRET
 
 def token_required(f):
     @wraps(f)
@@ -29,7 +41,7 @@ def token_required(f):
         try:
             if token.startswith('Bearer '):
                 token = token[7:]
-            data = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            data = jwt.decode(token, get_jwt_secret(), algorithms=['HS256'])
             current_user_id = data.get('user_id')
         except Exception as e:
             return jsonify({'success': False, 'message': f'Invalid token: {str(e)}'}), 401

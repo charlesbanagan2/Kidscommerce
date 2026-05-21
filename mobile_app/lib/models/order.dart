@@ -129,7 +129,9 @@ class Order {
           : null,
       orderDate: json['order_date'] != null
           ? DateTime.parse(json['order_date'])
-          : DateTime.now(),
+          : (json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : DateTime.now()),
       expectedDelivery: json['expected_delivery'] != null
           ? DateTime.parse(json['expected_delivery'])
           : null,

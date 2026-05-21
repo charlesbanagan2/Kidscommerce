@@ -1,7 +1,8 @@
-﻿from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, render_template_string, make_response, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, render_template_string, make_response, Response
 from flask_socketio import SocketIO, emit, join_room
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+from pytz import timezone as pytz_timezone
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from flask_dance.contrib.google import make_google_blueprint
@@ -20,12 +21,14 @@ import json
 import random
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import string
 import jwt
 import bcrypt
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from PIL import Image
 from urllib.parse import quote
 from optimized_endpoints import register_optimized_endpoints
@@ -85,7 +88,17 @@ PSGC_REMOTE_CANDIDATES = [
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
+
+# Load SECRET_KEY from environment - REQUIRED for production security
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError(
+        "SECRET_KEY environment variable is not set! "
+        "Please add SECRET_KEY to your .env file. "
+        "This is required for Flask session security."
+    )
+app.config['SECRET_KEY'] = SECRET_KEY
+
 # Ensure templates and static assets refresh during development
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # Cache static files for 1 year (31536000 seconds)
@@ -124,7 +137,7 @@ def after_request(response):
     # Performance monitoring - log ALL requests
     if hasattr(request, 'start_time'):
         elapsed = time.time() - request.start_time
-        status_emoji = "✅" if response.status_code < 400 else "❌"
+        status_emoji = "?" if response.status_code < 400 else "?"
         print(f"{status_emoji} [{response.status_code}] {request.method} {request.path} - {elapsed:.3f}s")
 
     return response
@@ -173,54 +186,21 @@ app.config['SUPABASE_REST_URL'] = SUPABASE_REST_URL
 app.config['SUPABASE_API_KEY'] = SUPABASE_API_KEY
 app.config['SUPABASE_SERVICE_KEY'] = os.getenv('SUPABASE_SERVICE_KEY', SUPABASE_API_KEY)
 
-# SQLAlchemy configuration backed by Supabase PostgreSQL.
-SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL', '').strip()
-
-# If no direct DB URL, use REST API only mode
+# SQLAlchemy configuration - Use Supabase Transaction Pooler from environment
+SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL')
 if not SUPABASE_DB_URL:
-    print("[INFO] Using REST API mode (no direct PostgreSQL connection)")
-    # Use SQLite in-memory as dummy database for SQLAlchemy models
+    print("[WARNING] SUPABASE_DB_URL not found in environment, falling back to SQLite")
     SUPABASE_DB_URL = 'sqlite:///:memory:'
 else:
-    # Optional fallback: build URI from split Supabase DB vars if provided.
-    if SUPABASE_DB_URL == 'sqlite:///:memory:':
-        pass  # Already set
-    else:
-        supabase_project_ref = SUPABASE_URL.replace('https://', '').split('.')[0]
-        db_user = os.getenv('SUPABASE_DB_USER', 'postgres')
-        db_password = os.getenv('SUPABASE_DB_PASSWORD', '').strip()
-        db_name = os.getenv('SUPABASE_DB_NAME', 'postgres')
-        db_host = os.getenv('SUPABASE_DB_HOST', f"db.{supabase_project_ref}.supabase.co")
-        db_port = os.getenv('SUPABASE_DB_PORT', '6543')
-        if db_password and 'sqlite' not in SUPABASE_DB_URL:
-            SUPABASE_DB_URL = f"postgresql+psycopg2://{db_user}:{quote(db_password, safe='')}@{db_host}:{db_port}/{db_name}"
-
-if not SUPABASE_DB_URL or SUPABASE_DB_URL == 'sqlite:///:memory:':
-    if SUPABASE_DB_URL == 'sqlite:///:memory:':
-        print('[INFO] REST API mode enabled - using in-memory SQLite for models only')
-    else:
-        raise RuntimeError(
-            'Missing SUPABASE_DB_URL (or SUPABASE_DB_PASSWORD with split DB vars) in Supabase env.'
-        )
+    print(f"[INFO] Using Supabase database: {SUPABASE_DB_URL.split('@')[0]}@...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = SUPABASE_DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False  # Enable SQL query logging to identify slow queries
 app.config['SQLALCHEMY_RECORD_QUERIES'] = True
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-    'pool_size': 30,              # Optimized connection pool
-    'max_overflow': 10,           # Allow burst connections
-    'pool_timeout': 10,
+    'pool_pre_ping': False,
     'echo': False,
-    'connect_args': {
-        'connect_timeout': 5,
-        'keepalives': 1,
-        'keepalives_idle': 30,
-        'keepalives_interval': 10,
-        'keepalives_count': 5,
-    }
 }
 db = SQLAlchemy(app)
 
@@ -232,23 +212,28 @@ def check_database_connection():
     """Check if database connection is available"""
     global DB_AVAILABLE, DB_ERROR_MESSAGE
     try:
+        # Test the database connection within app context
         with app.app_context():
-            db.session.execute('SELECT 1')
-            DB_AVAILABLE = True
-            DB_ERROR_MESSAGE = None
-            return True
+            with db.engine.connect() as conn:
+                conn.execute(db.text('SELECT 1'))
+        DB_AVAILABLE = True
+        DB_ERROR_MESSAGE = None
+        print("[OK] Direct PostgreSQL connection successful")
+        return True
     except Exception as e:
         DB_AVAILABLE = False
         DB_ERROR_MESSAGE = str(e)
+        print(f"[WARNING] Database connection failed: {e}")
+        print("[INFO] Falling back to REST API mode")
         return False
 
-# Check database connection on startup
-try:
-    check_database_connection()
-except Exception as e:
-    print(f"[WARNING] Database connection failed on startup: {e}")
-    DB_AVAILABLE = False
-    DB_ERROR_MESSAGE = str(e)
+# Check database connection on startup (after app and db are initialized)
+with app.app_context():
+    try:
+        check_database_connection()
+    except Exception as e:
+        print(f"[ERROR] Failed to check database connection: {e}")
+        DB_AVAILABLE = False
 
 # Default error handling (use Flask's built-in handlers)
 
@@ -274,9 +259,13 @@ def get_supabase_headers(use_service_key=True):  # Changed default to True
         'Prefer': 'return=representation'
     }
     
-    # Set user context for RLS if user is logged in
-    if 'user_id' in session and not use_service_key:
-        headers['X-User-Id'] = str(session['user_id'])
+    # Set user context for RLS if user is logged in (only when in request context)
+    try:
+        if 'user_id' in session and not use_service_key:
+            headers['X-User-Id'] = str(session['user_id'])
+    except RuntimeError:
+        # Outside request context, skip session access
+        pass
     
     return headers
 
@@ -651,21 +640,18 @@ def insert_data(table, data):
                         except:
                             media_data = None
                     
+                    # Only use fields that exist in Review model
                     review_obj = Review(
                         product_id=data.get('product_id'),
                         user_id=data.get('user_id'),
-                        buyer_id=data.get('buyer_id'),
                         order_id=data.get('order_id'),
                         rating=data.get('rating'),
-                        title=data.get('title'),
-                        content=data.get('content'),
+                        title=data.get('title', ''),
+                        content=data.get('content', ''),
                         media=media_data,
                         status=data.get('status', 'published'),
-                        verified_purchase=data.get('verified_purchase', False),
-                        category_ratings=data.get('category_ratings'),
-                        buyer_name=data.get('buyer_name'),
-                        buyer_avatar=data.get('buyer_avatar'),
-                        created_at=datetime.utcnow() if data.get('created_at') is None else None
+                        verified_purchase=data.get('verified_purchase', False)
+                        # created_at will use model default (datetime.utcnow)
                     )
                     db.session.add(review_obj)
                     db.session.commit()
@@ -677,6 +663,7 @@ def insert_data(table, data):
                         'title': review_obj.title,
                         'content': review_obj.content,
                         'media': review_obj.media,
+                        'verified_purchase': review_obj.verified_purchase,
                         'created_at': review_obj.created_at.isoformat() if review_obj.created_at else None,
                     }
             except Exception as e:
@@ -1058,8 +1045,15 @@ app.config['MAIL_SENDER_NAME'] = 'Kids Kingdom'
 
 PSGC_REMOTE_BASE = 'https://psgc.vercel.app/api'
 
-# JWT Configuration for Mobile API
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-mobile-jwt-secret-key-change-in-production')
+# JWT Configuration for Mobile API - Load from environment (REQUIRED)
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+if not JWT_SECRET_KEY:
+    raise ValueError(
+        "JWT_SECRET_KEY environment variable is not set! "
+        "Please add JWT_SECRET_KEY to your .env file. "
+        "This is required for mobile API authentication security."
+    )
+
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
 JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
@@ -1244,79 +1238,207 @@ def try_remote_json(path, params=None, timeout=12):
 @app.route('/api/regions')
 def proxy_regions():
     try:
-        # attempt known resource names/paths used by the public datasets
-        # first try the vercel-style single resource path "region"
-        for attempt in ("region", "regions.json", "regions"):
-            try:
-                r = try_remote_json(attempt)
-                if r:
-                    return Response(r.content, status=r.status_code, content_type=r.headers.get('Content-Type','application/json'))
-            except Exception:
-                continue
-        # fallback: return empty list
-        return jsonify([]), 503
+        for base_url in PSGC_REMOTE_CANDIDATES:
+            for endpoint in ['regions', 'region']:
+                try:
+                    url = f"{base_url.rstrip('/')}/{endpoint}"
+                    r = requests.get(url, timeout=10)
+                    if r.status_code == 200:
+                        data = r.json()
+                        if isinstance(data, list) and data:
+                            return jsonify({'result': data})
+                        elif isinstance(data, dict):
+                            if 'result' in data and data['result']:
+                                return jsonify(data)
+                            elif 'data' in data and data['data']:
+                                return jsonify({'result': data['data']})
+                except Exception:
+                    continue
+        return jsonify({'result': []}), 200
     except Exception as e:
         app.logger.exception("PSGC regions proxy failed: %s", e)
-        return jsonify([]), 503
+        return jsonify({'result': []}), 200
 
 @app.route('/api/provinces')
 def proxy_provinces():
-    region = request.args.get('region') or request.args.get('region_code') or ''
-    params = {}
-    if region:
-        # some mirrors expect query param 'region' or 'region_code'
-        params['region'] = region
+    region_code = request.args.get('region') or request.args.get('region_code') or ''
+    if not region_code:
+        return jsonify({'result': []}), 200
+    
+    app.logger.info(f"Fetching provinces for region_code: {region_code}")
+    
     try:
-        for attempt in ("province", "provinces.json", "provinces"):
-            try:
-                r = try_remote_json(attempt, params=params)
-                if r:
-                    return Response(r.content, status=r.status_code, content_type=r.headers.get('Content-Type','application/json'))
-            except Exception:
-                continue
-        return jsonify([]), 503
+        # Try to get all provinces first, then filter by region code
+        for base_url in PSGC_REMOTE_CANDIDATES:
+            for endpoint in ['provinces', 'province']:
+                try:
+                    url = f"{base_url.rstrip('/')}/{endpoint}"
+                    r = requests.get(url, timeout=10)
+                    if r.status_code == 200:
+                        data = r.json()
+                        provinces = []
+                        
+                        # Extract list from response
+                        if isinstance(data, list):
+                            provinces = data
+                        elif isinstance(data, dict):
+                            if 'result' in data:
+                                provinces = data['result'] if isinstance(data['result'], list) else []
+                            elif 'data' in data:
+                                provinces = data['data'] if isinstance(data['data'], list) else []
+                        
+                        app.logger.info(f"Total provinces fetched: {len(provinces)}")
+                        
+                        # Filter by region code
+                        if provinces:
+                            # Log first province to see structure
+                            if provinces:
+                                app.logger.info(f"Sample province data: {provinces[0]}")
+                            
+                            filtered = []
+                            for p in provinces:
+                                # Check multiple possible field names for region code
+                                p_region = (p.get('regionCode') or p.get('region_code') or 
+                                          p.get('region') or p.get('psgc_region_code') or '')
+                                if str(p_region) == str(region_code):
+                                    filtered.append(p)
+                            
+                            app.logger.info(f"Filtered provinces: {len(filtered)} for region_code: {region_code}")
+                            
+                            if filtered:
+                                return jsonify({'result': filtered})
+                except Exception as e:
+                    app.logger.error(f"Province fetch attempt failed: {e}")
+                    continue
+        
+        app.logger.warning(f"No provinces found for region_code: {region_code}")
+        return jsonify({'result': []}), 200
     except Exception as e:
         app.logger.exception("PSGC provinces proxy failed: %s", e)
-        return jsonify([]), 503
+        return jsonify({'result': []}), 200
 
 @app.route('/api/cities')
 def proxy_cities():
-    province = request.args.get('province') or request.args.get('province_code') or ''
-    params = {}
-    if province:
-        params['province'] = province
+    province_code = request.args.get('province') or request.args.get('province_code') or ''
+    if not province_code:
+        return jsonify({'result': []}), 200
+    
+    app.logger.info(f"Fetching cities for province_code: {province_code}")
+    
     try:
-        # try common candidate endpoints
-        for attempt in ("city", "cities.json", "cities-municipalities.json", "cities-municipalities"):
-            try:
-                r = try_remote_json(attempt, params=params)
-                if r:
-                    return Response(r.content, status=r.status_code, content_type=r.headers.get('Content-Type','application/json'))
-            except Exception:
-                continue
-        return jsonify([]), 503
+        # Try to get all cities first, then filter by province code
+        for base_url in PSGC_REMOTE_CANDIDATES:
+            for endpoint in ['cities-municipalities', 'cities', 'city']:
+                try:
+                    url = f"{base_url.rstrip('/')}/{endpoint}"
+                    r = requests.get(url, timeout=10)
+                    if r.status_code == 200:
+                        data = r.json()
+                        cities = []
+                        
+                        # Extract list from response
+                        if isinstance(data, list):
+                            cities = data
+                        elif isinstance(data, dict):
+                            if 'result' in data:
+                                cities = data['result'] if isinstance(data['result'], list) else []
+                            elif 'data' in data:
+                                cities = data['data'] if isinstance(data['data'], list) else []
+                        
+                        app.logger.info(f"Total cities fetched: {len(cities)}")
+                        
+                        # Filter by province code
+                        if cities:
+                            # Log first city to see structure
+                            if cities:
+                                app.logger.info(f"Sample city data: {cities[0]}")
+                            
+                            filtered = []
+                            for c in cities:
+                                # Check multiple possible field names for province code
+                                c_province = (c.get('provinceCode') or c.get('province_code') or 
+                                            c.get('province') or c.get('psgc_province_code') or '')
+                                if str(c_province) == str(province_code):
+                                    filtered.append(c)
+                            
+                            app.logger.info(f"Filtered cities: {len(filtered)} for province_code: {province_code}")
+                            
+                            if filtered:
+                                return jsonify({'result': filtered})
+                except Exception as e:
+                    app.logger.error(f"City fetch attempt failed: {e}")
+                    continue
+        
+        app.logger.warning(f"No cities found for province_code: {province_code}")
+        return jsonify({'result': []}), 200
     except Exception as e:
         app.logger.exception("PSGC cities proxy failed: %s", e)
-        return jsonify([]), 503
+        return jsonify({'result': []}), 200
 
 @app.route('/api/barangays')
 def proxy_barangays():
-    city = request.args.get('city') or request.args.get('city_code') or ''
-    params = {}
-    if city:
-        params['city'] = city
+    city_code = request.args.get('city') or request.args.get('city_code') or ''
+    if not city_code:
+        return jsonify({'result': []}), 200
+    
+    app.logger.info(f"Fetching barangays for city_code: {city_code}")
+    
     try:
-        for attempt in ("barangay", "barangays.json", "barangays"):
-            try:
-                r = try_remote_json(attempt, params=params)
-                if r:
-                    return Response(r.content, status=r.status_code, content_type=r.headers.get('Content-Type','application/json'))
-            except Exception:
-                continue
-        return jsonify([]), 503
+        # Try to get all barangays first, then filter by city code
+        for base_url in PSGC_REMOTE_CANDIDATES:
+            for endpoint in ['barangays', 'barangay']:
+                try:
+                    url = f"{base_url.rstrip('/')}/{endpoint}"
+                    app.logger.info(f"Trying URL: {url}")
+                    r = requests.get(url, timeout=10)
+                    if r.status_code == 200:
+                        data = r.json()
+                        barangays = []
+                        
+                        # Extract list from response
+                        if isinstance(data, list):
+                            barangays = data
+                        elif isinstance(data, dict):
+                            if 'result' in data:
+                                barangays = data['result'] if isinstance(data['result'], list) else []
+                            elif 'data' in data:
+                                barangays = data['data'] if isinstance(data['data'], list) else []
+                        
+                        app.logger.info(f"Total barangays fetched: {len(barangays)}")
+                        
+                        # Filter by city code
+                        if barangays:
+                            filtered = []
+                            # Log first barangay to see structure
+                            if barangays:
+                                app.logger.info(f"Sample barangay data: {barangays[0]}")
+                            
+                            for b in barangays:
+                                # Check multiple possible field names for city code
+                                b_city = (b.get('cityCode') or b.get('city_code') or 
+                                        b.get('city') or b.get('psgc_city_code') or 
+                                        b.get('cityMunCode') or b.get('cityMunicipalityCode') or 
+                                        b.get('citymunCode') or b.get('municipalityCode') or '')
+                                
+                                # Try matching with different formats
+                                if (str(b_city) == str(city_code) or 
+                                    str(b_city).startswith(str(city_code)) or
+                                    str(city_code).startswith(str(b_city))):
+                                    filtered.append(b)
+                            
+                            app.logger.info(f"Filtered barangays: {len(filtered)} for city_code: {city_code}")
+                            
+                            if filtered:
+                                return jsonify({'result': filtered})
+                except Exception as e:
+                    app.logger.error(f"Barangay fetch attempt failed: {e}")
+                    continue
+        
+        app.logger.warning(f"No barangays found for city_code: {city_code}")
+        return jsonify({'result': []}), 200
     except Exception as e:
         app.logger.exception("PSGC barangays proxy failed: %s", e)
-        return jsonify([]), 503
+        return jsonify({'result': []}), 200
 
 
 # Template context processor to make cart_count, user info, and theme settings available in all templates
@@ -1385,15 +1507,21 @@ def inject_cart_count():
             context['recent_notifications'] = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).limit(5).all()
 
             # Seller chat inbox badge: count unread messages sent by buyers to this seller
-            from sqlalchemy import and_
+            # Legacy StoreChatMessage removed - unified chat system handles this via API
             try:
-                context['unread_chat_count'] = StoreChatMessage.query.filter(
-                    and_(
-                        StoreChatMessage.seller_id == user.id,
-                        StoreChatMessage.sender_role == 'buyer',
-                        StoreChatMessage.is_read == False,
-                    )
-                ).count()
+                # Access ChatMessage through db.Model registry after unified_chat_api registration
+                ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+                if ChatMessage:
+                    from sqlalchemy import and_
+                    # Count messages where current user is receiver and message is unread
+                    context['unread_chat_count'] = db.session.query(ChatMessage).filter(
+                        and_(
+                            ChatMessage.receiver_id == user.id,
+                            ChatMessage.is_read == False,
+                        )
+                    ).count()
+                else:
+                    context['unread_chat_count'] = 0
             except Exception:
                 # If table not ready or query fails, leave default 0
                 context['unread_chat_count'] = 0
@@ -2521,7 +2649,7 @@ class WalletTransaction(db.Model):
 
 # Earnings split configuration (commission released on buyer confirmation -> completed)
 # RIDER EARNINGS = DELIVERY FEE (province-based, calculated during checkout)
-# Delivery fee formula: Province Rank Ã— 36 pesos
+# Delivery fee formula: Province Rank × 36 pesos
 SELLER_EARNING_RATE = 0.85  # 85% to seller(s) (distributed by item proportion)
 ADMIN_EARNING_RATE = 0.15   # 15% to admin(s)
 
@@ -2535,7 +2663,8 @@ def credit_wallet(user_id: int, amount: float, source: str, order_id: int = None
         'order_id': order_id,
         'amount': float(amount),
         'type': 'credit',
-        'source': source
+        'source': source,
+        'created_at': datetime.utcnow()  # Always set timestamp to prevent NULL values
     }
     insert_data('wallet_transaction', tx_data)
 
@@ -2544,10 +2673,13 @@ RIDER_WALLET_SOURCES = ('order_commission', 'order_delivery')
 
 
 def get_user_earnings(user_id: int, period: str = 'today', sources=None) -> float:
-    """Return sum of credits for a user within the period using optimized SQL query."""
+    """Return sum of credits for a user within the period using optimized SQL query.
+    Uses Philippine Time (UTC+8) for period calculations."""
     from sqlalchemy import func
 
-    now = datetime.utcnow()
+    # Get current time in Philippine timezone (UTC+8)
+    ph_tz = timezone(timedelta(hours=8))
+    now = datetime.now(ph_tz)
 
     # Build base query with WHERE clause instead of fetching all data
     query = db.session.query(
@@ -2561,15 +2693,21 @@ def get_user_earnings(user_id: int, period: str = 'today', sources=None) -> floa
 
     # Add date filter in SQL instead of Python
     if period == 'today':
+        # Start of today in PH time
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         query = query.filter(WalletTransaction.created_at >= start)
     elif period == 'week':
+        # 7 days ago from now in PH time
         start = now - timedelta(days=7)
         query = query.filter(WalletTransaction.created_at >= start)
     elif period == 'month':
+        # Start of current month in PH time
         start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         query = query.filter(WalletTransaction.created_at >= start)
     # For 'all', no date filter needed
+
+    result = query.scalar()
+    return float(result) if result else 0.0
 
     result = query.scalar()
     return float(result) if result else 0.0
@@ -2601,7 +2739,11 @@ def push_notification(user_id: int, message: str, title: str = None, image_url: 
                             if product:
                                 fn = product.get('image_filename')
                                 if fn:
-                                    imgs.append(url_for('static', filename=f'uploads/{fn}'))
+                                    try:
+                                        imgs.append(url_for('static', filename=f'uploads/{fn}'))
+                                    except RuntimeError:
+                                        # Fallback when outside request context
+                                        imgs.append(f'/static/uploads/{fn}')
                             if len(imgs) >= 4:
                                 break
                         images = imgs or None
@@ -2771,35 +2913,8 @@ def _release_commissions(order: 'Order'):
         db.session.commit()
 
 
-# Chat message model
-class StoreChatMessage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
-    message = db.Column(db.Text, nullable=False)
-    sender_role = db.Column(db.String(10), nullable=False)  # 'buyer' or 'seller'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_read = db.Column(db.Boolean, default=False)
-
-    buyer = db.relationship('User', foreign_keys=[buyer_id])
-    seller = db.relationship('User', foreign_keys=[seller_id])
-    product = db.relationship('Product')
-
-# Buyer â†” Rider chat messages
-class RiderChatMessage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    buyer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    rider_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'))
-    message = db.Column(db.Text, nullable=False)
-    sender_role = db.Column(db.String(10), nullable=False)  # 'buyer' or 'rider'
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    buyer = db.relationship('User', foreign_keys=[buyer_id])
-    rider = db.relationship('User', foreign_keys=[rider_id])
-    order = db.relationship('Order')
+# Legacy chat models removed - now using unified ChatMessage from unified_chat_api.py
+# StoreChatMessage and RiderChatMessage have been migrated to ChatMessage table
 
 
 class HeroSlide(db.Model):
@@ -3041,8 +3156,8 @@ google_bp.storage = SQLAlchemyStorage(OAuth, db.session, user=lambda: db.session
 def google_logged_in(blueprint, token):
     """
     Google OAuth login handler.
-    Modified to enforce ADMIN APPROVAL before a user (GoogleÃ¢â‚¬â€˜registered) can log in.
-    A Google signÃ¢â‚¬â€˜in will:
+    Modified to enforce ADMIN APPROVAL before a user (Googleâ€‘registered) can log in.
+    A Google signâ€‘in will:
       - Create a 'pending' user (status='pending') if new.
       - NOT start a session until the account is approved (status becomes 'active').
       - Block login for existing OAuth or email accounts whose status != 'active'.
@@ -3131,6 +3246,25 @@ def google_logged_in(blueprint, token):
 
 
 # Helper functions
+
+# Philippine timezone helpers
+PH_TZ = pytz_timezone('Asia/Manila')
+
+def to_ph_time(utc_dt):
+    """Convert UTC datetime to Philippine time"""
+    if utc_dt is None:
+        return None
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=pytz_timezone('UTC'))
+    return utc_dt.astimezone(PH_TZ)
+
+def format_ph_datetime(utc_dt):
+    """Format datetime in PH time"""
+    if utc_dt is None:
+        return 'N/A'
+    ph_time = to_ph_time(utc_dt)
+    return ph_time.strftime('%B %d, %Y %I:%M %p')
+
 def validate_password(password):
     """Validate password against professional requirements"""
     if len(password) < 8 or len(password) > 12:
@@ -3186,7 +3320,7 @@ def _send_refund_email(user, amount, order_id):
         subject = f"Refund processed for Order #{order_id}"
         body = (
             f"Hi {getattr(user,'first_name','Customer')},\n\n"
-            f"Your return/refund has been completed. We credited â‚±{float(amount):,.2f} to your wallet.\n"
+            f"Your return/refund has been completed. We credited ₱{float(amount):,.2f} to your wallet.\n"
             f"Order ID: {order_id}\n\n"
             "Thank you for shopping with us.\n"
             "Kids Kingdom Team"
@@ -3657,7 +3791,7 @@ def calculate_coupon_discount(code, subtotal):
 
     min_amount = coupon.get('min_order_amount') or 0.0
     if subtotal < min_amount:
-        return None, 0.0, f"Minimum order amount for this coupon is â‚±{min_amount:,.2f}."
+        return None, 0.0, f"Minimum order amount for this coupon is ₱{min_amount:,.2f}."
 
     max_uses = coupon.get('max_uses')
     used_count = coupon.get('used_count') or 0
@@ -3776,6 +3910,8 @@ def send_account_status_email(to_email, approved=True, reason=None):
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
                     .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
@@ -3812,7 +3948,7 @@ def send_account_status_email(to_email, approved=True, reason=None):
                         <div class="features">
                             <h3>✨ What you can do now:</h3>
                             <div class="feature-item">
-                                <span class="feature-icon">🛒</span>
+                                <span class="feature-icon">🛍️</span>
                                 <span>Browse and purchase quality kids products</span>
                             </div>
                             <div class="feature-item">
@@ -3834,7 +3970,7 @@ def send_account_status_email(to_email, approved=True, reason=None):
                         </div>
                         
                         <center>
-                            <a href="http://localhost:5000/login" class="button">Login to Your Account â†’</a>
+                            <a href="http://localhost:5000/login" class="button">Login to Your Account →</a>
                         </center>
                         
                         <div class="divider"></div>
@@ -3842,11 +3978,11 @@ def send_account_status_email(to_email, approved=True, reason=None):
                         <p class="welcome-text">If you have any questions or need assistance getting started, our support team is here to help!</p>
                     </div>
                     <div class="footer">
-                        <p style="font-size: 16px; margin-bottom: 10px;">Welcome to the Kids Kingdom family! 👶👧👦</p>
+                        <p style="font-size: 16px; margin-bottom: 10px;">Welcome to the Kids Kingdom family! 👶🛍️💙</p>
                         <p style="font-size: 15px; color: #11998e; font-weight: 600;">Kids Kingdom Team</p>
                         <div class="divider" style="margin: 20px 40px;"></div>
-                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #11998e; text-decoration: none;">support@kidskingdom.com</a> | 📞 +63 XXX XXX XXXX</p>
-                        <p style="color: #999; font-size: 11px; margin-top: 15px;">Â© 2024 Kids Kingdom. All rights reserved.</p>
+                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #11998e; text-decoration: none;">support@kidskingdom.com</a> | 📱 +63 XXX XXX XXXX</p>
+                        <p style="color: #999; font-size: 11px; margin-top: 15px;">© 2026 Kids Kingdom. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -3854,29 +3990,30 @@ def send_account_status_email(to_email, approved=True, reason=None):
             """
             
             text_body = """
-            Congratulations! Your Account Has Been Approved
+            🎉 Congratulations! Your Account Has Been Approved
             
             Hello,
             
             Great news! Your Kids Kingdom account has been approved by our administrator.
             
-            You can now:
-            - Browse and purchase quality kids products
-            - Secure checkout with multiple payment options
-            - Track your orders in real-time
-            - Leave reviews and ratings
-            - Access exclusive deals and promotions
+            ✨ You can now:
+            🛍️ Browse and purchase quality kids products
+            💳 Secure checkout with multiple payment options
+            📦 Track your orders in real-time
+            ⭐ Leave reviews and ratings
+            🎁 Access exclusive deals and promotions
             
             Login now at: http://localhost:5000/login
             
-            Welcome to the Kids Kingdom family!
+            Welcome to the Kids Kingdom family! 👶🛍️💙
             
             Best regards,
             Kids Kingdom Team
             
             ---
-            Email: support@kidskingdom.com
-            Phone: +63 XXX XXX XXXX
+            📧 Email: support@kidskingdom.com
+            📱 Phone: +63 XXX XXX XXXX
+            © 2026 Kids Kingdom. All rights reserved.
             """
         
         else:
@@ -3890,6 +4027,8 @@ def send_account_status_email(to_email, approved=True, reason=None):
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
                     body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
                     .container {{ max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }}
@@ -3947,8 +4086,8 @@ def send_account_status_email(to_email, approved=True, reason=None):
                         <p style="font-size: 15px; margin-bottom: 10px;"><strong>Best regards,</strong></p>
                         <p style="font-size: 15px; color: #667eea; font-weight: 600;">Kids Kingdom Team</p>
                         <div class="divider" style="margin: 20px 40px;"></div>
-                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #667eea; text-decoration: none;">support@kidskingdom.com</a> | 📞 +63 XXX XXX XXXX</p>
-                        <p style="color: #999; font-size: 11px; margin-top: 15px;">Â© 2024 Kids Kingdom. All rights reserved.</p>
+                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #667eea; text-decoration: none;">support@kidskingdom.com</a> | 📱 +63 XXX XXX XXXX</p>
+                        <p style="color: #999; font-size: 11px; margin-top: 15px;">© 2026 Kids Kingdom. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -3956,7 +4095,7 @@ def send_account_status_email(to_email, approved=True, reason=None):
             """
             
             text_body = f"""
-            Account Registration Update - Kids Kingdom
+            📋 Account Registration Update - Kids Kingdom
             
             Hello,
             
@@ -3964,11 +4103,11 @@ def send_account_status_email(to_email, approved=True, reason=None):
             
             We regret to inform you that your account registration was not approved at this time.
             {reason_text}
-            What you can do next:
-            - Review the reason provided above carefully
-            - Update your information and reapply for an account
-            - Contact our support team for clarification or assistance
-            - Ensure all required documents are valid and clearly visible
+            💡 What you can do next:
+            • Review the reason provided above carefully
+            • Update your information and reapply for an account
+            • Contact our support team for clarification or assistance
+            • Ensure all required documents are valid and clearly visible
             
             If you need assistance, please contact us at support@kidskingdom.com
             
@@ -3978,8 +4117,9 @@ def send_account_status_email(to_email, approved=True, reason=None):
             Kids Kingdom Team
             
             ---
-            Email: support@kidskingdom.com
-            Phone: +63 XXX XXX XXXX
+            📧 Email: support@kidskingdom.com
+            📱 Phone: +63 XXX XXX XXXX
+            © 2026 Kids Kingdom. All rights reserved.
             """
         
         msg = MIMEMultipart('alternative')
@@ -3998,6 +4138,260 @@ def send_account_status_email(to_email, approved=True, reason=None):
         app.logger.exception("Failed to send account status email to %s: %s", to_email, e)
 
 
+def send_rider_status_email(to_email, approved=True, user_name="Rider", reason=None):
+    """
+    Sends an email to the rider notifying them whether their application was approved or rejected.
+    approved: bool
+    user_name: rider's full name
+    reason: optional rejection reason string
+    """
+    try:
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.utils import formataddr
+        
+        if approved:
+            subject = "🎉 Congratulations! Your Rider Application is Approved"
+            
+            html_body = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+                    .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }
+                    .header h1 { margin: 0; font-size: 32px; font-weight: 600; }
+                    .header p { margin: 10px 0 0 0; font-size: 18px; opacity: 0.95; }
+                    .content { padding: 40px 30px; background: #ffffff; }
+                    .button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 25px; display: inline-block; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); transition: transform 0.2s; }
+                    .button:hover { transform: translateY(-2px); }
+                    .features { background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0; }
+                    .features h3 { margin-top: 0; color: #667eea; font-size: 20px; }
+                    .feature-item { padding: 12px 0; border-bottom: 1px solid #e9ecef; display: flex; align-items: center; }
+                    .feature-item:last-child { border-bottom: none; }
+                    .feature-icon { font-size: 24px; margin-right: 15px; }
+                    .footer { background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef; }
+                    .footer p { margin: 5px 0; color: #666; font-size: 13px; }
+                    .icon { font-size: 64px; margin-bottom: 15px; }
+                    .welcome-text { font-size: 16px; color: #555; line-height: 1.8; }
+                    .divider { height: 1px; background: linear-gradient(to right, transparent, #ddd, transparent); margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="icon">🏍️</div>
+                        <h1>Welcome Aboard!</h1>
+                        <p>You're now a Kids Kingdom Rider</p>
+                    </div>
+                    <div class="content">
+                        <p style="font-size: 16px; color: #333;">Hello """ + user_name + """,</p>
+                        
+                        <p class="welcome-text"><strong>Congratulations!</strong> Your rider application has been approved by our administrator. You can now start accepting delivery orders and earning money with Kids Kingdom.</p>
+                        
+                        <div class="features">
+                            <h3>🚀 What you can do now:</h3>
+                            <div class="feature-item">
+                                <span class="feature-icon">📦</span>
+                                <span>Accept and deliver orders in your area</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="feature-icon">💰</span>
+                                <span>Earn delivery fees for each completed order</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="feature-icon">📱</span>
+                                <span>Track your earnings and delivery history</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="feature-icon">⭐</span>
+                                <span>Build your reputation with customer ratings</span>
+                            </div>
+                            <div class="feature-item">
+                                <span class="feature-icon">🎯</span>
+                                <span>Flexible schedule - work when you want</span>
+                            </div>
+                        </div>
+                        
+                        <center>
+                            <a href="http://localhost:5000/login" class="button">Login to Start Delivering →</a>
+                        </center>
+                        
+                        <div class="divider"></div>
+                        
+                        <p class="welcome-text"><strong>Important:</strong> Make sure your vehicle is in good condition and you have all necessary documents ready. Always prioritize safety and customer satisfaction!</p>
+                        
+                        <p class="welcome-text">If you have any questions or need assistance, our support team is here to help!</p>
+                    </div>
+                    <div class="footer">
+                        <p style="font-size: 16px; margin-bottom: 10px;">Welcome to the Kids Kingdom Rider Team! 🏍️📦💙</p>
+                        <p style="font-size: 15px; color: #667eea; font-weight: 600;">Kids Kingdom Team</p>
+                        <div class="divider" style="margin: 20px 40px;"></div>
+                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #667eea; text-decoration: none;">support@kidskingdom.com</a> | 📱 +63 XXX XXX XXXX</p>
+                        <p style="color: #999; font-size: 11px; margin-top: 15px;">© 2026 Kids Kingdom. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            text_body = f"""
+            🎉 Congratulations! Your Rider Application is Approved
+            
+            Hello {user_name},
+            
+            Great news! Your rider application has been approved by our administrator.
+            
+            🚀 You can now:
+            📦 Accept and deliver orders in your area
+            💰 Earn delivery fees for each completed order
+            📱 Track your earnings and delivery history
+            ⭐ Build your reputation with customer ratings
+            🎯 Flexible schedule - work when you want
+            
+            Login now at: http://localhost:5000/login
+            
+            Important: Make sure your vehicle is in good condition and you have all necessary documents ready. Always prioritize safety and customer satisfaction!
+            
+            Welcome to the Kids Kingdom Rider Team! 🏍️📦💙
+            
+            Best regards,
+            Kids Kingdom Team
+            
+            ---
+            📧 Email: support@kidskingdom.com
+            📱 Phone: +63 XXX XXX XXXX
+            © 2026 Kids Kingdom. All rights reserved.
+            """
+        
+        else:
+            # Application Rejected
+            subject = "📋 Rider Application Update - Kids Kingdom"
+            
+            reason_html = f"<div style='background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px;'><strong style='color: #856404;'>Reason:</strong> {reason}</div>" if reason else ""
+            reason_text = f"\n\nReason: {reason}\n" if reason else "\n"
+            
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+                    .container {{ max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }}
+                    .header {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 40px 30px; text-align: center; }}
+                    .header h1 {{ margin: 0; font-size: 28px; font-weight: 600; }}
+                    .content {{ padding: 40px 30px; background: #ffffff; }}
+                    .info-box {{ background: #e7f3ff; border-left: 4px solid #2196F3; padding: 20px; margin: 25px 0; border-radius: 5px; }}
+                    .info-box strong {{ color: #1976D2; display: block; margin-bottom: 10px; font-size: 16px; }}
+                    .info-box ul {{ margin: 10px 0; padding-left: 20px; }}
+                    .info-box li {{ margin: 8px 0; color: #555; }}
+                    .button {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; display: inline-block; font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }}
+                    .footer {{ background: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef; }}
+                    .footer p {{ margin: 5px 0; color: #666; font-size: 13px; }}
+                    .icon {{ font-size: 48px; margin-bottom: 10px; }}
+                    .divider {{ height: 1px; background: linear-gradient(to right, transparent, #ddd, transparent); margin: 20px 0; }}
+                    .info-text {{ color: #555; font-size: 15px; line-height: 1.8; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="icon">📋</div>
+                        <h1>Rider Application Update</h1>
+                    </div>
+                    <div class="content">
+                        <p style="font-size: 16px; color: #333;">Hello {user_name},</p>
+                        
+                        <p class="info-text">Thank you for your interest in becoming a Kids Kingdom rider.</p>
+                        
+                        <p class="info-text">We regret to inform you that your rider application was not approved at this time.</p>
+                        
+                        {reason_html}
+                        
+                        <div class="info-box">
+                            <strong>💡 What you can do next:</strong>
+                            <ul>
+                                <li>Review the reason provided above carefully</li>
+                                <li>Update your information and vehicle documents</li>
+                                <li>Reapply for a rider account when ready</li>
+                                <li>Contact our support team for clarification or assistance</li>
+                                <li>Ensure all required documents are valid and clearly visible</li>
+                            </ul>
+                        </div>
+                        
+                        <center>
+                            <a href="mailto:support@kidskingdom.com" class="button">Contact Support</a>
+                        </center>
+                        
+                        <div class="divider"></div>
+                        
+                        <p class="info-text">We appreciate your understanding and interest in joining our delivery team.</p>
+                    </div>
+                    <div class="footer">
+                        <p style="font-size: 15px; color: #667eea; font-weight: 600;">Kids Kingdom Team</p>
+                        <div class="divider" style="margin: 20px 40px;"></div>
+                        <p>📧 <a href="mailto:support@kidskingdom.com" style="color: #667eea; text-decoration: none;">support@kidskingdom.com</a> | 📱 +63 XXX XXX XXXX</p>
+                        <p style="color: #999; font-size: 11px; margin-top: 15px;">© 2026 Kids Kingdom. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            text_body = f"""
+            📋 Rider Application Update
+            
+            Hello {user_name},
+            
+            Thank you for your interest in becoming a Kids Kingdom rider.
+            
+            We regret to inform you that your rider application was not approved at this time.
+            {reason_text}
+            💡 What you can do next:
+            • Review the reason provided above carefully
+            • Update your information and vehicle documents
+            • Reapply for a rider account when ready
+            • Contact our support team for clarification or assistance
+            • Ensure all required documents are valid and clearly visible
+            
+            If you need assistance, please contact us at support@kidskingdom.com
+            
+            We appreciate your understanding and interest in joining our delivery team.
+            
+            Best regards,
+            Kids Kingdom Team
+            
+            ---
+            📧 Email: support@kidskingdom.com
+            📱 Phone: +63 XXX XXX XXXX
+            © 2026 Kids Kingdom. All rights reserved.
+            """
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = formataddr(('Kids Kingdom', app.config['MAIL_SENDER']))
+        msg['To'] = to_email
+        
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
+            smtp.send_message(msg)
+        
+        app.logger.info(f"Rider status email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        # log and continue (don't raise)
+        app.logger.exception("Failed to send rider status email to %s: %s", to_email, e)
+        return False
+
+
 def send_coupon_email(user, coupon, discount_text=None):
     """Send a professional coupon email to a buyer.
 
@@ -4012,11 +4406,11 @@ def send_coupon_email(user, coupon, discount_text=None):
             if coupon.discount_type == 'percent':
                 discount_label = f"{coupon.discount_value:.0f}% off your order"
             else:
-                discount_label = f"â‚±{coupon.discount_value:,.2f} off your order"
+                discount_label = f"₱{coupon.discount_value:,.2f} off your order"
 
         min_order_part = ""
         if coupon.min_order_amount:
-            min_order_part = f" (min. order â‚±{coupon.min_order_amount:,.2f})"
+            min_order_part = f" (min. order ₱{coupon.min_order_amount:,.2f})"
 
         validity_part = ""
         if coupon.valid_until:
@@ -4169,25 +4563,32 @@ def index():
     Homepage showing all approved products with hero slides.
     Optimized with eager loading to prevent N+1 queries.
     """
-    from sqlalchemy.orm import joinedload
+    try:
+        from sqlalchemy.orm import joinedload
 
-    # Get all active products with eager loading - ONE query instead of many
-    products = Product.query.options(
-        joinedload(Product.seller),
-        joinedload(Product.category)
-    ).filter(Product.status.in_(['approved', 'active'])).order_by(Product.created_at.desc()).limit(24).all()
+        # Get all active products with eager loading - ONE query instead of many
+        products = Product.query.options(
+            joinedload(Product.seller),
+            joinedload(Product.category)
+        ).filter(Product.status.in_(['approved', 'active'])).order_by(Product.created_at.desc()).limit(24).all()
 
-    # Get hero slides for homepage banner
-    hero_slides = HeroSlide.query.filter_by(is_active=True).order_by(HeroSlide.created_at.asc()).limit(6).all()
+        # Get hero slides for homepage banner
+        hero_slides = HeroSlide.query.filter_by(is_active=True).order_by(HeroSlide.created_at.asc()).limit(6).all()
 
-    # Get unique categories
-    all_categories = Category.query.filter_by(status='active').order_by(Category.name).all()
-    seen_names = set()
-    categories = []
-    for cat in all_categories:
-        if cat.name not in seen_names:
-            seen_names.add(cat.name)
-            categories.append(cat)
+        # Get unique categories
+        all_categories = Category.query.filter_by(status='active').order_by(Category.name).all()
+        seen_names = set()
+        categories = []
+        for cat in all_categories:
+            if cat.name not in seen_names:
+                seen_names.add(cat.name)
+                categories.append(cat)
+    except Exception as e:
+        print(f"[ERROR] Database query failed in index route: {e}")
+        # Fallback to REST API
+        products = get_data('product', filters={'status': ['approved', 'active']}, order='created_at.desc', limit=24) or []
+        hero_slides = []
+        categories = get_data('category', filters={'status': 'active'}) or []
 
     return render_template('buyer_home.html',
         products=products,
@@ -4536,14 +4937,14 @@ def send_verification_email(email, code):
                     <div class="code-box">{code}</div>
                     
                     <div class="warning-box">
-                        <strong>â° Important:</strong> This code will expire in <strong>5 minutes</strong> for security reasons.
+                        <strong>⏰ Important:</strong> This code will expire in <strong>5 minutes</strong> for security reasons.
                     </div>
                     
                     <div class="divider"></div>
                     
                     <p class="info-text">If you didn't request this password reset, please ignore this email or contact our support team immediately if you have security concerns.</p>
                     
-                    <p class="info-text" style="margin-top: 20px;"><strong>🔐 Security Tip:</strong> Never share this code with anyone, including Kids Kingdom staff. We will never ask for your verification code.</p>
+                    <p class="info-text" style="margin-top: 20px;"><strong>🔒 Security Tip:</strong> Never share this code with anyone, including Kids Kingdom staff. We will never ask for your verification code.</p>
                 </div>
                 <div class="footer">
                     <p style="font-size: 15px; margin-bottom: 10px;"><strong>Best regards,</strong></p>
@@ -4567,7 +4968,7 @@ def send_verification_email(email, code):
         
         Your verification code is: {code}
         
-        â° This code will expire in 5 minutes.
+        ⏰ This code will expire in 5 minutes.
         
         If you didn't request this password reset, please ignore this email.
         
@@ -4708,7 +5109,7 @@ def verify_email_with_emaillistverify(address: str, return_status: bool = False)
     where provider_status is the raw status string from ELV, e.g., 'ok', 'failed', 'unknown'.
 
     If no API key is configured or the API call fails, this returns True so we
-    don't block all registrations just because the thirdâ€‘party service is down.
+    don't block all registrations just because the third‑party service is down.
     Configure the API key via .env as EMAILLISTVERIFY_API_KEY.
     """
     address = (address or "").strip()
@@ -4737,15 +5138,26 @@ def verify_email_with_emaillistverify(address: str, return_status: bool = False)
             return (False, 'unavailable_http') if return_status else False
         status = (resp.text or "").strip().lower()
         domain = address.split('@', 1)[-1].lower()
+        
         # According to EmailListVerify docs, 'ok' means deliverable.
         if status == 'ok':
             return (True, status) if return_status else True
+        
+        # Block clearly invalid statuses
+        invalid_statuses = {
+            'fail', 'failed', 'invalid', 'error', 'bad', 
+            'unknown_email', 'unknown_user', 'no_mailbox', 'does_not_exist',
+            'invalid_mx',  # Invalid MX records (domain can't receive email)
+            'disposable',  # Disposable/temporary email services
+            'spamtrap'     # Known spam trap addresses
+        }
+        if status in invalid_statuses:
+            return (False, status) if return_status else False
+        
         # Be strict for gmail.com: any non-'ok' means invalid/non-existent
-        if domain == 'gmail.com':
+        if domain == 'gmail.com' and status != 'ok':
             return (False, status) if return_status else False
-        # Treat clear failure statuses as invalid for non-gmail as well
-        if status in ('fail', 'failed', 'invalid', 'error', 'bad', 'unknown_email', 'unknown_user', 'no_mailbox', 'does_not_exist'):
-            return (False, status) if return_status else False
+        
         # For other responses (e.g. 'unknown', temporary), fail open for non-gmail
         return (True, status) if return_status else True
     except Exception as e:
@@ -4800,8 +5212,15 @@ def api_check_email():
     existing_users = get_data('user', filters={'email': email})
     if existing_users and len(existing_users) > 0:
         existing_user = existing_users[0]
-        if existing_user.get('status') != 'rejected':
-            return jsonify(ok=False, message='This email address is already registered. Please use a different email or try logging in.')
+        user_status = existing_user.get('status', '').lower()
+        
+        # Check for pending approval
+        if user_status == 'pending':
+            return jsonify(ok=False, message='This email is already registered and waiting for admin approval. Please wait for approval or contact support.', status='pending')
+        
+        # Check for other non-rejected statuses
+        if user_status != 'rejected':
+            return jsonify(ok=False, message='This email address is already registered. Please use a different email or try logging in.', status=user_status)
 
     # Local disposable / invalid
     if is_disposable_or_invalid_email(email):
@@ -4829,21 +5248,21 @@ def api_check_email():
         # Friendlier messages
         status_msg_map = {
             'invalid': 'That email address is invalid.',
-            'fail': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
-            'failed': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
-            'unknown_email': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
-            'unknown_user': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
-            'no_mailbox': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
-            'does_not_exist': 'We canâ€™t find that Gmail account. Use an existing Gmail address.',
+            'fail': 'We can’t find that Gmail account. Use an existing Gmail address.',
+            'failed': 'We can’t find that Gmail account. Use an existing Gmail address.',
+            'unknown_email': 'We can’t find that Gmail account. Use an existing Gmail address.',
+            'unknown_user': 'We can’t find that Gmail account. Use an existing Gmail address.',
+            'no_mailbox': 'We can’t find that Gmail account. Use an existing Gmail address.',
+            'does_not_exist': 'We can’t find that Gmail account. Use an existing Gmail address.',
             'error': 'We could not verify this email right now. Please try again.',
         }
         # Unavailable cases -> block with a clear message
         if (raw_status or '').lower().startswith('unavailable'):
             return jsonify(ok=False, message='Email verification is temporarily unavailable. Please try again later.', provider_status=(raw_status or 'unavailable'))
-        msg = status_msg_map.get((raw_status or '').lower(), 'We couldnâ€™t verify this email. Please use an existing Gmail address.')
+        msg = status_msg_map.get((raw_status or '').lower(), 'We couldn’t verify this email. Please use an existing Gmail address.')
         return jsonify(ok=False, message=msg, provider_status=(raw_status or 'failed'))
 
-    # ok=True â€” pass through provider_status as-is so UI can decide whether to show green badge
+    # ok=True — pass through provider_status as-is so UI can decide whether to show green badge
     # For development without API key, show a friendly message
     if raw_status == 'skipped_no_key':
         return jsonify(ok=True, message='Email format validated (external verification skipped in development)', provider_status='skipped')
@@ -5738,7 +6157,8 @@ def admin_seller_applications():
 @admin_required
 def admin_pending_registrations():
     # Show only buyers with status == 'pending' (exclude riders and sellers)
-    pending_users = User.query.filter_by(status='pending', role='buyer').order_by(User.created_at.asc()).all()
+    # FIXED: Changed .asc() to .desc() for latest first
+    pending_users = User.query.filter_by(status='pending', role='buyer').order_by(User.created_at.desc()).all()
     badge_counts = get_admin_badge_counts()
     return render_template('admin/pending_registrations.html', 
                          pending_users=pending_users,
@@ -5939,7 +6359,36 @@ def admin_coupons():
                 is_active=True
             )
             db.session.add(coupon)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError as e:
+                # Rollback first
+                db.session.rollback()
+                msg = ''
+                try:
+                    msg = str(e.orig)
+                except Exception:
+                    msg = str(e)
+                # If sequence is out-of-sync and produced a duplicate PK, fix it and retry
+                if 'coupon_pkey' in msg or 'duplicate key value violates unique constraint' in msg:
+                    try:
+                        seq_sql = "SELECT setval(pg_get_serial_sequence('coupon','id'), (SELECT COALESCE(MAX(id, 0),0) FROM coupon) + 1);"
+                        # Use a safe SQL to set sequence to max(id)+1
+                        db.session.execute("SELECT setval(pg_get_serial_sequence('coupon','id'), (SELECT COALESCE(MAX(id),0) FROM coupon) + 1);")
+                        db.session.commit()
+                        # retry insert
+                        db.session.add(coupon)
+                        db.session.commit()
+                        flash(f'Coupon {coupon.code} created successfully (sequence fixed).', 'success')
+                        return redirect(url_for('admin_coupons'))
+                    except Exception as e2:
+                        db.session.rollback()
+                        flash('Error creating coupon after fixing sequence: ' + str(e2), 'danger')
+                        return redirect(url_for('admin_coupons'))
+                else:
+                    flash('Database error creating coupon: ' + str(e), 'danger')
+                    return redirect(url_for('admin_coupons'))
+
             flash(f'Coupon {coupon.code} created successfully.', 'success')
             return redirect(url_for('admin_coupons'))
 
@@ -5998,7 +6447,7 @@ def admin_coupons():
                 if discount_type == 'percent':
                     description = f"{discount_value:.0f}% off for selected buyers"
                 else:
-                    description = f"â‚±{discount_value:,.2f} off for selected buyers"
+                    description = f"₱{discount_value:,.2f} off for selected buyers"
 
             # Ensure code unique
             existing = Coupon.query.filter(db.func.upper(Coupon.code) == code.upper()).first()
@@ -6018,55 +6467,119 @@ def admin_coupons():
                 is_active=True
             )
             db.session.add(coupon)
-            db.session.flush()  # get coupon.id
+            
+            try:
+                db.session.flush()  # get coupon.id
+            except IntegrityError as e:
+                db.session.rollback()
+                flash('Error creating coupon. Please try again.', 'danger')
+                return redirect(url_for('admin_coupons'))
 
             # Determine target buyers based on segment
-            buyer_query = User.query.filter_by(role='buyer')
+            target_buyers = []
+            
+            try:
+                if segment == 'new':
+                    # Buyers with no completed orders yet
+                    subquery = db.session.query(Order.buyer_id).filter(
+                        Order.status.in_(['completed', 'delivered'])
+                    ).distinct().subquery()
+                    
+                    target_buyers = User.query.filter(
+                        User.role == 'buyer',
+                        ~User.id.in_(subquery)
+                    ).all()
+                    
+                elif segment == 'loyal':
+                    # Buyers with either enough orders OR total spend
+                    # Get buyers with enough orders
+                    order_count_subquery = db.session.query(
+                        Order.buyer_id,
+                        db.func.count(Order.id).label('order_count'),
+                        db.func.sum(Order.total_amount).label('total_spent')
+                    ).filter(
+                        Order.status.in_(['completed', 'delivered'])
+                    ).group_by(Order.buyer_id).subquery()
+                    
+                    target_buyers = User.query.join(
+                        order_count_subquery,
+                        User.id == order_count_subquery.c.buyer_id
+                    ).filter(
+                        User.role == 'buyer',
+                        db.or_(
+                            order_count_subquery.c.order_count >= min_orders,
+                            order_count_subquery.c.total_spent >= min_spent
+                        )
+                    ).all()
+                    
+                else:
+                    # 'all' buyers – get all active buyers
+                    target_buyers = User.query.filter_by(role='buyer').all()
+                    
+            except Exception as e:
+                app.logger.error(f"Error querying target buyers: {e}")
+                db.session.rollback()
+                flash('Error determining target buyers. Coupon created but not sent.', 'warning')
+                db.session.commit()
+                return redirect(url_for('admin_coupons'))
 
-            if segment == 'new':
-                # Buyers with no orders yet
-                buyer_query = buyer_query.outerjoin(Order, Order.buyer_id == User.id).group_by(User.id).having(
-                    db.func.count(Order.id) == 0
+            if not target_buyers:
+                db.session.commit()
+                flash(
+                    f"Coupon {coupon.code} created successfully, but no buyers match the '{segment}' segment criteria.",
+                    'warning'
                 )
-            elif segment == 'loyal':
-                # Buyers with either enough orders or total spend
-                buyer_query = buyer_query.join(Order, Order.buyer_id == User.id).group_by(User.id).having(
-                    (db.func.count(Order.id) >= min_orders) |
-                    (db.func.coalesce(db.func.sum(Order.total_amount), 0) >= min_spent)
-                )
-            else:
-                # 'all' buyers â€“ keep base query
-                pass
-
-            target_buyers = buyer_query.all()
+                return redirect(url_for('admin_coupons'))
 
             discount_label = None
             if discount_type == 'percent':
                 discount_label = f"{discount_value:.0f}% off your next order"
             else:
-                discount_label = f"â‚±{discount_value:,.2f} off your next order"
+                discount_label = f"₱{discount_value:,.2f} off your next order"
 
             # Create in-site notifications and send emails
             notified_count = 0
+            email_sent_count = 0
+            
             for buyer in target_buyers:
-                # Notification text kept concise but clear
-                message = (
-                    f"You received a new coupon {coupon.code}: {discount_label}. "
-                    f"Valid until {coupon.valid_until.strftime('%Y-%m-%d')}"
-                )
-                db.session.add(Notification(user_id=buyer.id, message=message))
                 try:
-                    send_coupon_email(buyer, coupon, discount_label)
-                except Exception:
-                    # Log but do not break the campaign
-                    pass
-                notified_count += 1
+                    # Notification text kept concise but clear
+                    min_order_text = ""
+                    if min_order_amount > 0:
+                        min_order_text = f" (min. order ₱{min_order_amount:,.2f})"
+                    
+                    message = (
+                        f"🎉 You received a new coupon: {coupon.code}\n"
+                        f"{discount_label}{min_order_text}\n"
+                        f"Valid until {coupon.valid_until.strftime('%B %d, %Y')}"
+                    )
+                    db.session.add(Notification(user_id=buyer.id, message=message))
+                    notified_count += 1
+                    
+                    # Try to send email
+                    try:
+                        send_coupon_email(buyer, coupon, discount_label)
+                        email_sent_count += 1
+                    except Exception as email_error:
+                        # Log but do not break the campaign
+                        app.logger.warning(f"Failed to send coupon email to {buyer.email}: {email_error}")
+                        
+                except Exception as notify_error:
+                    app.logger.error(f"Failed to notify buyer {buyer.id}: {notify_error}")
+                    continue
 
-            db.session.commit()
-            flash(
-                f"Automatic coupon {coupon.code} created and sent to {notified_count} buyer(s).",
-                'success'
-            )
+            try:
+                db.session.commit()
+                flash(
+                    f"✅ Coupon {coupon.code} created! Notified {notified_count} buyer(s) "
+                    f"({email_sent_count} emails sent).",
+                    'success'
+                )
+            except Exception as commit_error:
+                db.session.rollback()
+                app.logger.error(f"Error committing coupon notifications: {commit_error}")
+                flash('Coupon created but some notifications failed. Please check logs.', 'warning')
+                
             return redirect(url_for('admin_coupons'))
 
     badge_counts = get_admin_badge_counts()
@@ -6354,7 +6867,8 @@ def _delete_products_by_ids(product_ids: list[int], products_override=None):
                 QRScanLog.query.filter_by(order_id=oid).delete(synchronize_session=False)
                 OrderLabel.query.filter_by(order_id=oid).delete(synchronize_session=False)
                 ReturnRequest.query.filter_by(order_id=oid).delete(synchronize_session=False)
-                RiderChatMessage.query.filter_by(order_id=oid).delete(synchronize_session=False)
+                # Delete chat messages linked to this order (unified chat system)
+                db.session.execute(db.text("DELETE FROM chat_message WHERE order_id = :oid"), {'oid': oid})
                 WalletTransaction.query.filter_by(order_id=oid).delete(synchronize_session=False)
                 db.session.delete(o)
                 orders_deleted += 1
@@ -6373,7 +6887,9 @@ def _delete_products_by_ids(product_ids: list[int], products_override=None):
     # ProductQR.query.filter(ProductQR.product_id.in_(pids)).delete(synchronize_session=False)
     Cart.query.filter(Cart.product_id.in_(pids)).delete(synchronize_session=False)
     Wishlist.query.filter(Wishlist.product_id.in_(pids)).delete(synchronize_session=False)
-    StoreChatMessage.query.filter(StoreChatMessage.product_id.in_(pids)).delete(synchronize_session=False)
+    # Delete chat messages linked to these products (unified chat system)
+    if pids:
+        db.session.execute(db.text("DELETE FROM chat_message WHERE product_id = ANY(:pids)"), {'pids': pids})
     Review.query.filter(Review.product_id.in_(pids)).delete(synchronize_session=False)
 
     # 3) Remove media from disk
@@ -6442,8 +6958,8 @@ def admin_delete_user(user_id):
     Notification.query.filter(db.or_(Notification.user_id == user.id, Notification.actor_user_id == user.id)).delete(synchronize_session=False)
     Cart.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     Wishlist.query.filter_by(user_id=user.id).delete(synchronize_session=False)
-    StoreChatMessage.query.filter(db.or_(StoreChatMessage.buyer_id == user.id, StoreChatMessage.seller_id == user.id)).delete(synchronize_session=False)
-    RiderChatMessage.query.filter(db.or_(RiderChatMessage.buyer_id == user.id, RiderChatMessage.rider_id == user.id)).delete(synchronize_session=False)
+    # Delete all chat messages where user is sender or receiver (unified chat system)
+    db.session.execute(db.text("DELETE FROM chat_message WHERE sender_id = :uid OR receiver_id = :uid"), {'uid': user.id})
     Address.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     OAuth.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     Review.query.filter_by(user_id=user.id).delete(synchronize_session=False)
@@ -6460,7 +6976,7 @@ def admin_delete_user(user_id):
 
 def _delete_orders_for_buyer(buyer_id: int) -> tuple[int, int]:
     """Delete all orders for a buyer and related artifacts.
-    Returns (orders_deleted, orders_adjusted) â€” adjusted will be 0 since we delete full orders.
+    Returns (orders_deleted, orders_adjusted) — adjusted will be 0 since we delete full orders.
     """
     orders = Order.query.filter_by(buyer_id=buyer_id).all()
     deleted = 0
@@ -6472,7 +6988,8 @@ def _delete_orders_for_buyer(buyer_id: int) -> tuple[int, int]:
         QRScanLog.query.filter_by(order_id=oid).delete(synchronize_session=False)
         OrderLabel.query.filter_by(order_id=oid).delete(synchronize_session=False)
         ReturnRequest.query.filter_by(order_id=oid).delete(synchronize_session=False)
-        RiderChatMessage.query.filter_by(order_id=oid).delete(synchronize_session=False)
+        # Delete chat messages linked to this order (unified chat system)
+        db.session.execute(db.text("DELETE FROM chat_message WHERE order_id = :oid"), {'oid': oid})
         WalletTransaction.query.filter_by(order_id=oid).delete(synchronize_session=False)
         OrderItem.query.filter_by(order_id=oid).delete(synchronize_session=False)
         db.session.delete(o)
@@ -6499,8 +7016,14 @@ def seller_delete_account():
     Notification.query.filter(db.or_(Notification.user_id == uid, Notification.actor_user_id == uid)).delete(synchronize_session=False)
     Cart.query.filter_by(user_id=uid).delete(synchronize_session=False)
     Wishlist.query.filter_by(user_id=uid).delete(synchronize_session=False)
-    StoreChatMessage.query.filter(db.or_(StoreChatMessage.buyer_id == uid, StoreChatMessage.seller_id == uid)).delete(synchronize_session=False)
-    RiderChatMessage.query.filter(db.or_(RiderChatMessage.buyer_id == uid, RiderChatMessage.rider_id == uid)).delete(synchronize_session=False)
+    
+    # Legacy chat models removed - use unified ChatMessage
+    try:
+        ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+        if ChatMessage:
+            ChatMessage.query.filter(db.or_(ChatMessage.sender_id == uid, ChatMessage.receiver_id == uid)).delete(synchronize_session=False)
+    except Exception:
+        pass  # ChatMessage table may not exist yet
 
     user = db.session.get(User, uid)
     if user:
@@ -6780,8 +7303,16 @@ def admin_nuke_except_hotwheels():
         OrderLabel.query.delete(synchronize_session=False)
         # Reviews may reference orders; null out order_id to avoid FK blocks, but keep review content for kept products
         Review.query.update({Review.order_id: None}, synchronize_session=False)
-        # Rider chats (order-linked) â€” remove all
-        RiderChatMessage.query.delete(synchronize_session=False)
+        
+        # Legacy RiderChatMessage removed - use unified ChatMessage for order chats
+        try:
+            ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+            if ChatMessage:
+                # Delete all order-related chats
+                ChatMessage.query.filter(ChatMessage.order_id.isnot(None)).delete(synchronize_session=False)
+        except Exception:
+            pass  # ChatMessage table may not exist yet
+            
         # Order items then orders
         OrderItem.query.delete(synchronize_session=False)
         ReturnRequest.query.delete(synchronize_session=False)
@@ -6804,8 +7335,16 @@ def admin_nuke_except_hotwheels():
             ids = [p.id for p in to_remove]
             # Product QR codes
             # ProductQR.query.filter(ProductQR.product_id.in_(ids)).delete(synchronize_session=False)
-            # Store chats tied to these products
-            StoreChatMessage.query.filter(StoreChatMessage.product_id.in_(ids)).delete(synchronize_session=False)
+            
+            # Legacy StoreChatMessage removed - use unified ChatMessage for product chats
+            try:
+                ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+                if ChatMessage:
+                    # Delete chats tied to these products
+                    ChatMessage.query.filter(ChatMessage.product_id.in_(ids)).delete(synchronize_session=False)
+            except Exception:
+                pass  # ChatMessage table may not exist yet
+                
             # Reviews for removed products
             Review.query.filter(Review.product_id.in_(ids)).delete(synchronize_session=False)
 
@@ -6954,7 +7493,15 @@ def admin_clean_order_removed_items(order_id):
         QRScanLog.query.filter_by(order_id=order.id).delete(synchronize_session=False)
         OrderLabel.query.filter_by(order_id=order.id).delete(synchronize_session=False)
         ReturnRequest.query.filter_by(order_id=order.id).delete(synchronize_session=False)
-        RiderChatMessage.query.filter_by(order_id=order.id).delete(synchronize_session=False)
+        
+        # Legacy RiderChatMessage removed - use unified ChatMessage for order chats
+        try:
+            ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+            if ChatMessage:
+                ChatMessage.query.filter_by(order_id=order.id).delete(synchronize_session=False)
+        except Exception:
+            pass  # ChatMessage table may not exist yet
+            
         WalletTransaction.query.filter_by(order_id=order.id).delete(synchronize_session=False)
         db.session.delete(order)
         db.session.commit()
@@ -6969,7 +7516,7 @@ def admin_clean_order_removed_items(order_id):
         pass
     db.session.commit()
 
-    log_admin_action('Order Cleaned (removed items)', f'Removed {len(to_remove_ids)} unavailable items from Order ID {order_id}; -â‚±{removed_total:.2f}')
+    log_admin_action('Order Cleaned (removed items)', f'Removed {len(to_remove_ids)} unavailable items from Order ID {order_id}; -₱{removed_total:.2f}')
     flash(f'Removed {len(to_remove_ids)} unavailable item(s) from Order #{order_id}.', 'success')
     return redirect(url_for('admin_orders'))
 
@@ -7040,7 +7587,7 @@ def refund_order(order_id):
 def cancel_order_admin(order_id):
     order = Order.query.get_or_404(order_id)
     
-    # 🎁 RULE 2: RETURN STOCK ONLY IF CANCELLED BEFORE PROCESSING
+    # ⚠️ RULE 2: RETURN STOCK ONLY IF CANCELLED BEFORE PROCESSING
     # Restore stock for each item ONLY if order was not processed yet
     original_status = order.status
     if original_status in ['pending', 'to_pay']:
@@ -7154,7 +7701,7 @@ def mark_payment_failed(payment_id):
     # Store original status before changing it
     original_status = order.status
     
-    # 🎁 RULE 2: RETURN STOCK ONLY IF PAYMENT FAILED BEFORE PROCESSING
+    # ⚠️ RULE 2: RETURN STOCK ONLY IF PAYMENT FAILED BEFORE PROCESSING
     original_status = order.status
     if original_status in ['pending', 'to_pay']:
         released_products = release_stock(order.id)
@@ -7423,7 +7970,12 @@ def admin_activity_logs():
 @app.route('/admin/notifications')
 @admin_required
 def admin_notifications():
-    notifications = Notification.query.filter_by(user_id=session['user_id']).order_by(Notification.created_at.desc()).all()
+    # Filter out notifications with None created_at and order by created_at
+    notifications = Notification.query.filter(
+        Notification.user_id == session['user_id'],
+        Notification.created_at.isnot(None)
+    ).order_by(Notification.created_at.desc()).all()
+    
     # Mark all as read when viewed
     Notification.query.filter_by(user_id=session['user_id'], is_read=False).update({Notification.is_read: True})
     db.session.commit()
@@ -7435,7 +7987,10 @@ def admin_notifications_summary():
     # JSON for header badge/polling
     user_id = session['user_id']
     unread_count = Notification.query.filter_by(user_id=user_id, is_read=False).count()
-    recent = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(5).all()
+    recent = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.created_at.isnot(None)
+    ).order_by(Notification.created_at.desc()).limit(5).all()
     return jsonify({
         'unread_count': unread_count,
         'recent': [
@@ -7443,7 +7998,7 @@ def admin_notifications_summary():
                 'id': n.id,
                 'message': n.message,
                 'is_read': n.is_read,
-                'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S') if n.created_at else 'Just now'
             } for n in recent
         ]
     })
@@ -7482,69 +8037,23 @@ def admin_add_rider():
     return render_template('admin/add_rider.html')
 
 
-# Buyer Messages Center (aggregate seller and rider chats)
-@app.route('/buyer/messages')
-@login_required
-def buyer_messages():
-    user = db.session.get(User, session['user_id'])
-    active_role = session.get('active_role', user.role)
-    if active_role != 'buyer' and user.role != 'buyer':
-        flash('Access denied.', 'error')
-        return redirect(url_for('index'))
+# =========================
+# LEGACY CHAT ROUTES - DEPRECATED
+# These routes have been replaced by unified_chat_api.py
+# Use /api/chat/* and /api/v1/chat/* endpoints from unified_chat_api instead
+# =========================
 
-    buyer_id = user.id
-    # Seller conversations
-    from sqlalchemy import func
-    seller_rows = db.session.query(
-        StoreChatMessage.seller_id.label('peer_id'),
-        func.max(StoreChatMessage.created_at).label('last_at')
-    ).filter(StoreChatMessage.buyer_id == buyer_id).group_by(StoreChatMessage.seller_id).all()
-
-    seller_convos = []
-    users = {u.id: u for u in User.query.filter(User.id.in_([r.peer_id for r in seller_rows])).all()}
-    for r in seller_rows:
-        peer = users.get(r.peer_id)
-        last_msg = StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=r.peer_id).order_by(StoreChatMessage.created_at.desc()).first()
-        unread = StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=r.peer_id, sender_role='seller', is_read=False).count()
-        seller_convos.append({
-            'peer': peer,
-            'last_message': last_msg.message if last_msg else '',
-            'last_at': r.last_at,
-            'unread': unread
-        })
-
-    # Rider conversations
-    rider_rows = db.session.query(
-        RiderChatMessage.rider_id.label('peer_id'),
-        func.max(RiderChatMessage.created_at).label('last_at')
-    ).filter(RiderChatMessage.buyer_id == buyer_id).group_by(RiderChatMessage.rider_id).all()
-
-    rider_convos = []
-    rider_users = {u.id: u for u in User.query.filter(User.id.in_([r.peer_id for r in rider_rows])).all()}
-    for r in rider_rows:
-        peer = rider_users.get(r.peer_id)
-        last_msg = RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=r.peer_id).order_by(RiderChatMessage.created_at.desc()).first()
-        unread = RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=r.peer_id, sender_role='rider', is_read=False).count()
-        # Avatar: use user profile picture
-        avatar = None
-        try:
-            rider_user = db.session.get(User, r.peer_id)
-            avatar = rider_user.profile_picture if rider_user and rider_user.profile_picture else None
-        except Exception:
-            avatar = None
-        rider_convos.append({
-            'peer': peer,
-            'last_message': last_msg.message if last_msg else '',
-            'last_at': r.last_at,
-            'unread': unread,
-            'avatar': avatar
-        })
-
-    return render_template('buyer/messages.html', seller_convos=seller_convos, rider_convos=rider_convos)
+# @app.route('/buyer/messages')
+# @login_required
+# def buyer_messages():
+#     """DEPRECATED: Use unified chat API instead"""
+#     flash('This feature has been migrated to the new chat system.', 'info')
+#     return redirect(url_for('index'))
 
 
 # =========================
-# Mobile Chat API Endpoints
+# Mobile Chat API Endpoints - DEPRECATED
+# Use unified_chat_api.py endpoints instead
 # =========================
 
 def _chat_user_payload(user):
@@ -7568,287 +8077,9 @@ def _chat_message_payload(msg, sender, receiver_id):
         'is_read': bool(msg.is_read),
     }
 
-@app.route('/api/chat/conversations', methods=['GET'])
-@token_required
-def api_chat_conversations():
-    """Return chat conversations for the current user."""
-    user_id = request.current_user_id
-    role = request.current_user_role
-    conversations = {}
-
-    def _add_convo(peer_id, peer_role, last_msg, last_at, unread_count):
-        key = f"{peer_role}:{peer_id}"
-        if key in conversations:
-            return
-        peer = db.session.get(User, peer_id)
-        conversations[key] = {
-            'peer_id': peer_id,
-            'peer_name': f"{peer.first_name} {peer.last_name}".strip() if peer else 'Unknown',
-            'peer_role': peer_role,
-            'peer_profile_picture': get_user_avatar_url(peer_id, peer_role) if peer else None,
-            'last_message': last_msg or '',
-            'last_message_time': last_at.isoformat() if last_at else None,
-            'unread_count': int(unread_count or 0),
-        }
-
-    if role in ['buyer', 'seller']:
-        if role == 'buyer':
-            store_msgs = StoreChatMessage.query.filter_by(buyer_id=user_id).order_by(StoreChatMessage.created_at.desc()).all()
-            for msg in store_msgs:
-                unread = StoreChatMessage.query.filter_by(
-                    buyer_id=user_id,
-                    seller_id=msg.seller_id,
-                    sender_role='seller',
-                    is_read=False,
-                ).count()
-                _add_convo(msg.seller_id, 'seller', msg.message, msg.created_at, unread)
-        else:
-            store_msgs = StoreChatMessage.query.filter_by(seller_id=user_id).order_by(StoreChatMessage.created_at.desc()).all()
-            for msg in store_msgs:
-                unread = StoreChatMessage.query.filter_by(
-                    buyer_id=msg.buyer_id,
-                    seller_id=user_id,
-                    sender_role='buyer',
-                    is_read=False,
-                ).count()
-                _add_convo(msg.buyer_id, 'buyer', msg.message, msg.created_at, unread)
-
-    if role in ['buyer', 'rider']:
-        if role == 'buyer':
-            rider_msgs = RiderChatMessage.query.filter_by(buyer_id=user_id).order_by(RiderChatMessage.created_at.desc()).all()
-            for msg in rider_msgs:
-                unread = RiderChatMessage.query.filter_by(
-                    buyer_id=user_id,
-                    rider_id=msg.rider_id,
-                    sender_role='rider',
-                    is_read=False,
-                ).count()
-                _add_convo(msg.rider_id, 'rider', msg.message, msg.created_at, unread)
-        else:
-            rider_msgs = RiderChatMessage.query.filter_by(rider_id=user_id).order_by(RiderChatMessage.created_at.desc()).all()
-            for msg in rider_msgs:
-                unread = RiderChatMessage.query.filter_by(
-                    buyer_id=msg.buyer_id,
-                    rider_id=user_id,
-                    sender_role='buyer',
-                    is_read=False,
-                ).count()
-                _add_convo(msg.buyer_id, 'buyer', msg.message, msg.created_at, unread)
-
-    return jsonify({'success': True, 'conversations': list(conversations.values())})
-
-
-@app.route('/api/chat/messages/<int:other_user_id>', methods=['GET'])
-@token_required
-def api_chat_messages(other_user_id):
-    """Return chat messages with a specific user."""
-    user_id = request.current_user_id
-    role = request.current_user_role
-    other_user = db.session.get(User, other_user_id)
-    if not other_user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-
-    messages = []
-    if role in ['buyer', 'seller'] and other_user.role in ['buyer', 'seller'] and role != other_user.role:
-        if role == 'buyer':
-            rows = StoreChatMessage.query.filter_by(buyer_id=user_id, seller_id=other_user_id).order_by(StoreChatMessage.created_at.asc()).all()
-        else:
-            rows = StoreChatMessage.query.filter_by(buyer_id=other_user_id, seller_id=user_id).order_by(StoreChatMessage.created_at.asc()).all()
-        for msg in rows:
-            sender = msg.buyer if msg.sender_role == 'buyer' else msg.seller
-            receiver_id = msg.seller_id if msg.sender_role == 'buyer' else msg.buyer_id
-            messages.append(_chat_message_payload(msg, sender, receiver_id))
-    elif role in ['buyer', 'rider'] and other_user.role in ['buyer', 'rider'] and role != other_user.role:
-        if role == 'buyer':
-            rows = RiderChatMessage.query.filter_by(buyer_id=user_id, rider_id=other_user_id).order_by(RiderChatMessage.created_at.asc()).all()
-        else:
-            rows = RiderChatMessage.query.filter_by(buyer_id=other_user_id, rider_id=user_id).order_by(RiderChatMessage.created_at.asc()).all()
-        for msg in rows:
-            sender = msg.buyer if msg.sender_role == 'buyer' else msg.rider
-            receiver_id = msg.rider_id if msg.sender_role == 'buyer' else msg.buyer_id
-            messages.append(_chat_message_payload(msg, sender, receiver_id))
-    else:
-        return jsonify({'success': False, 'error': 'Unsupported chat pair'}), 400
-
-    return jsonify({'success': True, 'messages': messages})
-
-
-@app.route('/api/chat/send', methods=['POST'])
-@token_required
-def api_chat_send():
-    data = request.get_json() or {}
-    receiver_id = data.get('receiver_id')
-    message = (data.get('message') or '').strip()
-    if not receiver_id or not message:
-        return jsonify({'success': False, 'error': 'Missing receiver or message'}), 400
-
-    sender_id = request.current_user_id
-    sender_role = request.current_user_role
-    receiver = db.session.get(User, int(receiver_id))
-    if not receiver:
-        return jsonify({'success': False, 'error': 'Receiver not found'}), 404
-
-    chat_msg = None
-    if sender_role == 'buyer' and receiver.role == 'seller':
-        chat_msg = StoreChatMessage(
-            buyer_id=sender_id,
-            seller_id=receiver.id,
-            message=message,
-            sender_role='buyer',
-            product_id=data.get('product_id'),
-        )
-    elif sender_role == 'seller' and receiver.role == 'buyer':
-        chat_msg = StoreChatMessage(
-            buyer_id=receiver.id,
-            seller_id=sender_id,
-            message=message,
-            sender_role='seller',
-            product_id=data.get('product_id'),
-        )
-    elif sender_role == 'buyer' and receiver.role == 'rider':
-        chat_msg = RiderChatMessage(
-            buyer_id=sender_id,
-            rider_id=receiver.id,
-            message=message,
-            sender_role='buyer',
-            order_id=data.get('order_id'),
-        )
-    elif sender_role == 'rider' and receiver.role == 'buyer':
-        chat_msg = RiderChatMessage(
-            buyer_id=receiver.id,
-            rider_id=sender_id,
-            message=message,
-            sender_role='rider',
-            order_id=data.get('order_id'),
-        )
-    else:
-        return jsonify({'success': False, 'error': 'Unsupported chat pair'}), 400
-
-    db.session.add(chat_msg)
-    db.session.commit()
-
-    try:
-        socketio.emit('new_message', {
-            'sender_id': sender_id,
-            'receiver_id': receiver.id,
-            'message': message,
-        }, room=f'user_{receiver.id}')
-    except Exception:
-        pass
-
-    return jsonify({'success': True, 'message': 'Message sent'})
-
-
-@app.route('/api/chat/mark-read/<int:other_user_id>', methods=['POST'])
-@token_required
-def api_chat_mark_read(other_user_id):
-    user_id = request.current_user_id
-    role = request.current_user_role
-    other_user = db.session.get(User, other_user_id)
-    if not other_user:
-        return jsonify({'success': False, 'error': 'User not found'}), 404
-
-    if role in ['buyer', 'seller'] and other_user.role in ['buyer', 'seller'] and role != other_user.role:
-        if role == 'buyer':
-            StoreChatMessage.query.filter_by(
-                buyer_id=user_id,
-                seller_id=other_user_id,
-                sender_role='seller',
-                is_read=False,
-            ).update({'is_read': True})
-        else:
-            StoreChatMessage.query.filter_by(
-                buyer_id=other_user_id,
-                seller_id=user_id,
-                sender_role='buyer',
-                is_read=False,
-            ).update({'is_read': True})
-    elif role in ['buyer', 'rider'] and other_user.role in ['buyer', 'rider'] and role != other_user.role:
-        if role == 'buyer':
-            RiderChatMessage.query.filter_by(
-                buyer_id=user_id,
-                rider_id=other_user_id,
-                sender_role='rider',
-                is_read=False,
-            ).update({'is_read': True})
-        else:
-            RiderChatMessage.query.filter_by(
-                buyer_id=other_user_id,
-                rider_id=user_id,
-                sender_role='buyer',
-                is_read=False,
-            ).update({'is_read': True})
-    else:
-        return jsonify({'success': False, 'error': 'Unsupported chat pair'}), 400
-
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@app.route('/api/chat/unread-count', methods=['GET'])
-@token_required
-def api_chat_unread_count():
-    try:
-        user_id = request.current_user_id
-        role = request.current_user_role
-        total = 0
-
-        if role == 'buyer':
-            total += StoreChatMessage.query.filter_by(buyer_id=user_id, sender_role='seller', is_read=False).count()
-            total += RiderChatMessage.query.filter_by(buyer_id=user_id, sender_role='rider', is_read=False).count()
-        elif role == 'seller':
-            total += StoreChatMessage.query.filter_by(seller_id=user_id, sender_role='buyer', is_read=False).count()
-        elif role == 'rider':
-            total += RiderChatMessage.query.filter_by(rider_id=user_id, sender_role='buyer', is_read=False).count()
-
-        return jsonify({'success': True, 'unread_count': total})
-    except Exception as e:
-        app.logger.error(f"Error getting unread count: {str(e)}")
-        return jsonify({'success': True, 'unread_count': 0})
-
-
-@app.route('/api/chat/search-users', methods=['GET'])
-@token_required
-def api_chat_search_users():
-    query_text = (request.args.get('q') or '').strip()
-    role = (request.args.get('role') or '').strip().lower()
-
-    query = User.query.filter(User.status == 'active')
-    if role:
-        query = query.filter(User.role == role)
-    if query_text:
-        like = f"%{query_text}%"
-        query = query.filter(or_(User.first_name.ilike(like), User.last_name.ilike(like), User.email.ilike(like)))
-
-    users = query.limit(50).all()
-    results = [_chat_user_payload(u) for u in users]
-    return jsonify({'success': True, 'users': results})
-
-
-@app.route('/api/chat/order/<int:order_id>/partner', methods=['GET'])
-@token_required
-def api_chat_order_partner(order_id):
-    order = db.session.get(Order, order_id)
-    if not order:
-        return jsonify({'success': False, 'error': 'Order not found'}), 404
-
-    role = request.current_user_role
-    partner = None
-    if role == 'buyer':
-        if order.items:
-            seller_id = order.items[0].product.seller_id
-            partner = db.session.get(User, seller_id)
-        if not partner and order.rider_id:
-            partner = db.session.get(User, order.rider_id)
-    elif role == 'seller':
-        partner = db.session.get(User, order.buyer_id)
-    elif role == 'rider':
-        partner = db.session.get(User, order.buyer_id)
-
-    if not partner:
-        return jsonify({'success': False, 'error': 'Partner not found'}), 404
-
-    return jsonify({'success': True, 'partner': _chat_user_payload(partner)})
+# Legacy chat routes removed - now using unified chat system from unified_chat_api.py
+# All chat functionality is handled by /api/chat/* and /api/v1/chat/* endpoints
+# See unified_chat_api.py for implementation
 
 # Remove a hero slide
 @app.route('/admin/remove-hero-slide/<int:slide_id>', methods=['POST'])
@@ -8067,11 +8298,11 @@ def export_report(format):
         # Summary Statistics
         writer.writerow(['SUMMARY STATISTICS'])
         writer.writerow(['Metric', 'Value'])
-        writer.writerow(['Total Sales (Paid Orders)', f'â‚±{total_sales:,.2f}'])
+        writer.writerow(['Total Sales (Paid Orders)', f'₱{total_sales:,.2f}'])
         writer.writerow(['Total Orders', total_orders])
         writer.writerow(['Total Users', total_users])
         writer.writerow(['Total Products', total_products])
-        writer.writerow(['Average Order Value', f'â‚±{(total_sales / total_orders if total_orders > 0 else 0):,.2f}'])
+        writer.writerow(['Average Order Value', f'₱{(total_sales / total_orders if total_orders > 0 else 0):,.2f}'])
         writer.writerow([])
         
         # Order Status Breakdown
@@ -8094,7 +8325,7 @@ def export_report(format):
         writer.writerow(['TOP 10 SELLING PRODUCTS'])
         writer.writerow(['Rank', 'Product Name', 'Quantity Sold', 'Revenue'])
         for idx, (name, qty, revenue) in enumerate(top_products, 1):
-            writer.writerow([idx, name, int(qty), f'â‚±{revenue:,.2f}'])
+            writer.writerow([idx, name, int(qty), f'₱{revenue:,.2f}'])
         writer.writerow([])
         
         # Recent Orders
@@ -8105,7 +8336,7 @@ def export_report(format):
                 order.id,
                 order.created_at.strftime('%Y-%m-%d %H:%M'),
                 f"{order.buyer.first_name} {order.buyer.last_name}",
-                f'â‚±{order.total_amount:,.2f}',
+                f'₱{order.total_amount:,.2f}',
                 order.payment_status.title(),
                 order.status.title()
             ])
@@ -8134,11 +8365,11 @@ def export_report(format):
                     'Average Order Value'
                 ],
                 'Value': [
-                    f'â‚±{total_sales:,.2f}',
+                    f'₱{total_sales:,.2f}',
                     total_orders,
                     total_users,
                     total_products,
-                    f'â‚±{(total_sales / total_orders if total_orders > 0 else 0):,.2f}'
+                    f'₱{(total_sales / total_orders if total_orders > 0 else 0):,.2f}'
                 ]
             })
             
@@ -8160,7 +8391,7 @@ def export_report(format):
                     'Rank': idx,
                     'Product Name': name,
                     'Quantity Sold': int(qty),
-                    'Revenue': f'â‚±{revenue:,.2f}'
+                    'Revenue': f'₱{revenue:,.2f}'
                 }
                 for idx, (name, qty, revenue) in enumerate(top_products, 1)
             ])
@@ -8171,7 +8402,7 @@ def export_report(format):
                     'Order ID': order.id,
                     'Date': order.created_at.strftime('%Y-%m-%d %H:%M'),
                     'Customer': f"{order.buyer.first_name} {order.buyer.last_name}",
-                    'Total Amount': f'â‚±{order.total_amount:,.2f}',
+                    'Total Amount': f'₱{order.total_amount:,.2f}',
                     'Payment Status': order.payment_status.title(),
                     'Order Status': order.status.title()
                 }
@@ -8247,11 +8478,11 @@ def export_report(format):
             
             p.setFont("Helvetica", 11)
             summary_items = [
-                ("Total Sales (Paid Orders):", f"â‚±{total_sales:,.2f}"),
+                ("Total Sales (Paid Orders):", f"₱{total_sales:,.2f}"),
                 ("Total Orders:", str(total_orders)),
                 ("Total Users:", str(total_users)),
                 ("Total Products:", str(total_products)),
-                ("Average Order Value:", f"â‚±{(total_sales / total_orders if total_orders > 0 else 0):,.2f}")
+                ("Average Order Value:", f"₱{(total_sales / total_orders if total_orders > 0 else 0):,.2f}")
             ]
             
             for label, value in summary_items:
@@ -8325,7 +8556,7 @@ def export_report(format):
                 p.drawString(margin + 20, y_position, str(idx))
                 p.drawString(margin + 60, y_position, product_name)
                 p.drawString(margin + 300, y_position, str(int(qty)))
-                p.drawString(margin + 380, y_position, f"â‚±{revenue:,.2f}")
+                p.drawString(margin + 380, y_position, f"₱{revenue:,.2f}")
                 y_position -= 18
             
             # Footer
@@ -8448,7 +8679,7 @@ def admin_add_featured_product():
         if tags:
             full_description += f"\nTags: {tags}"
         if sale_price:
-            full_description += f"\nSale Price: Ã¢â€šÂ±{sale_price:.2f}"
+            full_description += f"\nSale Price: â‚±{sale_price:.2f}"
             
         new_product.description = full_description
         
@@ -8495,7 +8726,7 @@ def export_detailed_report(format):
             writer.writerow([
                 f'#{order.id}',
                 f'{order.buyer.first_name} {order.buyer.last_name}',
-                f'Ã¢â€šÂ±{order.total_amount:.2f}',
+                f'â‚±{order.total_amount:.2f}',
                 order.status,
                 order.payment_status,
                 order.created_at.strftime('%Y-%m-%d %H:%M:%S')
@@ -8511,7 +8742,7 @@ def export_detailed_report(format):
             writer.writerow([
                 f'#{product.id}',
                 product.name,
-                f'Ã¢â€šÂ±{product.price:.2f}',
+                f'â‚±{product.price:.2f}',
                 product.stock,
                 f'{product.seller.first_name} {product.seller.last_name}',
                 product.status
@@ -8634,8 +8865,14 @@ def seller_dashboard():
         for item, order, product in sales_rows[:5]
     ]
 
-    # Unread chat count for sidebar badge
-    unread_chat_count = StoreChatMessage.query.filter_by(seller_id=seller_id, is_read=False, sender_role='buyer').count()
+    # Unread chat count for sidebar badge (product chats)
+    from sqlalchemy import text
+    unread_chat_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM chat_message 
+        WHERE receiver_id = :seller_id 
+        AND is_read = FALSE 
+        AND product_id IS NOT NULL
+    """), {'seller_id': seller_id}).scalar() or 0
 
     return render_template('seller/dashboard.html',
                            products=products,
@@ -8896,8 +9133,14 @@ def seller_orders():
         active_returns = [rr for rr in order.return_requests if rr.status != 'rejected']
         order.is_returns_tab = order.status in ['return_requested', 'refunded', 'returned'] or len(active_returns) > 0
 
-    # Unread chat count for sidebar badge
-    unread_chat_count = StoreChatMessage.query.filter_by(seller_id=seller_id, is_read=False, sender_role='buyer').count()
+    # Unread chat count for sidebar badge (product chats)
+    from sqlalchemy import text
+    unread_chat_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM chat_message 
+        WHERE receiver_id = :seller_id 
+        AND is_read = FALSE 
+        AND product_id IS NOT NULL
+    """), {'seller_id': seller_id}).scalar() or 0
 
     # Unread order count for notification badge: recent orders without a seen record
     unread_order_count = db.session.query(Order).join(OrderItem).join(Product).filter(
@@ -8946,8 +9189,14 @@ def seller_order_detail(order_id):
         except Exception:
             db.session.rollback()
 
-    # Unread chat count for sidebar badge
-    unread_chat_count = StoreChatMessage.query.filter_by(seller_id=seller_id, is_read=False, sender_role='buyer').count()
+    # Unread chat count for sidebar badge (product chats)
+    from sqlalchemy import text
+    unread_chat_count = db.session.execute(text("""
+        SELECT COUNT(*) FROM chat_message 
+        WHERE receiver_id = :seller_id 
+        AND is_read = FALSE 
+        AND product_id IS NOT NULL
+    """), {'seller_id': seller_id}).scalar() or 0
 
     return render_template('seller/order_detail.html',
                            order=order,
@@ -10513,7 +10762,7 @@ def cancel_order(order_id):
     # Store original status before changing it
     original_status = order.status
     
-    # 🎁 RULE 2: RETURN STOCK ONLY IF BUYER CANCELS BEFORE SELLER PROCESSES
+    # ⚠️ RULE 2: RETURN STOCK ONLY IF BUYER CANCELS BEFORE SELLER PROCESSES
     # Stock should only return if order was still pending/to_pay (not processed by seller yet)
     # SHOPEE RULE: Restore stock only if order was pending/to_pay/processing (not shipped/completed)
     if original_status in ['pending', 'to_pay', 'processing']:
@@ -10691,7 +10940,8 @@ def api_qr_info(qr_code):
             'shipping_address': order.get('shipping_address'),
             'total_amount': float(order.get('total_amount', 0)),
             'payment_method': order.get('payment_method'),
-            'created_at': order.get('created_at'),
+            'order_date': order.get('created_at'),
+        'created_at': order.get('created_at'),
             'items': items
         })
         
@@ -10910,7 +11160,7 @@ def edit_category(category_id):
               </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">Cover Image (optional, recommended 1000Ãƒâ€”150)</label>
+              <label class="form-label">Cover Image (optional, recommended 1000Ã—150)</label>
               <input type="file" name="cover_image" accept="image/png,image/jpeg" class="form-control">
               <div class="form-text">If provided, this will overwrite the current cover.</div>
             </div>
@@ -12705,7 +12955,7 @@ def chat_window(seller_id):
     if product_id:
         prefill_product = db.session.get(Product, product_id)
         if prefill_product:
-            prefill_message = f"Hi, I am interested in the {prefill_product.name} (Ã¢â€šÂ±{prefill_product.price:,.2f}). Is this item still available?"
+            prefill_message = f"Hi, I am interested in the {prefill_product.name} (â‚±{prefill_product.price:,.2f}). Is this item still available?"
 
     # Handle POST (send message)
     if request.method == 'POST':
@@ -13678,7 +13928,7 @@ def buyer_confirm_receipt(order_id):
         order.status = 'completed'
         order.updated_at = datetime.utcnow()
         
-        # 🎁 RULE 4: ORDER COMPLETION DOES NOT RETURN STOCK
+        # ℹ️ RULE 4: ORDER COMPLETION DOES NOT RETURN STOCK
         # Stock was already deducted when order was placed, so no action needed here
         # Even if all stocks are bought, product stays Out of Stock
         app.logger.info(f'Order {order.id} completed: No stock action taken (already deducted at order placement)')
@@ -13903,7 +14153,26 @@ def approve_rider(app_id):
     # Set user role to 'rider' and status to 'active'
     application.user.role = 'rider'
     application.user.status = 'active'
+    application.user.email_verified = True  # Treat admin approval as verification
     db.session.commit()
+    
+    # In-app notification
+    try:
+        db.session.add(Notification(
+            user_id=application.user.id, 
+            message='Your rider application has been approved! You can now start accepting delivery orders.'
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Failed to create notification for rider {application.user.id}: {e}")
+    
+    # Send approval email
+    try:
+        send_rider_status_email(application.user.email, approved=True, user_name=f"{application.user.first_name} {application.user.last_name}")
+    except Exception as e:
+        app.logger.exception(f"Failed to send approval email to {application.user.email}: {e}")
+    
     flash('Rider application approved successfully!', 'success')
     return redirect(url_for('admin_rider_applications'))
 
@@ -13919,7 +14188,32 @@ def reject_rider(app_id):
     # Get rejection reason from form if provided
     reason = request.form.get('reason', '')
     
+    # Set user status to rejected
+    application.user.status = 'rejected'
     db.session.commit()
+    
+    # In-app notification
+    try:
+        db.session.add(Notification(
+            user_id=application.user.id, 
+            message='Your rider application was not approved. Please contact support for more information.'
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Failed to create notification for rider {application.user.id}: {e}")
+    
+    # Send rejection email
+    try:
+        send_rider_status_email(
+            application.user.email, 
+            approved=False, 
+            user_name=f"{application.user.first_name} {application.user.last_name}",
+            reason=reason
+        )
+    except Exception as e:
+        app.logger.exception(f"Failed to send rejection email to {application.user.email}: {e}")
+    
     flash('Rider application rejected.', 'info')
     return redirect(url_for('admin_rider_applications'))
 
@@ -14187,9 +14481,38 @@ def buyer_new_return(order_item_id):
         except Exception:
             pass
         db.session.commit()
-        # Notify parties and emit realtime update
-        push_notification(item.product.seller_id, f'Return/Refund requested for Order #{order.id} â€” {item.product.name}.')
-        push_notification(order.buyer_id, f'Return/Refund request RR-{rr.id} submitted.')
+        
+        # Notify seller about return request
+        try:
+            from shopee_notification_system import create_notification
+            create_notification(
+                user_id=item.product.seller_id,
+                title="Return/Refund Request",
+                message=f'Buyer requested return/refund for Order #{order.id} — {item.product.name}. Reason: {reason}',
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/seller/returns/{rr.id}'
+            )
+        except Exception as e:
+            print(f"Error sending seller notification: {e}")
+            # Fallback to push_notification
+            push_notification(item.product.seller_id, f'Return/Refund requested for Order #{order.id} — {item.product.name}.')
+
+        # Notify buyer about submission
+        try:
+            from shopee_notification_system import create_notification
+            create_notification(
+                user_id=order.buyer_id,
+                title="Return Request Submitted",
+                message=f'Your return/refund request RR-{rr.id} has been submitted. Seller will review it soon.',
+                notification_type='order',
+                order_id=order.id,
+                action_url=f'/buyer/returns/{rr.id}'
+            )
+        except Exception as e:
+            print(f"Error sending buyer notification: {e}")
+            push_notification(order.buyer_id, f'Return/Refund request RR-{rr.id} submitted.')
+
         _emit_return_update(rr)
         flash('Return/Refund Request Submitted Successfully', 'success')
         return redirect(url_for('buyer_return_detail', return_id=rr.id))
@@ -14358,7 +14681,24 @@ def seller_return_approve(return_id):
 
     db.session.commit()
     rider_earning_released = _finalize_rider_earning_after_return(rr.order, refund_approved=True)
-    push_notification(rr.buyer_id, f'Return request RR-{rr.id} has been approved and refunded.')
+    
+    # Notify buyer about approval and refund
+    try:
+        from shopee_notification_system import create_notification
+        refund_msg = f'₱{rr.refund_amount:.2f}' if hasattr(rr, 'refund_amount') and rr.refund_amount else 'Your payment'
+        create_notification(
+            user_id=rr.buyer_id,
+            title="Return Approved & Refunded",
+            message=f'Your return request RR-{rr.id} has been approved. {refund_msg} has been refunded to your wallet.',
+            notification_type='payment',
+            order_id=rr.order_id,
+            action_url=f'/buyer/wallet'
+        )
+    except Exception as e:
+        print(f"Error sending approval notification: {e}")
+        # Fallback to push_notification
+        push_notification(rr.buyer_id, f'Return request RR-{rr.id} has been approved and refunded.')
+    
     rider_id = _order_rider_id(rr.order)
     if rider_id and rider_earning_released:
         push_notification(rider_id, f'Order #{rr.order_id} delivery earnings have been released.')
@@ -14385,8 +14725,23 @@ def seller_return_reject(return_id):
     
     db.session.commit()
     _finalize_rider_earning_after_return(rr.order, refund_approved=False)
-        
-    push_notification(rr.buyer_id, f'Return request RR-{rr.id} was rejected. Reason: {rr.seller_response_reason}')
+    
+    # Notify buyer about rejection
+    try:
+        from shopee_notification_system import create_notification
+        create_notification(
+            user_id=rr.buyer_id,
+            title="Return Request Rejected",
+            message=f'Your return request RR-{rr.id} for Order #{rr.order_id} was rejected. Reason: {rr.seller_response_reason}',
+            notification_type='order',
+            order_id=rr.order_id,
+            action_url=f'/buyer/orders/{rr.order_id}'
+        )
+    except Exception as e:
+        print(f"Error sending rejection notification: {e}")
+        # Fallback to push_notification
+        push_notification(rr.buyer_id, f'Return request RR-{rr.id} was rejected. Reason: {rr.seller_response_reason}')
+    
     rider_id = _order_rider_id(rr.order)
     if rider_id:
         push_notification(rider_id, f'Order #{rr.order_id} completed. Your delivery earnings have been released.')
@@ -14642,7 +14997,7 @@ def rider_return_delivered(task_id):
     db.session.commit()
     rr = t.return_request
     
-    # 🎁 RULE 3: RETURN & REFUND STILL DEDUCTS STOCK
+    # ⚠️ RULE 3: RETURN & REFUND STILL DEDUCTS STOCK
     # Returned items NEVER return to stock - always deduct again
     try:
         product = rr.order_item.product
@@ -14668,7 +15023,7 @@ def rider_return_delivered(task_id):
     except Exception:
         app.logger.exception('Stock deduction failed for rider delivery RR-%s', rr.id)
     
-    # Mark buyer-facing "Returned to Seller â€“ Completed" state
+    # Mark buyer-facing "Returned to Seller – Completed" state
     rr.status = 'item_received_by_seller'
     db.session.commit()
     _emit_return_update(rr, {'pickup_status': t.status})
@@ -14705,7 +15060,7 @@ def admin_correct_stock(product_id, quantity_change):
     action = "deducted" if quantity_change < 0 else "added"
     log_admin_action('Stock Correction', f'Product {product_id} ({product.name}): {quantity_change} units {action}. Stock changed from {old_stock} to {product.stock}')
     
-    flash(f'Stock corrected for {product.name}: {old_stock} â†’ {product.stock} ({action} {abs(quantity_change)} units)', 'success')
+    flash(f'Stock corrected for {product.name}: {old_stock} → {product.stock} ({action} {abs(quantity_change)} units)', 'success')
     return redirect(url_for('admin_products'))
 
 # --- Search suggestions API ---
@@ -14830,7 +15185,7 @@ def api_apply_coupon():
         subtotal = 0
         for item in cart_items:
             product = get_data_by_id('product', item.get('product_id'))
-            if product and product.get('status') == 'active':
+            if product and product.get('status') == 'approved':
                 subtotal += float(product.get('price', 0)) * (item.get('quantity') or 0)
 
         app.logger.info(f'Calculated subtotal: {subtotal}')
@@ -14980,6 +15335,11 @@ def _serialize_product_api_dict(product):
         # Convert gallery filenames to full URLs
         gallery_urls = [_safe_upload_url(img) for img in gallery if img]
         
+        # Handle video filename
+        videos = []
+        if product.get('video_filename'):
+            videos.append(_safe_upload_url(product.get('video_filename')))
+        
         # Get seller info using local ORM for performance
         seller_name = None
         store_name = None
@@ -15016,6 +15376,7 @@ def _serialize_product_api_dict(product):
             'image_url': _safe_upload_url(product.get('image_filename')),
             'gallery': gallery_urls,
             'images': gallery_urls,
+            'videos': videos,
             'rating': product.get('rating', 0.0),
             'review_count': product.get('review_count', 0),
             'reviews': [],
@@ -15042,6 +15403,7 @@ def _serialize_product_api_dict(product):
             'image_url': _safe_upload_url(product.get('image_filename')),
             'gallery': [],
             'images': [],
+            'videos': [],
             'rating': 0,
             'review_count': 0,
             'reviews': [],
@@ -15143,7 +15505,7 @@ def _serialize_order_api_dict(order):
     
     # Debug logging for rider info
     if order.get('id'):
-        app.logger.info(f'🔍 _serialize_order_api_dict - Order #{order.get("id")}: rider_id={rider_id}, rider_name={rider_name}, rider_phone={rider_phone}, rider_profile_picture={rider_profile_picture}')
+        app.logger.info(f'📦 _serialize_order_api_dict - Order #{order.get("id")}: rider_id={rider_id}, rider_name={rider_name}, rider_phone={rider_phone}, rider_profile_picture={rider_profile_picture}')
     
     # Get order items
     order_items = get_data('order_item', filters={'order_id': order.get('id')})
@@ -15194,6 +15556,7 @@ def _serialize_order_api_dict(order):
         'shipping_address': order.get('shipping_address'),
         'recipient_name': order.get('recipient_name'),
         'recipient_phone': order.get('recipient_phone'),
+        'order_date': order.get('created_at'),
         'created_at': order.get('created_at'),
         'updated_at': order.get('updated_at'),
         'qr_code': order.get('qr_code'),
@@ -15442,7 +15805,19 @@ def api_register():
         # Check if email already exists in Supabase
         existing_users = get_data('user', filters={'email': email})
         if existing_users and len(existing_users) > 0:
-            return jsonify({'error': 'This email address is already registered.'}), 409
+            existing_user = existing_users[0]
+            user_status = existing_user.get('status', '').lower()
+            
+            # Check for pending approval
+            if user_status == 'pending':
+                return jsonify({'error': 'This email is already registered and waiting for admin approval. Please wait for approval or contact support.'}), 409
+            
+            # Check for other non-rejected statuses
+            if user_status != 'rejected':
+                return jsonify({'error': 'This email address is already registered. Please use a different email or try logging in.'}), 409
+            
+            # If rejected, allow re-registration (will update the existing record)
+            # Note: You may want to handle this differently based on your business logic
 
         is_valid, message = validate_password(password)
         if not is_valid:
@@ -15552,23 +15927,271 @@ def api_register():
         
         # Send registration confirmation email to user
         try:
-            subject = 'Registration Received - Kids & Baby Store'
-            body = (
-                f"Hi {first_name},\n\n"
-                f"Thank you for registering with Kids & Baby Store!\n\n"
-                f"Your account is currently pending admin approval. "
-                f"You will receive another email once your account has been reviewed.\n\n"
-                f"Account Details:\n"
-                f"Name: {first_name} {last_name}\n"
-                f"Email: {email}\n"
-                f"Role: {account_type}\n\n"
-                f"Thank you for your patience!\n\n"
-                f"Kids & Baby Store Team"
+            subject = '🎉 Welcome to Kids Kingdom! Registration Received'
+            
+            # Create beautiful HTML email
+            html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }}
+        .email-container {{
+            max-width: 600px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }}
+        .header h1 {{
+            margin: 0;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }}
+        .header .emoji {{
+            font-size: 60px;
+            margin-bottom: 10px;
+            display: block;
+            animation: bounce 2s infinite;
+        }}
+        @keyframes bounce {{
+            0%, 100% {{ transform: translateY(0); }}
+            50% {{ transform: translateY(-10px); }}
+        }}
+        .content {{
+            padding: 40px 30px;
+        }}
+        .greeting {{
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }}
+        .message {{
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 30px;
+        }}
+        .status-badge {{
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }}
+        .details-box {{
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
+            border-left: 5px solid #667eea;
+        }}
+        .details-title {{
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }}
+        .details-title::before {{
+            content: "📋";
+            margin-right: 10px;
+            font-size: 24px;
+        }}
+        .detail-row {{
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.5);
+        }}
+        .detail-row:last-child {{
+            border-bottom: none;
+        }}
+        .detail-label {{
+            font-weight: 600;
+            color: #555;
+            min-width: 100px;
+        }}
+        .detail-value {{
+            color: #333;
+            font-weight: 500;
+        }}
+        .info-box {{
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+        }}
+        .info-box p {{
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.6;
+        }}
+        .info-box strong {{
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }}
+        .footer {{
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 3px solid #667eea;
+        }}
+        .footer-logo {{
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }}
+        .footer-text {{
+            color: #6c757d;
+            font-size: 14px;
+            line-height: 1.6;
+        }}
+        .social-icons {{
+            margin-top: 20px;
+        }}
+        .social-icons span {{
+            font-size: 24px;
+            margin: 0 8px;
+        }}
+        .divider {{
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 30px 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <span class="emoji">🎉</span>
+            <h1>KIDS KINGDOM</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Trusted Kids & Baby Store</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hi {first_name}! 👋</div>
+            
+            <div class="message">
+                <strong>Thank you for choosing Kids Kingdom!</strong><br>
+                We're excited to have you join our community of parents and caregivers who trust us for quality kids and baby products.
+            </div>
+            
+            <div class="status-badge">
+                ⏳ Registration Pending Approval
+            </div>
+            
+            <div class="info-box">
+                <strong>📌 What happens next?</strong>
+                <p>
+                    Our admin team is reviewing your registration. This usually takes <strong>24-48 hours</strong>. 
+                    You'll receive an email notification once your account is approved and ready to use!
+                </p>
+            </div>
+            
+            <div class="details-box">
+                <div class="details-title">Your Account Details</div>
+                <div class="detail-row">
+                    <div class="detail-label">👤 Name:</div>
+                    <div class="detail-value">{first_name} {last_name}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">📧 Email:</div>
+                    <div class="detail-value">{email}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">🎭 Role:</div>
+                    <div class="detail-value">{account_type}</div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="message" style="text-align: center; color: #667eea; font-weight: 600;">
+                Thank you for your patience! 💙
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-logo">KIDS KINGDOM</div>
+            <div class="footer-text">
+                Quality Products for Your Little Ones<br>
+                Making Parenting Easier, One Product at a Time
+            </div>
+            <div class="social-icons">
+                <span>📱</span>
+                <span>💬</span>
+                <span>🌐</span>
+            </div>
+            <div style="margin-top: 20px; font-size: 12px; color: #adb5bd;">
+                © 2026 Kids Kingdom. All rights reserved.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+            """
+            
+            # Create plain text fallback
+            text_body = (
+                f"Hi {first_name}!\n\n"
+                f"🎉 Welcome to Kids Kingdom!\n\n"
+                f"Thank you for choosing Kids Kingdom! We're excited to have you join our community.\n\n"
+                f"⏳ REGISTRATION STATUS: Pending Approval\n\n"
+                f"What happens next?\n"
+                f"Our admin team is reviewing your registration. This usually takes 24-48 hours.\n"
+                f"You'll receive an email notification once your account is approved!\n\n"
+                f"YOUR ACCOUNT DETAILS:\n"
+                f"👤 Name: {first_name} {last_name}\n"
+                f"📧 Email: {email}\n"
+                f"🎭 Role: {account_type}\n\n"
+                f"Thank you for your patience! 💙\n\n"
+                f"---\n"
+                f"KIDS KINGDOM\n"
+                f"Quality Products for Your Little Ones\n"
+                f"© 2026 Kids Kingdom. All rights reserved."
             )
-            msg = MIMEText(body)
+            
+            # Create multipart message
+            msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
             msg['From'] = app.config['MAIL_SENDER']
             msg['To'] = email
+            
+            # Attach both plain text and HTML versions
+            part1 = MIMEText(text_body, 'plain', 'utf-8')
+            part2 = MIMEText(html_body, 'html', 'utf-8')
+            msg.attach(part1)
+            msg.attach(part2)
+            
             with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                 smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
                 smtp.send_message(msg)
@@ -16825,6 +17448,13 @@ def api_v1_register():
         if role not in ['buyer', 'rider']:
             return jsonify({'error': 'Invalid role. Must be buyer or rider'}), 400
         
+        # Verify email using EmailListVerify API (if configured)
+        api_key = os.getenv('EMAILLISTVERIFY_API_KEY') or os.getenv('EMAILLISTVERIFY_SECRET')
+        if api_key:
+            is_valid_email = verify_email_with_emaillistverify(email)
+            if not is_valid_email:
+                return jsonify({'error': 'Please enter a valid email address. We could not verify this email.'}), 400
+        
         # Check if email already exists
         existing_users = get_data('user', filters={'email': email})
         if existing_users and len(existing_users) > 0:
@@ -16850,6 +17480,28 @@ def api_v1_register():
         new_user = insert_data('user', new_user_data)
         if not new_user:
             return jsonify({'error': 'Failed to create user'}), 500
+        
+        # If rider, create RiderApplication record
+        if role == 'rider':
+            try:
+                vehicle_type = data.get('vehicle_type', 'motorcycle').strip()
+                vehicle_number = data.get('vehicle_number', '').strip()
+                
+                rider_app_data = {
+                    'user_id': new_user.get('id'),
+                    'vehicle_type': vehicle_type,
+                    'vehicle_number': vehicle_number,
+                    'status': 'pending',
+                    'applied_at': datetime.utcnow().isoformat()
+                }
+                
+                rider_app = insert_data('rider_application', rider_app_data)
+                if not rider_app:
+                    app.logger.error(f"Failed to create RiderApplication for user {new_user.get('id')}")
+                else:
+                    app.logger.info(f"RiderApplication created for user {new_user.get('id')}")
+            except Exception as e:
+                app.logger.error(f"Error creating RiderApplication: {e}")
         
         # Notify admin of new registration
         try:
@@ -17070,19 +17722,31 @@ def get_pending_users():
         if not user or user.get('role') != 'admin':
             return jsonify({'error': 'Unauthorized'}), 403
 
+        # FIXED: Order by latest first (desc)
         pending_users = get_data('user', filters={'status': 'pending'}, order='created_at.desc')
         if not pending_users:
             pending_users = []
         
-        users_data = [{
-            'id': u.get('id'),
-            'first_name': u.get('first_name'),
-            'last_name': u.get('last_name'),
-            'email': u.get('email'),
-            'phone': u.get('phone'),
-            'role': u.get('role'),
-            'created_at': u.get('created_at')
-        } for u in pending_users]
+        users_data = []
+        for u in pending_users:
+            created_at_utc = u.get('created_at')
+            # Convert to PH time for display
+            if isinstance(created_at_utc, str):
+                try:
+                    created_at_utc = datetime.fromisoformat(created_at_utc.replace('Z', '+00:00'))
+                except:
+                    created_at_utc = None
+            
+            users_data.append({
+                'id': u.get('id'),
+                'first_name': u.get('first_name'),
+                'last_name': u.get('last_name'),
+                'email': u.get('email'),
+                'phone': u.get('phone'),
+                'role': u.get('role'),
+                'created_at': u.get('created_at'),  # Keep UTC for sorting
+                'created_at_ph': format_ph_datetime(created_at_utc)  # Add PH time
+            })
 
         return jsonify(users_data), 200
 
@@ -17125,6 +17789,131 @@ def approve_user(user_id):
     except Exception as e:
         app.logger.error(f"Error approving user {user_id}: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/v1/admin/rider-applications', methods=['GET'])
+@jwt_required()
+def get_rider_applications():
+    """Get a list of rider applications (Supabase version)."""
+    try:
+        current_user_id = get_jwt_identity()
+        user = get_data_by_id('user', current_user_id)
+
+        if not user or user.get('role') != 'admin':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        # Get all rider applications ordered by latest first
+        rider_apps = get_data('rider_application', order='applied_at.desc')
+        if not rider_apps:
+            rider_apps = []
+        
+        apps_data = []
+        for app in rider_apps:
+            # Get user details
+            user_id = app.get('user_id')
+            user_data = get_data_by_id('user', user_id) if user_id else None
+            
+            applied_at_utc = app.get('applied_at')
+            if isinstance(applied_at_utc, str):
+                try:
+                    applied_at_utc = datetime.fromisoformat(applied_at_utc.replace('Z', '+00:00'))
+                except:
+                    applied_at_utc = None
+            
+            apps_data.append({
+                'id': app.get('id'),
+                'user_id': user_id,
+                'user_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}" if user_data else 'Unknown',
+                'email': user_data.get('email') if user_data else 'N/A',
+                'phone': user_data.get('phone') if user_data else 'N/A',
+                'vehicle_type': app.get('vehicle_type'),
+                'vehicle_number': app.get('vehicle_number'),
+                'employee_id': app.get('employee_id'),
+                'status': app.get('status'),
+                'applied_at': app.get('applied_at'),  # Keep UTC for sorting
+                'applied_at_ph': format_ph_datetime(applied_at_utc),  # Add PH time
+                'reviewed_at': app.get('reviewed_at'),
+                'reviewed_by': app.get('reviewed_by')
+            })
+
+        return jsonify(apps_data), 200
+
+    except Exception as e:
+        app.logger.error(f"Error fetching rider applications: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/v1/admin/rider-applications/<int:app_id>/approve', methods=['POST'])
+@jwt_required()
+def approve_rider_application(app_id):
+    """Approve a rider application (Supabase version)."""
+    try:
+        current_user_id = get_jwt_identity()
+        admin_user = get_data_by_id('user', current_user_id)
+
+        if not admin_user or admin_user.get('role') != 'admin':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        rider_app = get_data_by_id('rider_application', app_id)
+
+        if not rider_app:
+            return jsonify({'error': 'Rider application not found'}), 404
+
+        if rider_app.get('status') != 'pending':
+            return jsonify({'error': 'Application is not pending'}), 400
+
+        # Update application status
+        update_data = {
+            'status': 'approved',
+            'reviewed_at': datetime.utcnow().isoformat(),
+            'reviewed_by': admin_user.get('id')
+        }
+        update_data_by_id('rider_application', app_id, update_data)
+        
+        # Also update user status to active
+        user_id = rider_app.get('user_id')
+        update_data_by_id('user', user_id, {'status': 'active'})
+
+        return jsonify({'success': True, 'message': 'Rider application approved'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error approving rider application {app_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/v1/admin/rider-applications/<int:app_id>/reject', methods=['POST'])
+@jwt_required()
+def reject_rider_application(app_id):
+    """Reject a rider application (Supabase version)."""
+    try:
+        current_user_id = get_jwt_identity()
+        admin_user = get_data_by_id('user', current_user_id)
+
+        if not admin_user or admin_user.get('role') != 'admin':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        rider_app = get_data_by_id('rider_application', app_id)
+
+        if not rider_app:
+            return jsonify({'error': 'Rider application not found'}), 404
+
+        if rider_app.get('status') != 'pending':
+            return jsonify({'error': 'Application is not pending'}), 400
+
+        # Update application status
+        update_data = {
+            'status': 'rejected',
+            'reviewed_at': datetime.utcnow().isoformat(),
+            'reviewed_by': admin_user.get('id')
+        }
+        update_data_by_id('rider_application', app_id, update_data)
+
+        return jsonify({'success': True, 'message': 'Rider application rejected'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error rejecting rider application {app_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 
 @app.route('/api/v1/products', methods=['GET'])
 def api_v1_products():
@@ -17533,7 +18322,8 @@ def api_v1_orders():
                     'payment_status': order.get('payment_status'),
                     'delivery_address': order.get('delivery_address'),
                     'items': items,
-                    'created_at': order.get('created_at'),
+                    'order_date': order.get('created_at'),
+        'created_at': order.get('created_at'),
                     'updated_at': order.get('updated_at')
                 })
             
@@ -17582,7 +18372,7 @@ def api_v1_orders():
                     return jsonify({'error': 'Invalid item data'}), 400
                 
                 product = get_data_by_id('product', product_id)
-                if not product or product.get('status') != 'active':
+                if not product or product.get('status') != 'approved':
                     return jsonify({'error': f'Product {product_id} not found'}), 404
                 
                 if product.get('stock', 0) < quantity:
@@ -17718,7 +18508,8 @@ def api_v1_order_detail(order_id):
                 'payment_status': order.get('payment_status'),
                 'delivery_address': order.get('delivery_address'),
                 'items': items,
-                'created_at': order.get('created_at'),
+                'order_date': order.get('created_at'),
+        'created_at': order.get('created_at'),
                 'updated_at': order.get('updated_at')
             }
         })
@@ -17847,7 +18638,7 @@ def api_v1_cart():
             total = 0
 
             for item in cart_items:
-                if item.product and item.product.status == 'active':
+                if item.product and item.product.status in ['active', 'approved']:
                     price = float(item.product.price)
                     quantity = item.quantity
                     subtotal = price * quantity
@@ -17884,7 +18675,7 @@ def api_v1_cart():
                 return jsonify({'error': 'Invalid product or quantity'}), 400
             
             product = get_data_by_id('product', product_id)
-            if not product or product.get('status') != 'active':
+            if not product or product.get('status') != 'approved':
                 return jsonify({'error': 'Product not found'}), 404
             
             if product.get('stock', 0) < quantity:
@@ -18001,7 +18792,7 @@ def api_v1_wishlist():
                 Product, Wishlist.product_id == Product.id
             ).filter(
                 Wishlist.user_id == request.current_user_id,
-                Product.status == 'active'
+                Product.status.in_(['active', 'approved'])
             ).all()
             
             items = []
@@ -18033,8 +18824,16 @@ def api_v1_wishlist():
             
             # Optimized: Single query to check product and existing wishlist
             product = db.session.get(Product, product_id)
-            if not product or product.status != 'active':
+            
+            # Better error logging
+            if not product:
+                app.logger.warning(f"Wishlist add failed: Product {product_id} does not exist in database")
                 return jsonify({'error': 'Product not found'}), 404
+            
+            # Accept both 'active' and 'approved' status
+            if product.status not in ['active', 'approved']:
+                app.logger.warning(f"Wishlist add failed: Product {product_id} has status '{product.status}' (not active/approved)")
+                return jsonify({'error': f'Product is not available (status: {product.status})'}), 404
             
             # Check if already in wishlist
             existing = Wishlist.query.filter_by(
@@ -18053,6 +18852,7 @@ def api_v1_wishlist():
             db.session.add(new_wishlist_item)
             db.session.commit()
             
+            app.logger.info(f"Added product {product_id} to wishlist for user {request.current_user_id}")
             return jsonify({'success': True, 'message': 'Added to wishlist'}), 201
         
         elif request.method == 'DELETE':
@@ -18178,7 +18978,8 @@ def api_v1_orders_user():
                 'payment_method': order.get('payment_method'),
                 'payment_status': order.get('payment_status'),
                 'shipping_address': order.get('shipping_address'),
-                'created_at': order.get('created_at'),
+                'order_date': order.get('created_at'),
+        'created_at': order.get('created_at'),
                 'updated_at': order.get('updated_at'),
                 'qr_code': order.get('qr_code'),
                 'tracking_number': order.get('tracking_number'),
@@ -18410,7 +19211,7 @@ def api_rider_available_orders():
             address = order.shipping_address or order.delivery_address
             province = extract_province_from_address(address)
             delivery_fee = calculate_delivery_fee_from_address(address)
-            app.logger.info(f"Order #{order.id}: Address='{address}' -> Province='{province}' -> Fee=â‚±{delivery_fee}")
+            app.logger.info(f"Order #{order.id}: Address='{address}' -> Province='{province}' -> Fee=₱{delivery_fee}")
             order_dict['delivery_fee'] = delivery_fee
             order_dict['items'] = []
         
@@ -19420,7 +20221,7 @@ def buyer_get_cart():
             
             for item in cart_items:
                 product = get_data_by_id('product', item.get('product_id'))
-                if product and product.get('status') == 'active':
+                if product and product.get('status') == 'approved':
                     price = float(product.get('price', 0))
                     quantity = item.get('quantity', 0)
                     subtotal = price * quantity
@@ -19452,7 +20253,7 @@ def buyer_get_cart():
                 return jsonify({'error': 'Invalid product or quantity'}), 400
             
             product = get_data_by_id('product', product_id)
-            if not product or product.get('status') != 'active':
+            if not product or product.get('status') != 'approved':
                 return jsonify({'error': 'Product not found'}), 404
             
             if product.get('stock', 0) < quantity:
@@ -19524,7 +20325,7 @@ def buyer_update_cart_item(item_id):
             return jsonify({'success': False, 'error': 'Quantity must be >= 1'}), 400
         
         product = get_data_by_id('product', cart_item.get('product_id'))
-        if not product or product.get('status') != 'active':
+        if not product or product.get('status') != 'approved':
             return jsonify({'success': False, 'error': 'Product not available'}), 404
         
         if product.get('stock', 0) < quantity:
@@ -19658,7 +20459,7 @@ def api_buyer_checkout():
                         'seller_id': orm_product.seller_id,
                         'status': orm_product.status,
                     }
-            if not product or product.get('status') != 'active':
+            if not product or product.get('status') != 'approved':
                 return jsonify({'success': False, 'error': f'Product not available'}), 400
             
             available_stock = get_available_stock(cart_item.get('product_id'))
@@ -20129,24 +20930,23 @@ def buyer_submit_rating(order_id):
                 if not product_id:
                     continue
                 
-                # Create review
+                # Create review - only use fields that exist in Review model
                 review_data = {
                     'product_id': product_id,
                     'user_id': request.current_user_id,
-                    'buyer_id': request.current_user_id,
-                    'buyer_name': buyer_name,
-                    'buyer_avatar': buyer_avatar,
                     'rating': rating,
-                    'title': '',
-                    'content': comment,
+                    'title': '',  # Empty title, comment goes in content
+                    'content': comment,  # Full comment with tags and category ratings
                     'media': json.dumps(media_urls) if media_urls else None,
-                    'category_ratings': category_ratings,
                     'verified_purchase': True,
                     'order_id': order_id,
-                    'created_at': datetime.utcnow().isoformat()
+                    'status': 'published'
+                    # Don't set created_at - let model default handle it
                 }
                 
-                insert_data('review', review_data)
+                result = insert_data('review', review_data)
+                if not result:
+                    app.logger.error(f'Failed to create review for product {product_id}')
                 
                 # Update product rating
                 reviews = get_data('review', filters={'product_id': product_id})
@@ -20186,12 +20986,89 @@ def buyer_get_addresses():
         app.logger.error(f'Error fetching addresses: {e}')
         return jsonify({'success': False, 'message': 'Failed to fetch addresses'}), 500
 
+
+@app.route('/api/v1/buyer/addresses', methods=['POST'])
+@token_required
+def buyer_add_address():
+    """Add a new address for current buyer - for mobile app."""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('label') or not data.get('full_address'):
+            return jsonify({'success': False, 'message': 'Label and full address are required'}), 400
+        
+        # If this is set as default, unset other default addresses
+        if data.get('is_default'):
+            existing_addresses = get_data('address', filters={'user_id': request.current_user_id})
+            for addr in existing_addresses:
+                if addr.get('is_default'):
+                    update_data('address', {'id': addr['id']}, {'is_default': False})
+        
+        # Create new address
+        address_data = {
+            'user_id': request.current_user_id,
+            'label': data.get('label'),
+            'full_address': data.get('full_address'),
+            'street_address': data.get('street_address', ''),
+            'city': data.get('city', ''),
+            'province': data.get('province', ''),
+            'region': data.get('region', ''),
+            'barangay': data.get('barangay', ''),
+            'zip_code': data.get('zip_code', ''),
+            'is_default': bool(data.get('is_default', False)),
+        }
+        
+        new_address = insert_data('address', address_data)
+        
+        if new_address:
+            return jsonify({
+                'success': True,
+                'message': 'Address added successfully',
+                'address': new_address
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to add address'}), 500
+            
+    except Exception as e:
+        app.logger.error(f'Error adding address: {e}')
+        return jsonify({'success': False, 'message': f'Error adding address: {str(e)}'}), 500
+
+
+@app.route('/api/v1/buyer/addresses/<int:address_id>', methods=['DELETE'])
+@token_required
+def buyer_delete_address(address_id):
+    """Delete an address for current buyer - for mobile app."""
+    try:
+        # Verify the address belongs to the current user
+        address = get_data_by_id('address', address_id)
+        
+        if not address:
+            return jsonify({'success': False, 'message': 'Address not found'}), 404
+        
+        if address.get('user_id') != request.current_user_id:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+        # Delete the address
+        success = delete_data_by_id('address', address_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Address deleted successfully'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete address'}), 500
+            
+    except Exception as e:
+        app.logger.error(f'Error deleting address: {e}')
+        return jsonify({'success': False, 'message': f'Error deleting address: {str(e)}'}), 500
+
 @app.route('/api/v1/buyer/profile', methods=['GET', 'PUT'])
 @token_required
 def buyer_profile_api():
-    """Get or update buyer profile - for mobile app (uses ORM directly for reliability)."""
+    """Get or update buyer profile - syncs to database"""
     try:
-        # Use ORM directly for more reliable data access
         user = db.session.get(User, request.current_user_id)
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 404
@@ -20218,7 +21095,6 @@ def buyer_profile_api():
         elif request.method == 'PUT':
             data = request.get_json()
             
-            # Update allowed fields directly on ORM object
             if 'first_name' in data:
                 user.first_name = data['first_name']
             if 'last_name' in data:
@@ -20228,7 +21104,20 @@ def buyer_profile_api():
             if 'address' in data:
                 user.address = data['address']
             
+            user.updated_at = datetime.utcnow()
             db.session.commit()
+            
+            # Sync to Supabase
+            try:
+                supabase.table('users').update({
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'phone': user.phone,
+                    'address': user.address,
+                    'updated_at': user.updated_at.isoformat()
+                }).eq('id', user.id).execute()
+            except Exception as e:
+                app.logger.warning(f'Supabase sync failed: {e}')
             
             profile_image = get_user_avatar_url(user.id, user.role)
             return jsonify({
@@ -20248,6 +21137,7 @@ def buyer_profile_api():
                 }
             })
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f'buyer_profile error: {e}')
         return jsonify({'success': False, 'error': str(e)}), 400
 
@@ -20371,6 +21261,6 @@ def mark_notification_read(notification_id):
 
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ═══════════════════════════════════════════════════════════════════════════
 # FORGOT PASSWORD & RESET PASSWORD API ENDPOINTS (Mobile)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ═══════════════════════════════════════════════════════════════════════════

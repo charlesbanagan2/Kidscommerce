@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../services/api_service.dart';
 import '../../config/url_config.dart';
 import '../../widgets/modern_snackbar.dart';
@@ -54,41 +54,68 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
   }
 
   Future<void> _loadMessages() async {
+    debugPrint('💬 _loadMessages called for product ID: ${widget.productId}');
     setState(() => _isLoading = true);
+    debugPrint('💬 Loading state set to true');
+    
     try {
+      debugPrint('💬 Calling ApiService.getProductChatMessages...');
       final response =
           await ApiService.getProductChatMessages(widget.productId);
+      debugPrint('💬 Response received: $response');
+      
       if (response['success'] == true && mounted) {
+        debugPrint('✅ Success! Processing messages...');
         setState(() {
           _messages = (response['messages'] as List? ?? [])
               .map((e) => (e as Map).cast<String, dynamic>())
               .toList();
           _isLoading = false;
         });
+        debugPrint('✅ Messages loaded: ${_messages.length} messages');
+        debugPrint('💬 Loading state set to false');
         _scrollToBottom();
+      } else {
+        debugPrint('⚠️ Response success is false or widget not mounted');
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
-      debugPrint('Error loading messages: $e');
+      debugPrint('❌ Error loading messages: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
-    if (message.isEmpty || _isSending) return;
+    debugPrint('💬 _sendMessage called with message: "$message"');
+    
+    if (message.isEmpty || _isSending) {
+      debugPrint('⚠️ Message empty or already sending, skipping...');
+      return;
+    }
 
+    debugPrint('💬 Setting sending state to true');
     setState(() => _isSending = true);
     _messageController.clear();
 
     try {
+      debugPrint('💬 Calling ApiService.sendProductMessage...');
       final response = await ApiService.sendProductMessage(
         productId: widget.productId,
         message: message,
       );
 
+      debugPrint('📤 Send message response: $response');
+
       if (response['success'] == true && mounted) {
+        debugPrint('✅ Message sent successfully, reloading messages...');
+        // Wait a bit for backend to process
+        await Future.delayed(const Duration(milliseconds: 300));
         await _loadMessages();
       } else {
+        debugPrint('❌ Send message failed: ${response['error']}');
         if (mounted) {
           ModernSnackBar.showError(
             context,
@@ -97,11 +124,12 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error sending message: $e');
+      debugPrint('❌ Exception in _sendMessage: $e');
       if (mounted) {
         ModernSnackBar.showError(context, 'Failed to send message');
       }
     } finally {
+      debugPrint('💬 Setting sending state to false');
       if (mounted) setState(() => _isSending = false);
     }
   }
@@ -128,7 +156,7 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: _textDark),
+          icon: const Icon(Icons.arrow_back, color: _textDark),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -150,13 +178,13 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
                         widget.sellerAvatar!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Icon(
-                          LucideIcons.store,
+                          Icons.store,
                           color: Colors.white,
                           size: 18,
                         ),
                       ),
                     )
-                  : const Icon(LucideIcons.store,
+                  : const Icon(Icons.store,
                       color: Colors.white, size: 18),
             ),
             const SizedBox(width: 10),
@@ -245,7 +273,7 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
                 UrlConfig.toAbsoluteImageUrl(widget.productImage),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Icon(
-                  LucideIcons.image,
+                  Icons.image,
                   color: Colors.grey.shade400,
                 ),
               ),
@@ -299,7 +327,7 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              LucideIcons.messageCircle,
+              Icons.chat_bubble_outline,
               size: 40,
               color: Colors.grey.shade400,
             ),
@@ -357,13 +385,13 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
                         UrlConfig.toAbsoluteImageUrl(senderProfilePic),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Icon(
-                          LucideIcons.user,
+                          Icons.person,
                           color: Colors.white,
                           size: 16,
                         ),
                       ),
                     )
-                  : const Icon(LucideIcons.user, color: Colors.white, size: 16),
+                  : const Icon(Icons.person, color: Colors.white, size: 16),
             ),
             const SizedBox(width: 8),
           ],
@@ -502,7 +530,7 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
                       ),
                     )
                   : const Icon(
-                      LucideIcons.send,
+                      Icons.send,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -533,3 +561,4 @@ class _ProductChatScreenState extends State<ProductChatScreen> {
     }
   }
 }
+

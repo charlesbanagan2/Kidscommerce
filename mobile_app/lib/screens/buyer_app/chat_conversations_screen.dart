@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
+import '../../services/chat_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/url_config.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'chat_screen.dart';
+import 'product_chat_screen.dart';
 
 class ChatConversationsScreen extends StatefulWidget {
   const ChatConversationsScreen({super.key});
@@ -41,28 +45,152 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen>
     );
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-    _loadConversations();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadConversations();
+      _initializeRealtimeUpdates();
+    });
 
     _searchController.addListener(() {
       _filterConversations(_searchController.text);
     });
   }
 
+  void _initializeRealtimeUpdates() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final accessToken = authProvider.accessToken;
+    final userId = authProvider.user?.id;
+
+    if (accessToken != null && userId != null) {
+      // Handler for new messages
+      final newMessageHandler = (Map<String, dynamic> messageData) {
+        final peerId = messageData['peer_id'] as int? ??
+            (messageData['sender_id'] as int? ??
+                messageData['receiver_id'] as int?);
+        final senderId = messageData['sender_id'] as int?;
+        if (peerId != null) {
+          _updateConversationAfterNewMessage(
+            peerId,
+            messageData['message'] ?? 'New message',
+            messageData['created_at'] ?? DateTime.now().toIso8601String(),
+            senderId,
+          );
+        }
+      };
+
+      // Handler for conversation updates (forces re-sort)
+      final conversationUpdatedHandler = (Map<String, dynamic> data) {
+        final peerId = data['peer_id'] as int?;
+        final lastMessage = data['last_message'] as String?;
+        final lastMessageTime = data['last_message_time'] as String?;
+        final senderId = data['sender_id'] as int?;
+
+        if (peerId != null && lastMessage != null && lastMessageTime != null) {
+          _updateConversationAfterNewMessage(
+            peerId,
+            lastMessage,
+            lastMessageTime,
+            senderId,
+          );
+        }
+      };
+
+      // Handler for unread cleared
+      final unreadClearedHandler = (Map<String, dynamic> data) {
+        final peerId = data['peer_id'] as int?;
+        if (peerId != null) {
+          final index =
+              _conversations.indexWhere((c) => c['peer_id'] == peerId);
+          if (index >= 0) {
+            setState(() {
+              _conversations[index]['unread_count'] = 0;
+            });
+            _filterConversations(_searchController.text);
+          }
+        }
+      };
+
+      ChatService.initializeSocket(
+        accessToken,
+        userId: userId,
+        onNewMessage: newMessageHandler,
+        onConversationUpdated: conversationUpdatedHandler,
+        onUnreadCleared: unreadClearedHandler,
+      );
+
+      _onNewMessageHandler = newMessageHandler;
+      _onConversationUpdatedHandler = conversationUpdatedHandler;
+      _onUnreadClearedHandler = unreadClearedHandler;
+    }
+  }
+
+  late Function(Map<String, dynamic>) _onNewMessageHandler;
+  late Function(Map<String, dynamic>) _onConversationUpdatedHandler;
+  late Function(Map<String, dynamic>) _onUnreadClearedHandler;
+
   @override
   void dispose() {
     _fadeController.dispose();
     _searchController.dispose();
+    try {
+      ChatService.removeOnNewMessageListener(_onNewMessageHandler);
+      ChatService.removeOnConversationUpdatedListener(
+          _onConversationUpdatedHandler);
+      ChatService.removeOnUnreadClearedListener(_onUnreadClearedHandler);
+    } catch (_) {}
     super.dispose();
   }
 
   Future<void> _loadConversations() async {
     setState(() => _isLoading = true);
     try {
-      final conversations = await ApiService.getChatConversations();
+      // Load both regular and product conversations
+      final regularConversations = await ApiService.getChatConversations();
+      final productConversations = await ApiService.getProductConversations();
+
+      // Merge conversations
+      final allConversations = [...regularConversations];
+
+      // Add product conversations with proper format
+      for (var productConv in productConversations) {
+        final otherUser = productConv['other_user'] as Map<String, dynamic>?;
+        if (otherUser != null) {
+          allConversations.add({
+            'peer_id': otherUser['id'],
+            'peer_name': otherUser['name'],
+            'peer_role': otherUser['role'],
+            'peer_profile_picture': otherUser['profile_picture'],
+            'last_message':
+                '📦 ${productConv['product_name']}: ${productConv['last_message']}',
+            'last_message_time': productConv['last_message_time'],
+            'unread_count': productConv['unread_count'] ?? 0,
+            'product_id': productConv['product_id'],
+            'product_name': productConv['product_name'],
+            'product_image': productConv['product_image'],
+            'product_price': productConv['product_price'],
+          });
+        }
+      }
+
       if (mounted) {
+        // Sort conversations by latest message time (descending)
+        allConversations.sort((a, b) {
+          final aTime = a['last_message_time'] ?? a['created_at'] ?? '';
+          final bTime = b['last_message_time'] ?? b['created_at'] ?? '';
+          if (aTime.isEmpty || bTime.isEmpty) return 0;
+          try {
+            final aDateTime = DateTime.parse(aTime.toString());
+            final bDateTime = DateTime.parse(bTime.toString());
+            return bDateTime.compareTo(aDateTime); // Descending (latest first)
+          } catch (_) {
+            return 0;
+          }
+        });
+
         setState(() {
-          _conversations = conversations;
-          _filtered = conversations;
+          _conversations = allConversations;
+          _filtered = allConversations;
           _isLoading = false;
         });
         _fadeController.forward(from: 0);
@@ -71,6 +199,47 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen>
       debugPrint('Error loading conversations: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _updateConversationAfterNewMessage(
+      int peerId, String lastMessage, String timestamp,
+      [int? senderId]) {
+    final index = _conversations.indexWhere((c) => c['peer_id'] == peerId);
+    final currentUserId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id;
+
+    if (index >= 0) {
+      // Update existing conversation
+      _conversations[index]['last_message'] = lastMessage;
+      _conversations[index]['last_message_time'] = timestamp;
+      // Increment unread only if message is from peer (not from current user)
+      if (senderId != null && senderId != currentUserId) {
+        _conversations[index]['unread_count'] =
+            (_conversations[index]['unread_count'] ?? 0) + 1;
+      }
+
+      // FORCE MOVE TO TOP (Index 0)
+      final conversation = _conversations.removeAt(index);
+      _conversations.insert(0, conversation);
+
+      // Re-sort entire list by last_message_time descending
+      _conversations.sort((a, b) {
+        final aTime = a['last_message_time'] ?? '';
+        final bTime = b['last_message_time'] ?? '';
+        if (aTime.isEmpty || bTime.isEmpty) return 0;
+        try {
+          final aDateTime = DateTime.parse(aTime.toString());
+          final bDateTime = DateTime.parse(bTime.toString());
+          return bDateTime.compareTo(aDateTime); // Descending
+        } catch (_) {
+          return 0;
+        }
+      });
+    }
+
+    // Update filtered list
+    _filterConversations(_searchController.text);
+    if (mounted) setState(() {});
   }
 
   void _filterConversations(String query) {
@@ -322,20 +491,49 @@ class _ChatConversationsScreenState extends State<ChatConversationsScreen>
     final isUnread = unreadCount > 0;
     final roleColor = _roleColor(peerRole);
 
+    // Check if this is a product conversation
+    final productId = conversation['product_id'] as int?;
+    final productName = conversation['product_name'] as String?;
+    final productImage = conversation['product_image'] as String?;
+    final productPrice = conversation['product_price'] as double?;
+    final isProductChat = productId != null;
+
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(
-              otherUserId: peerId,
-              otherUserName: peerName,
-              otherUserRole: peerRole,
-              otherUserProfilePicture: peerProfilePic,
+
+        // Navigate to appropriate chat screen
+        if (isProductChat) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductChatScreen(
+                productId: productId,
+                productName: productName ?? 'Product',
+                productImage: productImage ?? '',
+                productPrice: productPrice ?? 0.0,
+                sellerId: peerId,
+                sellerName: peerName,
+                sellerAvatar: peerProfilePic,
+              ),
             ),
-          ),
-        ).then((_) => _loadConversations());
+          ).then((_) => _loadConversations());
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                otherUserId: peerId,
+                otherUserName: peerName,
+                otherUserRole: peerRole,
+                otherUserProfilePicture: peerProfilePic,
+              ),
+            ),
+          ).then((_) {
+            // Reload conversations and mark as read
+            _loadConversations();
+          });
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../services/api_service.dart';
+import '../../services/chat_service.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/url_config.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'rider_chat_screen.dart';
@@ -41,16 +44,95 @@ class _RiderChatConversationsScreenState
     );
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-    _loadConversations();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadConversations();
+      _initializeRealtimeUpdates();
+    });
+
     _searchController.addListener(() {
       _filterConversations(_searchController.text);
     });
+  }
+
+  late Function(Map<String, dynamic>) _onNewMessageHandler;
+  late Function(Map<String, dynamic>) _onConversationUpdatedHandler;
+  late Function(Map<String, dynamic>) _onUnreadClearedHandler;
+
+  void _initializeRealtimeUpdates() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final accessToken = authProvider.accessToken;
+    final userId = authProvider.user?.id;
+
+    if (accessToken != null && userId != null) {
+      final newMessageHandler = (Map<String, dynamic> messageData) {
+        final peerId = messageData['peer_id'] as int? ??
+            (messageData['sender_id'] as int? ??
+                messageData['receiver_id'] as int?);
+        final senderId = messageData['sender_id'] as int?;
+        if (peerId != null) {
+          _updateConversationAfterNewMessage(
+            peerId,
+            messageData['message'] ?? 'New message',
+            messageData['created_at'] ?? DateTime.now().toIso8601String(),
+            senderId,
+          );
+        }
+      };
+
+      final conversationUpdatedHandler = (Map<String, dynamic> data) {
+        final peerId = data['peer_id'] as int?;
+        final lastMessage = data['last_message'] as String?;
+        final lastMessageTime = data['last_message_time'] as String?;
+        final senderId = data['sender_id'] as int?;
+        
+        if (peerId != null && lastMessage != null && lastMessageTime != null) {
+          _updateConversationAfterNewMessage(
+            peerId,
+            lastMessage,
+            lastMessageTime,
+            senderId,
+          );
+        }
+      };
+
+      final unreadClearedHandler = (Map<String, dynamic> data) {
+        final peerId = data['peer_id'] as int?;
+        if (peerId != null) {
+          final index = _conversations.indexWhere((c) => c['peer_id'] == peerId);
+          if (index >= 0) {
+            setState(() {
+              _conversations[index]['unread_count'] = 0;
+            });
+            _filterConversations(_searchController.text);
+          }
+        }
+      };
+
+      ChatService.initializeSocket(
+        accessToken,
+        userId: userId,
+        onNewMessage: newMessageHandler,
+        onConversationUpdated: conversationUpdatedHandler,
+        onUnreadCleared: unreadClearedHandler,
+      );
+      
+      _onNewMessageHandler = newMessageHandler;
+      _onConversationUpdatedHandler = conversationUpdatedHandler;
+      _onUnreadClearedHandler = unreadClearedHandler;
+    }
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
     _searchController.dispose();
+    try {
+      ChatService.removeOnNewMessageListener(_onNewMessageHandler);
+      ChatService.removeOnConversationUpdatedListener(_onConversationUpdatedHandler);
+      ChatService.removeOnUnreadClearedListener(_onUnreadClearedHandler);
+    } catch (_) {}
     super.dispose();
   }
 
@@ -59,6 +141,20 @@ class _RiderChatConversationsScreenState
     try {
       final conversations = await ApiService.getChatConversations();
       if (mounted) {
+        // Sort conversations by latest message time (descending)
+        conversations.sort((a, b) {
+          final aTime = a['last_message_time'] ?? a['created_at'] ?? '';
+          final bTime = b['last_message_time'] ?? b['created_at'] ?? '';
+          if (aTime.isEmpty || bTime.isEmpty) return 0;
+          try {
+            final aDateTime = DateTime.parse(aTime.toString());
+            final bDateTime = DateTime.parse(bTime.toString());
+            return bDateTime.compareTo(aDateTime); // Descending (latest first)
+          } catch (_) {
+            return 0;
+          }
+        });
+
         setState(() {
           _conversations = conversations;
           _filtered = conversations;
@@ -70,6 +166,44 @@ class _RiderChatConversationsScreenState
       debugPrint('Error loading conversations: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _updateConversationAfterNewMessage(
+      int peerId, String lastMessage, String timestamp,
+      [int? senderId]) {
+    final index = _conversations.indexWhere((c) => c['peer_id'] == peerId);
+    final currentUserId =
+        Provider.of<AuthProvider>(context, listen: false).user?.id;
+
+    if (index >= 0) {
+      _conversations[index]['last_message'] = lastMessage;
+      _conversations[index]['last_message_time'] = timestamp;
+      if (senderId != null && senderId != currentUserId) {
+        _conversations[index]['unread_count'] =
+            (_conversations[index]['unread_count'] ?? 0) + 1;
+      }
+
+      // FORCE MOVE TO TOP (Index 0)
+      final conversation = _conversations.removeAt(index);
+      _conversations.insert(0, conversation);
+      
+      // Re-sort entire list by last_message_time descending
+      _conversations.sort((a, b) {
+        final aTime = a['last_message_time'] ?? '';
+        final bTime = b['last_message_time'] ?? '';
+        if (aTime.isEmpty || bTime.isEmpty) return 0;
+        try {
+          final aDateTime = DateTime.parse(aTime.toString());
+          final bDateTime = DateTime.parse(bTime.toString());
+          return bDateTime.compareTo(aDateTime); // Descending
+        } catch (_) {
+          return 0;
+        }
+      });
+    }
+
+    _filterConversations(_searchController.text);
+    if (mounted) setState(() {});
   }
 
   void _filterConversations(String query) {
@@ -443,7 +577,8 @@ class _RiderChatConversationsScreenState
                             child: peerProfilePic != null &&
                                     peerProfilePic.isNotEmpty
                                 ? Image.network(
-                                    UrlConfig.toAbsoluteImageUrl(peerProfilePic),
+                                    UrlConfig.toAbsoluteImageUrl(
+                                        peerProfilePic),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, __, ___) =>
                                         _buildAvatarFallback(

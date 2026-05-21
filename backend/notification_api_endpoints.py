@@ -20,8 +20,20 @@ import json
 # Create blueprint
 notification_api_bp = Blueprint('notification_api', __name__)
 
-# JWT Secret
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-mobile-jwt-secret-key-change-in-production')
+# JWT Secret - Will be loaded from environment when needed
+_JWT_SECRET_KEY = None
+
+def get_jwt_secret():
+    """Get JWT_SECRET_KEY from environment (lazy loading)"""
+    global _JWT_SECRET_KEY
+    if _JWT_SECRET_KEY is None:
+        _JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+        if not _JWT_SECRET_KEY:
+            raise ValueError(
+                "JWT_SECRET_KEY environment variable is not set! "
+                "Please add JWT_SECRET_KEY to your .env file."
+            )
+    return _JWT_SECRET_KEY
 
 # Global references (set during registration)
 _db = None
@@ -58,7 +70,7 @@ def token_required(f):
             return jsonify({'success': False, 'message': 'Token is missing'}), 401
             
         try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+            payload = jwt.decode(token, get_jwt_secret(), algorithms=['HS256'])
             current_user_id = payload['user_id']
             current_user_role = payload.get('role', 'buyer')
         except jwt.ExpiredSignatureError:

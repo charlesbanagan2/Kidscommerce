@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -121,7 +121,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () {
               if (_currentStep > 0 && !_isSubmitted) {
                 setState(() => _currentStep--);
@@ -166,7 +166,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.shieldCheck,
+                const Icon(Icons.verified_user,
                     color: Colors.white, size: 13),
                 const SizedBox(width: 5),
                 Text(
@@ -230,7 +230,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                         ),
                         child: Center(
                           child: isCompleted
-                              ? const Icon(LucideIcons.check,
+                              ? const Icon(Icons.check,
                                   size: 14, color: Colors.white)
                               : Text(
                                   '${idx + 1}',
@@ -306,7 +306,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionCard(
-            icon: LucideIcons.packageSearch,
+            icon: Icons.inventory_2_outlined,
             title: 'Select Items to Return',
             subtitle: 'Choose the items you want to return',
             child: Column(
@@ -445,7 +445,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           _qtyButton(
-            LucideIcons.minus,
+            Icons.remove,
             () {
               if (_returnItems[index].quantity > 1) {
                 setState(() => _returnItems[index].quantity--);
@@ -464,7 +464,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
             ),
           ),
           _qtyButton(
-            LucideIcons.plus,
+            Icons.add,
             () {
               if (_returnItems[index].quantity < returnItem.item.quantity) {
                 setState(() => _returnItems[index].quantity++);
@@ -514,7 +514,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(LucideIcons.info,
+                child: const Icon(Icons.info,
                     color: Color(0xFF1e4db7), size: 15),
               ),
               const SizedBox(width: 10),
@@ -539,7 +539,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(LucideIcons.checkCircle2,
+                  const Icon(Icons.check_circle,
                       size: 13, color: Color(0xFF1e4db7)),
                   const SizedBox(width: 8),
                   Expanded(
@@ -566,7 +566,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
       child: Column(
         children: [
           _buildSectionCard(
-            icon: LucideIcons.messageSquare,
+            icon: Icons.message,
             title: 'Return Reason',
             subtitle: 'Tell us why you\'re returning this item',
             child: Column(
@@ -638,7 +638,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
           ),
           const SizedBox(height: 16),
           _buildSectionCard(
-            icon: LucideIcons.fileText,
+            icon: Icons.description,
             title: 'Additional Details',
             subtitle: 'Describe the issue in more detail (optional)',
             child: TextField(
@@ -670,7 +670,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
           ),
           const SizedBox(height: 16),
           _buildSectionCard(
-            icon: LucideIcons.camera,
+            icon: Icons.camera_alt,
             title: 'Evidence Photos & Videos',
             subtitle: 'Upload at least 1 photo and 1 video (required)',
             child: Column(
@@ -679,7 +679,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                 if (_evidencePhotos.isNotEmpty) ...[
                   Row(
                     children: [
-                      const Icon(LucideIcons.image,
+                      const Icon(Icons.image,
                           size: 14, color: Color(0xFF1e4db7)),
                       const SizedBox(width: 6),
                       Text(
@@ -740,7 +740,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                 if (_evidenceVideos.isNotEmpty) ...[
                   Row(
                     children: [
-                      const Icon(LucideIcons.video,
+                      const Icon(Icons.videocam,
                           size: 14, color: Color(0xFF1e4db7)),
                       const SizedBox(width: 6),
                       Text(
@@ -824,7 +824,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                             child: Column(
                               children: [
                                 Icon(
-                                  LucideIcons.imagePlus,
+                                  Icons.add_photo_alternate,
                                   color: _evidencePhotos.isEmpty
                                       ? Colors.red
                                       : const Color(0xFF1e4db7),
@@ -873,7 +873,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                             child: Column(
                               children: [
                                 Icon(
-                                  LucideIcons.video,
+                                  Icons.videocam,
                                   color: _evidenceVideos.isEmpty
                                       ? Colors.red
                                       : const Color(0xFF1e4db7),
@@ -923,15 +923,15 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
     final methods = [
       (
         'original',
-        LucideIcons.creditCard,
+        Icons.credit_card,
         'Original Payment Method',
         '3–5 business days'
       ),
-      ('wallet', LucideIcons.wallet, 'Store Wallet', 'Instant refund'),
+      ('wallet', Icons.account_balance_wallet, 'Store Wallet', 'Instant refund'),
     ];
 
     return _buildSectionCard(
-      icon: LucideIcons.refreshCcw,
+      icon: Icons.refresh,
       title: 'Refund Method',
       subtitle: 'Choose how you\'d like to receive your refund',
       child: Column(
@@ -1056,7 +1056,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                     color: Colors.white.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(LucideIcons.packageSearch,
+                  child: const Icon(Icons.inventory_2_outlined,
                       color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 14),
@@ -1090,7 +1090,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
 
           // Items being returned
           _buildSectionCard(
-            icon: LucideIcons.shoppingBag,
+            icon: Icons.shopping_bag_outlined,
             title: 'Items to Return',
             child: Column(
               children: selectedItems.map((ri) {
@@ -1165,7 +1165,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
 
           // Reason
           _buildSectionCard(
-            icon: LucideIcons.messageSquare,
+            icon: Icons.message,
             title: 'Return Reason',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1200,7 +1200,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
 
           // Refund method
           _buildSectionCard(
-            icon: LucideIcons.refreshCcw,
+            icon: Icons.refresh,
             title: 'Refund Details',
             child: Column(
               children: [
@@ -1244,7 +1244,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
           // Evidence photos and videos
           if (_evidencePhotos.isNotEmpty || _evidenceVideos.isNotEmpty)
             _buildSectionCard(
-              icon: LucideIcons.image,
+              icon: Icons.image,
               title: 'Evidence',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1318,7 +1318,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(LucideIcons.alertTriangle,
+                const Icon(Icons.warning,
                     size: 15, color: Colors.amber),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1384,7 +1384,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                     ),
                   ],
                 ),
-                child: const Icon(LucideIcons.checkCircle2,
+                child: const Icon(Icons.check_circle,
                     color: Colors.white, size: 48),
               ),
             ),
@@ -1420,12 +1420,12 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
               ),
               child: Column(
                 children: [
-                  _successInfoRow(LucideIcons.hash, 'Request ID',
+                  _successInfoRow(Icons.tag, 'Request ID',
                       'RET-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'),
                   const Divider(height: 20),
-                  _successInfoRow(LucideIcons.clock, 'Status', 'Under Review'),
+                  _successInfoRow(Icons.access_time, 'Status', 'Under Review'),
                   const Divider(height: 20),
-                  _successInfoRow(LucideIcons.calendar, 'Expected Resolution',
+                  _successInfoRow(Icons.calendar_today, 'Expected Resolution',
                       '${DateTime.now().add(const Duration(days: 2)).toString().split(' ')[0]}'),
                 ],
               ),
@@ -1435,7 +1435,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(LucideIcons.home, size: 18),
+                icon: const Icon(Icons.home, size: 18),
                 label: const Text(
                   'Back to Order',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -1568,8 +1568,8 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                         const SizedBox(width: 6),
                         Icon(
                           isLastStep
-                              ? LucideIcons.send
-                              : LucideIcons.arrowRight,
+                              ? Icons.send
+                              : Icons.arrow_forward,
                           size: 16,
                         ),
                       ],
@@ -1737,7 +1737,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                         errorBuilder: (_, __, ___) => Container(
                           color: Colors.black.withValues(alpha: 0.05),
                           child: const Icon(
-                            LucideIcons.video,
+                            Icons.videocam,
                             color: Color(0xFF1e4db7),
                             size: 24,
                           ),
@@ -1746,7 +1746,7 @@ class _ReturnRefundScreenState extends State<ReturnRefundScreen>
                     : Container(
                         color: Colors.black.withValues(alpha: 0.05),
                         child: const Icon(
-                          LucideIcons.video,
+                          Icons.videocam,
                           color: Color(0xFF1e4db7),
                           size: 24,
                         ),
@@ -2173,3 +2173,4 @@ class _LocalVideoPreviewScreenState extends State<_LocalVideoPreviewScreen> {
     );
   }
 }
+

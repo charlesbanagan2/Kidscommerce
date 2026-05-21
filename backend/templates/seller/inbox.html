@@ -537,9 +537,9 @@
 
                 {% if selected_buyer_id %}
                 <div class="card-footer">
-                    <form method="post" action="{{ url_for('send_chat_message', buyer_id=selected_buyer_id) }}">
+                    <form method="post" action="{{ url_for('send_chat_message', buyer_id=selected_buyer_id) }}" id="chatForm">
                         <div class="input-group mb-2">
-                            <input type="text" name="message" class="form-control" placeholder="Type a message..." required>
+                            <input type="text" name="message" id="messageInput" class="form-control" placeholder="Type a message..." required>
                             <select name="product_id" class="form-select" style="max-width:220px;">
                                 <option value="">Attach product...</option>
                                 {% for product in products %}
@@ -571,18 +571,161 @@ function filterBuyers() {
 <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
 <script>
 var socket = io();
+var sellerId = {{ session['user_id'] }};
+var selectedBuyerId = {{ selected_buyer_id if selected_buyer_id else 'null' }};
+
 socket.on('connect', function() {
-    // Join seller room for live updates
-    socket.emit('join', {'room': 'seller_{{ session["user_id"] }}'});
+    socket.emit('join', {'user_id': sellerId});
 });
+
 socket.on('new_message', function(data) {
-    // Update chat thread and badge
-    var badge = document.querySelector('#buyer-badge-' + data.buyer_id);
-    if (badge) {
-        badge.textContent = parseInt(badge.textContent || '0') + 1;
-        badge.classList.add('bg-danger');
+    console.log('New message received:', data);
+    
+    var senderId = data.sender_id;
+    var receiverId = data.receiver_id;
+    var message = data.message || '';
+    var createdAt = data.created_at || new Date().toISOString();
+    
+    // Determine peer ID (the other person in conversation)
+    var peerId = (senderId === sellerId) ? receiverId : senderId;
+    
+    // Update conversation list
+    updateConversationList(peerId, message, createdAt, senderId);
+    
+    // If chat is open with this buyer, append message
+    if (selectedBuyerId && peerId === selectedBuyerId) {
+        var chatBody = document.querySelector('.card-body[style*="height:420px"]');
+        if (chatBody) {
+            var isSeller = (senderId === sellerId);
+            var messageHtml = createMessageBubble(message, isSeller, createdAt);
+            chatBody.insertAdjacentHTML('beforeend', messageHtml);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
     }
-    // Optionally, fetch new messages via AJAX and update chat thread
+});
+
+// Listen for conversation_updated event to ensure list stays sorted
+socket.on('conversation_updated', function(data) {
+    console.log('Conversation updated:', data);
+    
+    var peerId = data.peer_id;
+    var message = data.last_message || '';
+    var timestamp = data.last_message_time || new Date().toISOString();
+    var senderId = data.sender_id;
+    
+    // Update conversation list
+    updateConversationList(peerId, message, timestamp, senderId);
+});
+
+// Unified function to update conversation list
+function updateConversationList(peerId, message, timestamp, senderId) {
+    // Find the buyer list item
+    var buyerItems = document.querySelectorAll('#buyerList .list-group-item');
+    var foundItem = null;
+    
+    buyerItems.forEach(function(item) {
+        var link = item.querySelector('a');
+        if (link && link.href.includes('buyer_id=' + peerId)) {
+            foundItem = item;
+        }
+    });
+    
+    if (foundItem) {
+        // Update last message
+        var messagePreview = foundItem.querySelector('.small');
+        if (messagePreview) {
+            var truncated = message.length > 60 ? message.substring(0, 60) + '...' : message;
+            messagePreview.textContent = truncated;
+            
+            // Make bold if from buyer (not from seller)
+            if (senderId !== sellerId) {
+                messagePreview.classList.add('fw-bold', 'text-dark');
+                messagePreview.classList.remove('text-muted');
+            } else {
+                // Message from seller - remove bold
+                messagePreview.classList.remove('fw-bold', 'text-dark');
+                messagePreview.classList.add('text-muted');
+            }
+        }
+        
+        // Update unread count if message is from buyer
+        if (senderId !== sellerId) {
+            var badgeContainer = foundItem.querySelector('.ms-2');
+            if (badgeContainer) {
+                var badge = badgeContainer.querySelector('.badge');
+                if (badge) {
+                    var count = parseInt(badge.textContent || '0') + 1;
+                    badge.textContent = count;
+                } else {
+                    badgeContainer.innerHTML = '<span class="badge bg-danger ms-2">1</span>';
+                }
+            }
+        }
+        
+        // Move to top of list (most recent first)
+        var buyerList = document.getElementById('buyerList');
+        if (buyerList.firstChild !== foundItem) {
+            buyerList.insertBefore(foundItem, buyerList.firstChild);
+        }
+    }
+}
+
+function createMessageBubble(message, isSeller, createdAt) {
+    var date = new Date(createdAt);
+    var timeStr = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    
+    var alignClass = isSeller ? 'text-end' : '';
+    var sideClass = isSeller ? 'seller-side' : 'buyer-side';
+    var bubbleClass = isSeller ? 'seller' : 'buyer';
+    
+    return `
+        <div class="message-row ${alignClass}">
+            <div class="message-row-inner ${sideClass}">
+                ${!isSeller ? '<div class="message-avatar"><img src="/static/user_avatar.png" alt="Avatar" style="width:100%;height:100%;object-fit:cover;"></div>' : ''}
+                <div class="message-bubble ${bubbleClass}">${escapeHtml(message)}</div>
+                ${isSeller ? '<div class="message-avatar"><img src="{{ seller_store_logo }}" alt="Seller Avatar"></div>' : ''}
+            </div>
+            <div class="message-meta ${alignClass}">${timeStr}</div>
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Handle form submission via AJAX
+document.addEventListener('DOMContentLoaded', function() {
+    var chatForm = document.getElementById('chatForm');
+    if (chatForm) {
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var formData = new FormData(chatForm);
+            var messageInput = document.getElementById('messageInput');
+            var message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            fetch(chatForm.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(() => {
+                // Clear input
+                messageInput.value = '';
+                
+                // Message will appear via socket event
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                alert('Failed to send message. Please try again.');
+            });
+        });
+    }
 });
 </script>
 

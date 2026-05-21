@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../providers/buyer_provider.dart';
 import '../../services/api_service.dart';
 import '../../widgets/hero_carousel.dart';
@@ -32,7 +31,7 @@ class BuyerHomeScreen extends StatefulWidget {
   State<BuyerHomeScreen> createState() => _BuyerHomeScreenState();
 }
 
-class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
+class _BuyerHomeScreenState extends State<BuyerHomeScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   int _unreadNotifications = 0;
   int _unreadMessages = 0;
@@ -41,6 +40,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialTab;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final buyerProvider = context.read<BuyerProvider>();
@@ -49,6 +49,7 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
       ApiService.clearOrdersCache();
       
       buyerProvider.fetchProducts();
+      buyerProvider.fetchWishlist();
       
       try {
         debugPrint('📦 BuyerHomeScreen: Starting orders fetch...');
@@ -71,7 +72,17 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // Refresh counts when app comes to foreground
+      _fetchUnreadCounts();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _refreshTimer?.cancel();
     super.dispose();
   }
@@ -94,6 +105,11 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
   void _onTabChange(int index) {
     debugPrint('🔄 Tab changed: $index');
     setState(() => _selectedIndex = index);
+    
+    // Refresh notification count when switching to home tab
+    if (index == 0) {
+      _fetchUnreadCounts();
+    }
   }
 
   @override
@@ -112,13 +128,15 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
               );
             },
             onOpenMessages: () => _onTabChange(2),
-            onOpenNotifications: () {
-              Navigator.push(
+            onOpenNotifications: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const NotificationScreen(),
                 ),
               );
+              // Refresh counts after returning from notifications
+              _fetchUnreadCounts();
             },
           ),
           OrdersScreen(initialFilter: widget.ordersInitialFilter),
@@ -361,6 +379,7 @@ class _DashboardScreenState extends State<_DashboardScreen> {
     debugPrint('🔄 Pull to refresh triggered');
     await provider.fetchProducts();
     await provider.fetchCart();
+    await provider.fetchWishlist();
     if (!mounted) {
       return;
     }
@@ -414,56 +433,33 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                               Expanded(
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.1),
-                                            blurRadius: 8,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          'KK',
-                                          style: TextStyle(
-                                            color: const Color(0xFF1e4db7),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: isTablet ? 14 : 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Welcome back',
-                                            style: TextStyle(
-                                              color: Colors.white
-                                                  .withValues(alpha: 0.6),
-                                              fontSize: isSmallPhone ? 9 : 10,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Good morning! 👋',
+                                    SizedBox(
+                                      height: 48,
+                                      child: Image.asset(
+                                        'assets/images/logo_ulit.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Text(
+                                            'KK',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
-                                              fontSize: isSmallPhone ? 12 : 13,
+                                              fontSize: isTablet ? 16 : 15,
                                             ),
-                                          ),
-                                        ],
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Text(
+                                        'Kids Kingdom',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: isSmallPhone ? 16 : 18,
+                                          letterSpacing: 0.5,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -486,7 +482,7 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                                                 BorderRadius.circular(12),
                                           ),
                                           child: const Icon(
-                                            LucideIcons.shoppingCart,
+                                            Icons.shopping_cart_outlined,
                                             color: Colors.white,
                                             size: 18,
                                           ),
@@ -532,7 +528,7 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                                                 BorderRadius.circular(12),
                                           ),
                                           child: const Icon(
-                                            LucideIcons.bell,
+                                            Icons.notifications_outlined,
                                             color: Colors.white,
                                             size: 18,
                                           ),
@@ -600,12 +596,12 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                                   vertical: isTablet ? 12 : 11,
                                 ),
                                 prefixIcon: Icon(
-                                  LucideIcons.search,
+                                  Icons.search,
                                   size: 17,
                                   color: Colors.grey.shade400,
                                 ),
                                 suffixIcon: const Icon(
-                                  LucideIcons.search,
+                                  Icons.search,
                                   size: 17,
                                   color: Color(0xFF1e4db7),
                                 ),
@@ -679,10 +675,10 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                         childAspectRatio: 1.1,
                         children: [
                           _buildStatCard('Flash Sale', '12 items',
-                              LucideIcons.trendingUp, Colors.orange),
-                          _buildStatCard('New In', '48 items', LucideIcons.zap,
+                              Icons.trending_up, Colors.orange),
+                          _buildStatCard('New In', '48 items', Icons.flash_on,
                               Colors.blue),
-                          _buildStatCard('Top Rated', '4.8★', LucideIcons.star,
+                          _buildStatCard('Top Rated', '4.8★', Icons.star,
                               Colors.amber),
                         ],
                       ),
@@ -736,7 +732,7 @@ class _DashboardScreenState extends State<_DashboardScreen> {
                                 ),
                                 SizedBox(width: 4),
                                 Icon(
-                                  LucideIcons.chevronRight,
+                                  Icons.chevron_right,
                                   color: Color(0xFF1e4db7),
                                   size: 16,
                                 ),

@@ -327,8 +327,10 @@ def register_return_refund_api(app, db, token_required):
                         push_notification_fn(
                             rr.seller_id,
                             f'New return request for Order #{order_id}',
+                            title='Return/Refund Request',
+                            link=f'/seller/returns/{rr.id}',
                             type='return_request',
-                            link=f'/seller/returns/{rr.id}'
+                            order_id=order_id
                         )
                     if emit_return_update_fn:
                         emit_return_update_fn(rr)
@@ -487,8 +489,10 @@ def register_return_refund_api(app, db, token_required):
                 push_notification_fn(
                     rr.buyer_id,
                     f'Your return request for Order #{rr.order_id} has been approved. The item is now refunded.',
+                    title='Return Approved & Refunded',
+                    link=f'/buyer/orders/{rr.order_id}',
                     type='return_approved',
-                    link=f'/buyer/orders/{rr.order_id}'
+                    order_id=rr.order_id
                 )
                 rider_id = (
                     getattr(order, 'picked_up_by', None)
@@ -499,8 +503,10 @@ def register_return_refund_api(app, db, token_required):
                     push_notification_fn(
                         rider_id,
                         f'Order #{rr.order_id} delivery earnings have been released.',
+                        title='Delivery Earnings Released',
+                        link=f'/rider/orders/{rr.order_id}',
                         type='order',
-                        link=f'/rider/orders/{rr.order_id}'
+                        order_id=rr.order_id
                     )
 
             if emit_return_update_fn:
@@ -567,9 +573,11 @@ def register_return_refund_api(app, db, token_required):
             if push_notification_fn:
                 push_notification_fn(
                     rr.buyer_id,
-                    f'Your return request for Order #{rr.order_id} was rejected',
+                    f'Your return request for Order #{rr.order_id} was rejected. Reason: {rejection_reason or "No reason provided"}',
+                    title='Return Request Rejected',
+                    link=f'/buyer/orders/{rr.order_id}',
                     type='return_rejected',
-                    link=f'/buyer/orders/{rr.order_id}'
+                    order_id=rr.order_id
                 )
                 rider_id = (
                     getattr(order, 'picked_up_by', None)
@@ -580,8 +588,10 @@ def register_return_refund_api(app, db, token_required):
                     push_notification_fn(
                         rider_id,
                         f'Order #{rr.order_id} completed. Your delivery earnings have been released.',
+                        title='Order Completed',
+                        link=f'/rider/orders/{rr.order_id}',
                         type='order',
-                        link=f'/rider/orders/{rr.order_id}'
+                        order_id=rr.order_id
                     )
 
             if emit_return_update_fn:

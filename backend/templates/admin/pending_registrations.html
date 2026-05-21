@@ -47,7 +47,7 @@
                             <p class="small text-muted mb-2">{{ u.email }}</p>
                             
                             <div class="d-flex flex-wrap gap-3 small text-muted mb-3">
-                              <span>Registered: <strong class="text-dark">{{ u.created_at.strftime('%b %d, %Y %H:%M') if u.created_at else '—' }}</strong></span>
+                              <span>Registered: <strong class="text-dark">{{ u.created_at|ph_time }}</strong></span>
                               <span>Status: <span class="badge bg-warning text-dark ms-1">Pending Review</span></span>
                               <span>Role: <strong class="text-dark">{{ u.role|title or 'Buyer' }}</strong></span>
                               <span>Phone: <strong class="text-dark">{{ u.phone or '—' }}</strong></span>
@@ -113,7 +113,7 @@
                                           <li class="mb-1"><i class="fas fa-motorcycle me-2 text-primary"></i>Vehicle Type: <strong class="text-dark">{{ ra.vehicle_type }}</strong></li>
                                           <li class="mb-1"><i class="fas fa-hashtag me-2 text-primary"></i>Plate Number: <strong class="text-dark">{{ ra.vehicle_number }}</strong></li>
                                           <li class="mb-1"><i class="fas fa-hourglass-half me-2 text-secondary"></i>Status: <span class="badge bg-warning text-dark">{{ ra.status|title }}</span></li>
-                                          <li class="mb-1"><i class="fas fa-calendar-alt me-2 text-secondary"></i>Applied At: <strong class="text-dark">{{ ra.applied_at.strftime('%b %d, %Y %H:%M') if ra.applied_at else '—' }}</strong></li>
+                                          <li class="mb-1"><i class="fas fa-calendar-alt me-2 text-secondary"></i>Applied At: <strong class="text-dark">{{ ra.applied_at|ph_time }}</strong></li>
                                         </ul>
                                       {% else %}
                                         <div class="small text-muted">No rider application record found for this account.</div>

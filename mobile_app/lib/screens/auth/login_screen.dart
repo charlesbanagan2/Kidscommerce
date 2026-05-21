@@ -42,7 +42,11 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
   String? _emailError;
   String? _passwordError;
   bool _hasSubmitted = false;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Google Sign In instance
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   // ─── Design Tokens ──────────────────────────────────────────────────────────
   static const Color navyDark = Color(0xFF0B1628);
@@ -174,7 +178,7 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
-      '/buyer-home',
+      '/home',
       (route) => false,
     );
   }
@@ -187,14 +191,16 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
     });
 
     try {
-      final googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
 
-      final googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final authProvider = context.read<AuthProvider>();
+      final userEmail = googleUser.email;
 
       await authProvider.loginWithGoogle(
         googleAuth.accessToken ?? '',
@@ -202,6 +208,25 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
       );
 
       if (!mounted) return;
+
+      if (authProvider.pendingApproval) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+        });
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PendingApprovalScreen(
+                email: userEmail,
+                message: authProvider.pendingApprovalMessage,
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       if (authProvider.isAuthenticated && authProvider.user != null) {
         final userRole = authProvider.user!.role.toLowerCase();
@@ -280,25 +305,33 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
 
     try {
       final authProvider = context.read<AuthProvider>();
-      await authProvider.login(
+      final success = await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
       if (!mounted) return;
 
-      if (authProvider.isAuthenticated && authProvider.user != null) {
+      if (success &&
+          authProvider.isAuthenticated &&
+          authProvider.user != null) {
+        debugPrint(
+            '✅ Login successful - User: ${authProvider.user!.email}, Role: ${authProvider.user!.role}');
+
         final userRole = authProvider.user!.role.toLowerCase();
         if (userRole == 'buyer' || userRole == 'rider') {
-          // Refresh data after login
           if (userRole == 'buyer') {
             final buyerProvider = context.read<BuyerProvider>();
             final cartProvider = context.read<CartProvider>();
             await buyerProvider.fetchOrders();
             await cartProvider.loadCart();
           }
+
           if (mounted) {
-            // Navigate to appropriate screen based on role
+            setState(() => _isLoading = false);
+          }
+
+          if (mounted) {
             if (userRole == 'rider') {
               Navigator.pushNamedAndRemoveUntil(
                 context,
@@ -313,12 +346,14 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
           }
         } else {
           await authProvider.logout();
-          if (mounted)
+          if (mounted) {
             setState(() {
               _errorMessage =
                   'This account is not authorized to access the mobile app. Only Buyer and Rider accounts can log in.';
               _isLoading = false;
             });
+            _triggerShake();
+          }
         }
       } else {
         if (authProvider.pendingApproval) {
@@ -525,34 +560,21 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
         .toList();
   }
 
-  // ── Header: crown logo + title ─────────────────────────────────────────────
+  // ── Header ────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Column(
       children: [
-        // Crown logo
-        Container(
-          width: 88,
+        // Logo
+        SizedBox(
           height: 88,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [goldLight, goldPrimary],
-            ),
-            boxShadow: [
-              BoxShadow(
-                  color: goldPrimary.withValues(alpha: 0.45),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8)),
-              BoxShadow(
-                  color: goldPrimary.withValues(alpha: 0.15),
-                  blurRadius: 0,
-                  spreadRadius: 4),
-            ],
+          child: Image.asset(
+            'assets/images/logo_ulit.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.workspace_premium_rounded,
+                  color: goldPrimary, size: 48);
+            },
           ),
-          child: const Icon(Icons.workspace_premium_rounded,
-              color: Colors.white, size: 48),
         ),
         const SizedBox(height: 14),
 
@@ -587,7 +609,7 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
     );
   }
 
-  // ── Glass card ────────────────────────────────────────────────────────────
+  // ── Glass card ─────────────────────────────────────────────────────────────
   Widget _buildCard() {
     return Container(
       decoration: BoxDecoration(
@@ -697,7 +719,8 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () => setState(() => _rememberMe = !_rememberMe),
+                        onTap: () =>
+                            setState(() => _rememberMe = !_rememberMe),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           width: 18,
@@ -710,8 +733,8 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
                             boxShadow: _rememberMe
                                 ? [
                                     BoxShadow(
-                                        color:
-                                            goldPrimary.withValues(alpha: 0.4),
+                                        color: goldPrimary.withValues(
+                                            alpha: 0.4),
                                         blurRadius: 8)
                                   ]
                                 : [],
@@ -784,7 +807,8 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: goldPrimary,
-                    disabledBackgroundColor: goldPrimary.withValues(alpha: 0.5),
+                    disabledBackgroundColor:
+                        goldPrimary.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
@@ -796,8 +820,8 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white)),
                         )
                       : const Text('Login',
                           style: TextStyle(
@@ -948,8 +972,8 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: white40, fontSize: 12),
-        prefixIcon:
-            Icon(icon, size: 18, color: error != null ? errorColor : white40),
+        prefixIcon: Icon(icon,
+            size: 18, color: error != null ? errorColor : white40),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: error != null
@@ -966,7 +990,9 @@ class _WebStyleLoginScreenState extends State<WebStyleLoginScreen>
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: error != null ? errorColor.withValues(alpha: 0.7) : white14,
+            color: error != null
+                ? errorColor.withValues(alpha: 0.7)
+                : white14,
             width: 1.5,
           ),
         ),
@@ -1015,6 +1041,7 @@ class _TwinklingStarState extends State<_TwinklingStar>
   @override
   Widget build(BuildContext context) => FadeTransition(
         opacity: _anim,
-        child: Icon(Icons.star_rounded, color: Colors.white, size: widget.size),
+        child:
+            Icon(Icons.star_rounded, color: Colors.white, size: widget.size),
       );
 }

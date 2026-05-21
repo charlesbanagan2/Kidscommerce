@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:provider/provider.dart';
 import '../../providers/buyer_provider.dart';
-import '../../utils/profile_photo_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/api_service.dart';
 import '../../config/url_config.dart';
-import 'liked_products_screen.dart';
+import 'wishlist_screen.dart';
+import 'coupons_screen.dart';
+
+import 'buyer_edit_profile_screen.dart';
 
 /// Buyer Profile Screen
 class ProfileScreen extends StatefulWidget {
@@ -21,9 +23,16 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   List<dynamic> _addresses = [];
-  bool _isUploadingImage = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _isLoadingWishlist = true;
+  int _wishlistCount = 0;
+
+  // PSGC API data
+  List<Map<String, dynamic>> _regionsCache = [];
+  Map<String, List<Map<String, dynamic>>> _provincesCache = {};
+  Map<String, List<Map<String, dynamic>>> _citiesCache = {};
+  Map<String, List<Map<String, dynamic>>> _barangaysCache = {};
 
   // Theme colors
   static const Color _primaryDark = Color(0xFF1a2f6b);
@@ -54,23 +63,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _loadProfile() async {
+    // Refresh user profile from backend to get latest profile image
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.refreshUser();
+    
     final buyerProvider = context.read<BuyerProvider>();
     buyerProvider.fetchProfile();
     await _fetchAddresses();
+    await _fetchWishlistCount();
 
     if (widget.showAddressSetup && _addresses.isEmpty && mounted) {
-      _showSnackBar(
-        'Please add your delivery address to continue.',
-      );
+      _showSnackBar('Please add your delivery address to continue.');
       await _showAddAddressSheet();
+    }
+  }
+
+  Future<void> _fetchWishlistCount() async {
+    setState(() => _isLoadingWishlist = true);
+    try {
+      final buyerProvider = context.read<BuyerProvider>();
+      await buyerProvider.fetchWishlist();
+      if (mounted) {
+        setState(() {
+          _wishlistCount = buyerProvider.wishlistProducts.length;
+          _isLoadingWishlist = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching wishlist: $e');
+      if (mounted) setState(() => _isLoadingWishlist = false);
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Profile data is accessed from context.watch<BuyerProvider>()
-    // No local controller needed as profile is display-only
   }
 
   @override
@@ -93,36 +120,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> _pickAndUploadImage() async {
-    setState(() => _isUploadingImage = true);
-    try {
-      final imageUrl =
-          await ProfilePhotoHelper.pickAndUploadProfilePhoto(context);
-      if (imageUrl == null) return;
-
-      if (mounted) {
-        _showSnackBar('Profile image updated successfully', isSuccess: true);
-        await context.read<AuthProvider>().refreshUser();
-        context.read<BuyerProvider>().fetchProfile();
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar('Failed to upload image: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isUploadingImage = false);
-      }
-    }
-  }
-
   void _showSnackBar(String message, {bool isSuccess = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-              isSuccess ? LucideIcons.checkCircle : LucideIcons.alertCircle,
+              isSuccess ? Icons.check_circle : Icons.error,
               color: Colors.white,
               size: 16,
             ),
@@ -146,27 +150,56 @@ class _ProfileScreenState extends State<ProfileScreen>
     final customLabelController = TextEditingController();
     bool isDefault = false;
     String? selectedLabel;
+
+    // PSGC selections
+    String? selectedRegion;
     String? selectedProvince;
-    String? selectedProvinceCode;
     String? selectedCity;
-    String? selectedCityCode;
     String? selectedBarangay;
 
+    // Steps: 0=Region, 1=Province, 2=City, 3=Barangay, 4=Details
+    int currentStep = 0;
+
+    List<dynamic> regions = [];
     List<dynamic> provinces = [];
     List<dynamic> cities = [];
     List<dynamic> barangays = [];
-    bool isLoadingProvinces = true;
+
+    bool isLoadingRegions = true;
+    bool isLoadingProvinces = false;
     bool isLoadingCities = false;
     bool isLoadingBarangays = false;
 
-    final labelOptions = ['Home', 'Work', 'Office', 'Other'];
+    const tabLabels = ['Region', 'Province', 'City', 'Barangay', 'Details'];
 
-    // Fetch provinces on init
-    Future<void> fetchProvinces() async {
+    Future<void> fetchRegions() async {
       try {
-        final response = await ApiService.request('GET', '/api/provinces');
-        if (response != null && response['result'] != null) {
-          provinces = response['result'] as List<dynamic>;
+        if (_regionsCache.isEmpty) {
+          final response =
+              await ApiService.request('GET', '/api/regions', auth: false);
+          if (response != null && response['result'] != null) {
+            _regionsCache = List<Map<String, dynamic>>.from(response['result']);
+          }
+        }
+        regions = _regionsCache;
+      } catch (e) {
+        debugPrint('Error fetching regions: $e');
+      }
+    }
+
+    Future<void> fetchProvinces(String regionCode) async {
+      try {
+        if (_provincesCache.containsKey(regionCode)) {
+          provinces = _provincesCache[regionCode]!;
+        } else {
+          final response = await ApiService.request(
+              'GET', '/api/provinces?region_code=$regionCode',
+              auth: false);
+          if (response != null && response['result'] != null) {
+            final list = List<Map<String, dynamic>>.from(response['result']);
+            _provincesCache[regionCode] = list;
+            provinces = list;
+          }
         }
       } catch (e) {
         debugPrint('Error fetching provinces: $e');
@@ -175,12 +208,17 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     Future<void> fetchCities(String provinceCode) async {
       try {
-        final response = await ApiService.request(
-          'GET',
-          '/api/cities?province_code=$provinceCode',
-        );
-        if (response != null && response['result'] != null) {
-          cities = response['result'] as List<dynamic>;
+        if (_citiesCache.containsKey(provinceCode)) {
+          cities = _citiesCache[provinceCode]!;
+        } else {
+          final response = await ApiService.request(
+              'GET', '/api/cities?province_code=$provinceCode',
+              auth: false);
+          if (response != null && response['result'] != null) {
+            final list = List<Map<String, dynamic>>.from(response['result']);
+            _citiesCache[provinceCode] = list;
+            cities = list;
+          }
         }
       } catch (e) {
         debugPrint('Error fetching cities: $e');
@@ -189,583 +227,1122 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     Future<void> fetchBarangays(String cityCode) async {
       try {
-        final response = await ApiService.request(
-          'GET',
-          '/api/barangays?city_code=$cityCode',
-        );
-        if (response != null && response['result'] != null) {
-          barangays = response['result'] as List<dynamic>;
+        if (_barangaysCache.containsKey(cityCode)) {
+          barangays = _barangaysCache[cityCode]!;
+        } else {
+          final response = await ApiService.request(
+              'GET', '/api/barangays?city_code=$cityCode',
+              auth: false);
+          if (response != null && response['result'] != null) {
+            final list = List<Map<String, dynamic>>.from(response['result']);
+            _barangaysCache[cityCode] = list;
+            barangays = list;
+          } else {
+            barangays = [];
+          }
         }
       } catch (e) {
         debugPrint('Error fetching barangays: $e');
+        barangays = [];
       }
     }
 
     if (!mounted) return;
 
-    await fetchProvinces();
-    isLoadingProvinces = false;
+    await fetchRegions();
+    isLoadingRegions = false;
 
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: _cardColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 0,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 12, bottom: 14),
-                      width: 40,
-                      height: 4,
+        builder: (ctx, setSheetState) {
+          // ── Empty state helper (MUST BE FIRST) ───────────────────────
+          Widget _buildEmptyStateWidget(String message, IconData icon) {
+            return SizedBox(
+              height: 200,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(icon, size: 24, color: Colors.grey.shade400),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Reusable list row (MUST BE BEFORE _buildRegionList) ──────
+          Widget _buildListRowWidget({
+            required String label,
+            required int index,
+            required bool isSelected,
+            required VoidCallback onTap,
+          }) {
+            return InkWell(
+              onTap: onTap,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                color: isSelected
+                    ? _primary.withValues(alpha: 0.06)
+                    : Colors.transparent,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                child: Row(
+                  children: [
+                    // Number badge
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? _primary.withValues(alpha: 0.14)
+                            : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(10),
                       ),
+                      child: Center(
+                        child: Text(
+                          (index + 1).toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? _primary : _textMid,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected ? _primary : _textDark,
+                        ),
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: isSelected
+                          ? Container(
+                              key: const ValueKey('checked'),
+                              width: 22,
+                              height: 22,
+                              decoration: const BoxDecoration(
+                                color: _primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check,
+                                  size: 12, color: Colors.white),
+                            )
+                          : Container(
+                              key: const ValueKey('arrow'),
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.chevron_right,
+                                  size: 11, color: Colors.grey.shade400),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Section label (MUST BE BEFORE _buildDetailsStep) ──────────
+          Widget _buildSectionLabelWidget(String text) {
+            return Text(
+              text,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: _textMid,
+                letterSpacing: 1.3,
+              ),
+            );
+          }
+
+          // ── Helpers ───────────────────────────────────────────────────
+          String _stepTitle() {
+            switch (currentStep) {
+              case 0:
+                return 'Select Region';
+              case 1:
+                return 'Select Province';
+              case 2:
+                return 'Select City';
+              case 3:
+                return 'Select Barangay';
+              case 4:
+                return 'Address Details';
+              default:
+                return '';
+            }
+          }
+
+          String _stepSubtitle() {
+            switch (currentStep) {
+              case 0:
+                return 'Philippines — choose your region';
+              case 1:
+                return selectedRegion ?? '';
+              case 2:
+                return selectedProvince ?? '';
+              case 3:
+                return selectedCity ?? '';
+              case 4:
+                final parts = [selectedBarangay, selectedCity]
+                    .where((e) => e != null && e.isNotEmpty)
+                    .join(', ');
+                return parts;
+              default:
+                return '';
+            }
+          }
+
+          // ── Shimmer skeleton row ──────────────────────────────────────
+          Widget _shimmerRow() {
+            return Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          height: 13,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          height: 10,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
 
-                  // Title row - More compact
-                  Row(
+          Widget _buildSkeletonList() {
+            return Column(
+              children: List.generate(
+                7,
+                (i) => Column(
+                  children: [
+                    _shimmerRow(),
+                    if (i < 6) Divider(height: 1, color: Colors.grey.shade100),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Shimmer skeleton chip ─────────────────────────────────────
+          Widget _buildSkeletonGrid() {
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(
+                10,
+                (_) => Container(
+                  width: (MediaQuery.of(ctx).size.width - 56) / 2,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          // ── Step progress tabs ────────────────────────────────────────
+          Widget _buildStepTabs() {
+            return Row(
+              children: List.generate(tabLabels.length, (i) {
+                final isActive = i == currentStep;
+                final isDone = i < currentStep;
+                final isClickable = isDone;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: isClickable
+                        ? () => setSheetState(() => currentStep = i)
+                        : null,
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Progress line
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: 3,
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: (isDone || isActive)
+                                ? _primary
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Step dot + label
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (isDone)
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: const BoxDecoration(
+                                  color: _primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 8,
+                                  color: Colors.white,
+                                ),
+                              )
+                            else
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? _primary
+                                      : Colors.grey.shade200,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(
+                                tabLabels[i],
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: isActive
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  color: isActive
+                                      ? _primary
+                                      : isDone
+                                          ? _primary.withValues(alpha: 0.6)
+                                          : Colors.grey.shade400,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            );
+          }
+
+          // ── Region list ───────────────────────────────────────────────
+          Widget _buildRegionList() {
+            if (isLoadingRegions) return _buildSkeletonList();
+            if (regions.isEmpty) {
+              return _buildEmptyStateWidget(
+                  'No regions found', Icons.public);
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: regions.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
+              itemBuilder: (context, index) {
+                final item = regions[index] as Map<String, dynamic>;
+                final name = item['name'] ?? '';
+                final isSelected = selectedRegion == name;
+                return _buildListRowWidget(
+                  label: name,
+                  index: index,
+                  isSelected: isSelected,
+                  onTap: () async {
+                    final code = item['psgc_code'] ?? item['code'] ?? '';
+                    setSheetState(() {
+                      selectedRegion = name;
+                      selectedProvince = null;
+                      selectedCity = null;
+                      selectedBarangay = null;
+                      provinces = [];
+                      cities = [];
+                      barangays = [];
+                      isLoadingProvinces = true;
+                      currentStep = 1;
+                    });
+                    await fetchProvinces(code);
+                    setSheetState(() => isLoadingProvinces = false);
+                  },
+                );
+              },
+            );
+          }
+
+
+
+          // ── Province list ─────────────────────────────────────────
+          Widget _buildProvinceList() {
+            if (isLoadingProvinces) return _buildSkeletonList();
+            if (provinces.isEmpty) {
+              return _buildEmptyStateWidget(
+                selectedRegion == null
+                    ? 'Select a region first'
+                    : 'No provinces found',
+                Icons.location_on,
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: provinces.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
+              itemBuilder: (context, index) {
+                final item = provinces[index] as Map<String, dynamic>;
+                final name = item['name'] ?? '';
+                final isSelected = selectedProvince == name;
+                return _buildListRowWidget(
+                  label: name,
+                  index: index,
+                  isSelected: isSelected,
+                  onTap: () async {
+                    final code = item['psgc_code'] ?? item['code'] ?? '';
+                    setSheetState(() {
+                      selectedProvince = name;
+                      selectedCity = null;
+                      selectedBarangay = null;
+                      cities = [];
+                      barangays = [];
+                      isLoadingCities = true;
+                      currentStep = 2;
+                    });
+                    await fetchCities(code);
+                    setSheetState(() => isLoadingCities = false);
+                  },
+                );
+              },
+            );
+          }
+
+          // ── City list ─────────────────────────────────────────────────
+          Widget _buildCityList() {
+            if (isLoadingCities) return _buildSkeletonList();
+            if (cities.isEmpty) {
+              return _buildEmptyStateWidget(
+                selectedProvince == null
+                    ? 'Select a province first'
+                    : 'No cities found',
+                Icons.location_on,
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: cities.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
+              itemBuilder: (context, index) {
+                final item = cities[index] as Map<String, dynamic>;
+                final name = item['name'] ?? '';
+                final isSelected = selectedCity == name;
+                return _buildListRowWidget(
+                  label: name,
+                  index: index,
+                  isSelected: isSelected,
+                  onTap: () async {
+                    final code = item['psgc_code'] ?? item['code'] ?? '';
+                    setSheetState(() {
+                      selectedCity = name;
+                      selectedBarangay = null;
+                      barangays = [];
+                      isLoadingBarangays = true;
+                      currentStep = 3;
+                    });
+                    await fetchBarangays(code);
+                    setSheetState(() => isLoadingBarangays = false);
+                  },
+                );
+              },
+            );
+          }
+
+
+
+          // ── Chip grid (province / city) ───────────────────────────────
+          Widget _buildChipGrid({
+            required List<dynamic> items,
+            required bool isLoading,
+            required String? selectedValue,
+            required String emptyHint,
+            required Future<void> Function(Map<String, dynamic>) onSelect,
+          }) {
+            if (isLoading) return _buildSkeletonGrid();
+            if (items.isEmpty) {
+              return _buildEmptyStateWidget(emptyHint, Icons.location_on);
+            }
+
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: items.map((raw) {
+                final item = raw as Map<String, dynamic>;
+                final name = item['name'] ?? '';
+                final isSelected = selectedValue == name;
+                return GestureDetector(
+                  onTap: () => onSelect(item),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: (MediaQuery.of(ctx).size.width - 56) / 2,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _primary : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? _primary : Colors.grey.shade200,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: _primary.withValues(alpha: 0.22),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              )
+                            ]
+                          : [],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected ? Colors.white : _textDark,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(width: 4),
+                          const Icon(Icons.check_circle,
+                              size: 13, color: Colors.white),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          }
+
+          // ── Barangay list ─────────────────────────────────────────────
+          Widget _buildBarangayList() {
+            if (isLoadingBarangays) return _buildSkeletonList();
+            if (barangays.isEmpty) {
+              return _buildEmptyStateWidget(
+                selectedCity == null
+                    ? 'Select a city first'
+                    : 'No barangays found',
+                Icons.location_on,
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: barangays.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
+              itemBuilder: (context, index) {
+                final item = barangays[index] as Map<String, dynamic>;
+                final name = item['name'] ?? '';
+                final isSelected = selectedBarangay == name;
+                return _buildListRowWidget(
+                  label: name,
+                  index: index,
+                  isSelected: isSelected,
+                  onTap: () {
+                    setSheetState(() {
+                      selectedBarangay = name;
+                      currentStep = 4;
+                    });
+                  },
+                );
+              },
+            );
+          }
+
+
+
+          // ── Details step ──────────────────────────────────────────────
+          Widget _buildDetailsStep() {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Location summary card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _primary.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _primary.withValues(alpha: 0.14)),
+                  ),
+                  child: Row(
                     children: [
                       Container(
-                        width: 38,
-                        height: 38,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [_primaryDark, _primary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          LucideIcons.mapPin,
-                          color: Colors.white,
-                          size: 18,
-                        ),
+                        child: const Icon(Icons.location_on,
+                            size: 16, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Add New Address',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
+                            Text(
+                              '$selectedBarangay, $selectedCity',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
                                 color: _textDark,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 2),
                             Text(
-                              'Select location from PSGC',
+                              '$selectedProvince · $selectedRegion',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade500,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       GestureDetector(
-                        onTap: () => Navigator.pop(context, false),
+                        onTap: () => setSheetState(() => currentStep = 0),
                         child: Container(
-                          width: 32,
-                          height: 32,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: _primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Label section
+                _buildSectionLabelWidget('ADDRESS LABEL'),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    {'label': 'Home', 'icon': Icons.home},
+                    {'label': 'Work', 'icon': Icons.work},
+                    {'label': 'Office', 'icon': Icons.business},
+                    {'label': 'Other', 'icon': Icons.location_on},
+                  ].map((opt) {
+                    final label = opt['label'] as String;
+                    final icon = opt['icon'] as IconData;
+                    final isSelected = selectedLabel == label;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => selectedLabel = label),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          margin: const EdgeInsets.only(right: 7),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected ? _primary : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  isSelected ? _primary : Colors.grey.shade200,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: _primary.withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    )
+                                  ]
+                                : [],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                icon,
+                                size: 15,
+                                color: isSelected ? Colors.white : _textMid,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected ? Colors.white : _textDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                if (selectedLabel == 'Other') ...[
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    controller: customLabelController,
+                    label: 'Custom Label',
+                    hint: 'e.g., Vacation Home, Gym...',
+                    icon: Icons.local_offer,
+                  ),
+                ],
+                const SizedBox(height: 20),
+
+                // Street address
+                _buildSectionLabelWidget('STREET ADDRESS'),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  controller: streetController,
+                  label: 'House / Unit / Building No.',
+                  hint: 'e.g., Unit 4B, 123 Rizal Ave',
+                  icon: Icons.home,
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Default toggle
+                GestureDetector(
+                  onTap: () => setSheetState(() => isDefault = !isDefault),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDefault
+                          ? _primary.withValues(alpha: 0.06)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDefault
+                            ? _primary.withValues(alpha: 0.4)
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: isDefault ? _primary : Colors.transparent,
+                            border: Border.all(
+                              color:
+                                  isDefault ? _primary : Colors.grey.shade300,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: isDefault
+                              ? const Icon(Icons.check,
+                                  size: 13, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Set as default address',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDefault ? _primary : _textDark,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                'Used automatically at checkout',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          isDefault
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          size: 16,
+                          color: isDefault ? _primary : Colors.grey.shade300,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+
+
+          // ── Can proceed? ──────────────────────────────────────────────
+          bool canProceed() {
+            switch (currentStep) {
+              case 0:
+                return selectedRegion != null;
+              case 1:
+                return selectedProvince != null;
+              case 2:
+                return selectedCity != null;
+              case 3:
+                return selectedBarangay != null;
+              case 4:
+                if (selectedLabel == null) return false;
+                if (selectedLabel == 'Other' &&
+                    customLabelController.text.trim().isEmpty) return false;
+                return streetController.text.trim().isNotEmpty;
+              default:
+                return false;
+            }
+          }
+
+          // ── Bottom navigation ─────────────────────────────────────────
+          Widget _buildNavBar() {
+            final isLast = currentStep == 4;
+            return Row(
+              children: [
+                if (currentStep > 0) ...[
+                  SizedBox(
+                    height: 50,
+                    width: 50,
+                    child: OutlinedButton(
+                      onPressed: () => setSheetState(() => currentStep--),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        foregroundColor: _textDark,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Icon(Icons.chevron_left, size: 18),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: canProceed()
+                          ? () {
+                              if (isLast) {
+                                Navigator.pop(ctx, true);
+                              } else {
+                                setSheetState(() => currentStep++);
+                              }
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        disabledBackgroundColor: Colors.grey.shade200,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (isLast) ...[
+                            const Icon(Icons.check,
+                                size: 15, color: Colors.white),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            isLast ? 'Save Address' : 'Continue',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: canProceed()
+                                  ? Colors.white
+                                  : Colors.grey.shade400,
+                            ),
+                          ),
+                          if (!isLast) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 15,
+                              color: canProceed()
+                                  ? Colors.white
+                                  : Colors.grey.shade400,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+
+          Widget _buildBody() {
+            switch (currentStep) {
+              case 0:
+                return _buildRegionList();
+              case 1:
+                return _buildProvinceList();
+              case 2:
+                return _buildCityList();
+              case 3:
+                return _buildBarangayList();
+              case 4:
+                return _buildDetailsStep();
+              default:
+                return const SizedBox();
+            }
+          }
+
+          // ── Sheet UI ──────────────────────────────────────────────────
+          final screenHeight = MediaQuery.of(ctx).size.height;
+          final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
+
+          return Container(
+            // Fixed height: 82% of screen so it never resizes between tabs
+            height: screenHeight * 0.82,
+            decoration: const BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              children: [
+                // ── Drag handle ───────────────────────────────────────
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 6),
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+
+                // ── Header ────────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: Row(
+                    children: [
+                      // Icon badge
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_primaryDark, _primary],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.location_on,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      // Title + subtitle
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _stepTitle(),
+                                key: ValueKey(_stepTitle()),
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: _textDark,
+                                ),
+                              ),
+                            ),
+                            if (_stepSubtitle().isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                child: Text(
+                                  _stepSubtitle(),
+                                  key: ValueKey(_stepSubtitle()),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Close button
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx, false),
+                        child: Container(
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(LucideIcons.x,
+                          child: const Icon(Icons.close,
                               size: 16, color: _textMid),
                         ),
                       ),
                     ],
                   ),
+                ),
 
-                  const SizedBox(height: 18),
+                const SizedBox(height: 16),
 
-                  // Quick label chips
-                  const Text(
-                    'Address Type',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _textMid,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: labelOptions.map((label) {
-                      final isSelected = selectedLabel == label;
-                      return FilterChip(
-                        label: Text(label),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setSheetState(() {
-                            selectedLabel = selected ? label : null;
-                          });
-                        },
-                        backgroundColor: Colors.grey.shade100,
-                        selectedColor: _primary.withValues(alpha: 0.15),
-                        labelStyle: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? _primary : _textMid,
-                        ),
-                        side: BorderSide(
-                          color: isSelected ? _primary : Colors.transparent,
-                          width: 1,
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                // ── Step tabs ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildStepTabs(),
+                ),
 
-                  const SizedBox(height: 12),
+                const SizedBox(height: 4),
 
-                  // Custom label if "Other"
-                  if (selectedLabel == 'Other') ...[
-                    _buildInputField(
-                      controller: customLabelController,
-                      label: 'Custom Label',
-                      hint: 'e.g., Vacation Home',
-                      icon: LucideIcons.tag,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+                // ── Thin divider ──────────────────────────────────────
+                Divider(height: 1, color: Colors.grey.shade100),
 
-                  // Province Dropdown
-                  const Text(
-                    'Province',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _textMid,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 160),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: isLoadingProvinces
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: provinces.length,
-                            itemBuilder: (context, index) {
-                              final province = provinces[index];
-                              final pName = province['name'] ?? '';
-                              final pCode = province['psgc_code'] ?? '';
-                              final isSelected = selectedProvinceCode == pCode;
-
-                              return Material(
-                                child: InkWell(
-                                  onTap: () async {
-                                    setSheetState(() {
-                                      selectedProvince = pName;
-                                      selectedProvinceCode = pCode;
-                                      selectedCity = null;
-                                      selectedCityCode = null;
-                                      selectedBarangay = null;
-                                      cities = [];
-                                      barangays = [];
-                                      isLoadingCities = true;
-                                    });
-                                    await fetchCities(pCode);
-                                    if (mounted) {
-                                      setSheetState(() {
-                                        isLoadingCities = false;
-                                      });
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
-                                    ),
-                                    color: isSelected
-                                        ? _primary.withValues(alpha: 0.08)
-                                        : Colors.transparent,
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            pName,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.w500,
-                                              color: isSelected
-                                                  ? _primary
-                                                  : _textDark,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (isSelected)
-                                          const Icon(
-                                            Icons.check,
-                                            color: _primary,
-                                            size: 16,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // City Dropdown
-                  const Text(
-                    'City / Municipality',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _textMid,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 160),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: selectedProvinceCode == null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(
-                                'Select province first',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ),
-                          )
-                        : isLoadingCities
-                            ? const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(12.0),
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: cities.length,
-                                itemBuilder: (context, index) {
-                                  final city = cities[index];
-                                  final cName = city['name'] ?? '';
-                                  final cCode = city['psgc_code'] ?? '';
-                                  final isSelected = selectedCityCode == cCode;
-
-                                  return Material(
-                                    child: InkWell(
-                                      onTap: () async {
-                                        setSheetState(() {
-                                          selectedCity = cName;
-                                          selectedCityCode = cCode;
-                                          selectedBarangay = null;
-                                          barangays = [];
-                                          isLoadingBarangays = true;
-                                        });
-                                        await fetchBarangays(cCode);
-                                        if (mounted) {
-                                          setSheetState(() {
-                                            isLoadingBarangays = false;
-                                          });
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        color: isSelected
-                                            ? _primary.withValues(alpha: 0.08)
-                                            : Colors.transparent,
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                cName,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: isSelected
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w500,
-                                                  color: isSelected
-                                                      ? _primary
-                                                      : _textDark,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (isSelected)
-                                              const Icon(
-                                                Icons.check,
-                                                color: _primary,
-                                                size: 16,
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Barangay Dropdown
-                  const Text(
-                    'Barangay',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: _textMid,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 160),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: selectedCityCode == null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Text(
-                                'Select city first',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ),
-                          )
-                        : isLoadingBarangays
-                            ? const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(12.0),
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: barangays.length,
-                                itemBuilder: (context, index) {
-                                  final barangay = barangays[index];
-                                  final bName = barangay['name'] ?? '';
-                                  final isSelected = selectedBarangay == bName;
-
-                                  return Material(
-                                    child: InkWell(
-                                      onTap: () {
-                                        setSheetState(() {
-                                          selectedBarangay = bName;
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        color: isSelected
-                                            ? _primary.withValues(alpha: 0.08)
-                                            : Colors.transparent,
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                bName,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: isSelected
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w500,
-                                                  color: isSelected
-                                                      ? _primary
-                                                      : _textDark,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            if (isSelected)
-                                              const Icon(
-                                                Icons.check,
-                                                color: _primary,
-                                                size: 16,
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Street
-                  _buildInputField(
-                    controller: streetController,
-                    label: 'Street / Building / Unit No.',
-                    hint: 'e.g., 123 Main St, Unit 4B',
-                    icon: LucideIcons.navigation,
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Default toggle - Compact
-                  GestureDetector(
-                    onTap: () {
-                      setSheetState(() {
-                        isDefault = !isDefault;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isDefault
-                            ? _primary.withValues(alpha: 0.08)
-                            : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDefault ? _primary : Colors.grey.shade200,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: isDefault ? _primary : Colors.transparent,
-                              border: Border.all(
-                                color:
-                                    isDefault ? _primary : Colors.grey.shade300,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: isDefault
-                                ? const Icon(Icons.check,
-                                    size: 12, color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Set as default address',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isDefault ? _primary : _textDark,
-                              ),
-                            ),
-                          ),
-                        ],
+                // ── Scrollable content — fills remaining space ────────
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(16, 14, 16, 8 + bottomInset),
+                    physics: const BouncingScrollPhysics(),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
+                      child: KeyedSubtree(
+                        key: ValueKey(currentStep),
+                        child: _buildBody(),
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(height: 16),
+                // ── Divider above nav ─────────────────────────────────
+                Divider(height: 1, color: Colors.grey.shade100),
 
-                  // Save button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: selectedLabel != null &&
-                              (selectedLabel != 'Other' ||
-                                  customLabelController.text.trim().isNotEmpty) &&
-                              selectedProvince != null &&
-                              selectedCity != null &&
-                              selectedBarangay != null &&
-                              streetController.text.isNotEmpty
-                          ? () => Navigator.pop(context, true)
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primary,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Save Address',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                // ── Navigation bar ────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    bottomInset > 0 ? bottomInset + 8 : 24,
                   ),
-                ],
-              ),
+                  child: _buildNavBar(),
+                ),
+              ],
             ),
           );
         },
@@ -779,9 +1356,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       await _addAddress(
         label: finalLabel,
-        street: streetController.text,
+        street: streetController.text.trim(),
         city: selectedCity ?? '',
         province: selectedProvince ?? '',
+        region: selectedRegion ?? '',
         barangay: selectedBarangay,
         zip: '',
         isDefault: isDefault,
@@ -792,7 +1370,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     customLabelController.dispose();
   }
 
-  Widget _buildInputField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
@@ -806,7 +1384,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
             color: _textMid,
             letterSpacing: 0.3,
@@ -818,7 +1396,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           maxLines: maxLines,
           keyboardType: keyboardType,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             color: _textDark,
             fontWeight: FontWeight.w500,
           ),
@@ -826,29 +1404,29 @@ class _ProfileScreenState extends State<ProfileScreen>
             hintText: hint,
             hintStyle: TextStyle(
               color: Colors.grey.shade400,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w400,
             ),
             prefixIcon: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Icon(icon, size: 18, color: _primary),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Icon(icon, size: 16, color: _primary),
             ),
             prefixIconConstraints:
-                const BoxConstraints(minWidth: 48, minHeight: 48),
+                const BoxConstraints(minWidth: 44, minHeight: 44),
             filled: true,
             fillColor: Colors.grey.shade50,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade200),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade200),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _primary, width: 1.5),
             ),
           ),
@@ -862,6 +1440,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required String street,
     required String city,
     required String province,
+    required String region,
     String? barangay,
     required String zip,
     required bool isDefault,
@@ -869,7 +1448,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final trimmedBarangay = (barangay ?? '').trim();
       final fullAddress =
-          '$street, ${trimmedBarangay.isNotEmpty ? '$trimmedBarangay, ' : ''}$city, $province${zip.isNotEmpty ? ', $zip' : ''}';
+          '$street, ${trimmedBarangay.isNotEmpty ? '$trimmedBarangay, ' : ''}$city, $province, $region${zip.isNotEmpty ? ', $zip' : ''}';
 
       final response =
           await ApiService.request('POST', '/api/v1/buyer/addresses', body: {
@@ -878,14 +1457,22 @@ class _ProfileScreenState extends State<ProfileScreen>
         'street_address': street,
         'city': city,
         'province': province,
+        'region': region,
         'barangay': trimmedBarangay,
         'zip_code': zip,
-        'is_default': isDefault,
+        'is_default': isDefault ? 1 : 0,
       });
 
       if (response['success'] == true && mounted) {
-        _showSnackBar('Address added successfully', isSuccess: true);
-        _fetchAddresses();
+        _showSnackBar('✓ Address added successfully', isSuccess: true);
+        await _fetchAddresses();
+
+        if (isDefault) {
+          final authProvider = context.read<AuthProvider>();
+          final buyerProvider = context.read<BuyerProvider>();
+          await authProvider.refreshUser();
+          await buyerProvider.fetchProfile();
+        }
       } else if (mounted) {
         _showSnackBar(response['message'] ?? 'Failed to add address');
       }
@@ -943,57 +1530,61 @@ class _ProfileScreenState extends State<ProfileScreen>
                       const SizedBox(height: 12),
                       _buildMenuSection("My Account", [
                         _MenuItem(
-                          LucideIcons.package,
+                          Icons.inventory_2_outlined,
                           "My Orders",
                           "View your orders",
                           Colors.blue,
                           () {},
                         ),
                         _MenuItem(
-                          LucideIcons.heart,
-                          "Liked Products",
-                          "Saved items",
-                          Colors.red,
+                          Icons.local_offer_outlined,
+                          "My Coupons",
+                          "View available coupons",
+                          Colors.orange,
                           () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    const LikedProductsScreen(),
+                                builder: (context) => const CouponsScreen(),
                               ),
                             );
                           },
                         ),
                         _MenuItem(
-                          LucideIcons.creditCard,
+                          Icons.favorite,
+                          "Wishlist",
+                          _isLoadingWishlist
+                              ? "Loading..."
+                              : "$_wishlistCount items",
+                          Colors.red,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WishlistScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _MenuItem(
+                          Icons.credit_card,
                           "Payment Methods",
                           "Manage cards",
                           Colors.green,
                           () {},
                         ),
-                        _MenuItem(
-                          LucideIcons.mapPin,
-                          "Addresses",
-                          _addresses.isNotEmpty
-                              ? '${_addresses.length} saved'
-                              : "Add address",
-                          Colors.orange,
-                          _showAddAddressSheet,
-                        ),
                       ]),
-                      if (_addresses.isNotEmpty) ...[
-                        _buildAddressesSection(),
-                      ],
+                      _buildAddressesSection(),
                       _buildMenuSection("Preferences", [
                         _MenuItem(
-                          LucideIcons.bell,
+                          Icons.notifications_outlined,
                           "Notifications",
                           "Manage alerts",
                           Colors.purple,
                           () {},
                         ),
                         _MenuItem(
-                          LucideIcons.shield,
+                          Icons.shield,
                           "Privacy & Security",
                           "Keep safe",
                           Colors.indigo,
@@ -1002,14 +1593,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ]),
                       _buildMenuSection("Support", [
                         _MenuItem(
-                          LucideIcons.helpCircle,
+                          Icons.help_outline,
                           "Help Center",
                           "FAQs & support",
                           Colors.teal,
                           () {},
                         ),
                         _MenuItem(
-                          LucideIcons.star,
+                          Icons.star,
                           "Rate the App",
                           "Share feedback",
                           Colors.yellow.shade700,
@@ -1054,7 +1645,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   borderRadius: BorderRadius.circular(28),
                 ),
                 child: const Icon(
-                  LucideIcons.userCircle2,
+                  Icons.account_circle,
                   size: 48,
                   color: _primary,
                 ),
@@ -1143,108 +1734,54 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           Row(
             children: [
-              // Avatar
-              GestureDetector(
-                onTap: _pickAndUploadImage,
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: authProvider.user?.profileImage != null &&
-                              authProvider.user!.profileImage!.isNotEmpty
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.network(
-                                UrlConfig.toAbsoluteImageUrl(
-                                    authProvider.user!.profileImage!),
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Center(
-                                  child: Text(
-                                    nameInitial,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Center(
-                              child: Text(
-                                nameInitial,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                    ),
-                    if (_isUploadingImage)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: const Center(
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: _primary.withValues(alpha: 0.3), width: 1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          LucideIcons.camera,
-                          size: 13,
-                          color: _primary,
-                        ),
-                      ),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
+                child: authProvider.user?.profileImage != null &&
+                        authProvider.user!.profileImage!.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          UrlConfig.toAbsoluteImageUrl(
+                              authProvider.user!.profileImage!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => Center(
+                            child: Text(
+                              nameInitial,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          nameInitial,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1275,8 +1812,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
-                        border:
-                            Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25)),
                       ),
                       child: const Text(
                         "⭐  Member",
@@ -1291,19 +1828,47 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () async {
+                  final updated = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BuyerEditProfileScreen(),
+                    ),
+                  );
+                  if (updated == true && mounted) {
+                    await authProvider.refreshUser();
+                    buyerProvider.fetchProfile();
+                    setState(() {});
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          // Stats row
           Row(
             children: [
-              _buildStat("Orders", "View", LucideIcons.package),
+              _buildStat("Orders", "View", Icons.inventory_2_outlined),
               const SizedBox(width: 8),
-              _buildStat("Reviews", "Share", LucideIcons.star),
+              _buildStat("Reviews", "Share", Icons.star),
               const SizedBox(width: 8),
-              _buildStat("Points", "Earn", LucideIcons.zap),
+              _buildStat("Points", "Earn", Icons.flash_on),
             ],
           ),
         ],
@@ -1439,7 +2004,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
-                                LucideIcons.chevronRight,
+                                Icons.chevron_right,
                                 size: 14,
                                 color: _textMid,
                               ),
@@ -1492,7 +2057,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
-                      LucideIcons.logOut,
+                      Icons.logout,
                       color: Colors.red,
                       size: 28,
                     ),
@@ -1586,7 +2151,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.logOut, size: 18, color: Colors.red),
+            Icon(Icons.logout, size: 18, color: Colors.red),
             SizedBox(width: 8),
             Text(
               "Sign Out",
@@ -1602,7 +2167,21 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  // ─── Addresses Section ────────────────────────────────────────────────────
+
   Widget _buildAddressesSection() {
+    // Sort addresses: default first, then by ID
+    final sortedAddresses = List<dynamic>.from(_addresses);
+    sortedAddresses.sort((a, b) {
+      final aIsDefault = a['is_default'] == true ? 1 : 0;
+      final bIsDefault = b['is_default'] == true ? 1 : 0;
+      // Default addresses first (1 - 0 = 1, so b comes before a)
+      final defaultCompare = bIsDefault.compareTo(aIsDefault);
+      if (defaultCompare != 0) return defaultCompare;
+      // Then sort by ID (newest first if you want, or oldest first)
+      return (a['id'] ?? 0).compareTo(b['id'] ?? 0);
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1612,7 +2191,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'SAVED ADDRESSES',
+                'DELIVERY ADDRESSES',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -1624,21 +2203,30 @@ class _ProfileScreenState extends State<ProfileScreen>
                 onTap: _showAddAddressSheet,
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _primary.withValues(alpha: 0.08),
+                    gradient: const LinearGradient(
+                      colors: [_primaryDark, _primary],
+                    ),
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: const Row(
                     children: [
-                      Icon(LucideIcons.plus, size: 12, color: _primary),
-                      SizedBox(width: 4),
+                      Icon(Icons.add, size: 12, color: Colors.white),
+                      SizedBox(width: 5),
                       Text(
                         'Add New',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: _primary,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -1648,136 +2236,220 @@ class _ProfileScreenState extends State<ProfileScreen>
             ],
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: _cardColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _addresses.length,
-            separatorBuilder: (context, index) => Divider(
-              height: 1,
-              color: Colors.grey.withValues(alpha: 0.08),
-              indent: 16,
-              endIndent: 16,
+        if (_addresses.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            itemBuilder: (context, index) {
-              final address = _addresses[index];
-              final isDefault = address['is_default'] == true;
-              final label = address['label'] ?? 'Address';
-
-              IconData addressIcon;
-              switch (label.toLowerCase()) {
-                case 'home':
-                  addressIcon = LucideIcons.home;
-                  break;
-                case 'work':
-                  addressIcon = LucideIcons.briefcase;
-                  break;
-                case 'office':
-                  addressIcon = LucideIcons.building2;
-                  break;
-                default:
-                  addressIcon = LucideIcons.mapPin;
-              }
-
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.location_on,
+                      size: 26, color: Colors.orange),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'No addresses yet',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add your delivery address for faster checkout',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _showAddAddressSheet,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _primary.withValues(alpha: 0.2),
                       ),
-                      child: Icon(addressIcon, size: 20, color: Colors.orange),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                label,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: _textDark,
-                                ),
-                              ),
-                              if (isDefault) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _primary,
-                                    borderRadius: BorderRadius.circular(10),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 13, color: _primary),
+                        SizedBox(width: 6),
+                        Text(
+                          'Add Address',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: _cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: sortedAddresses.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                color: Colors.grey.withValues(alpha: 0.08),
+                indent: 16,
+                endIndent: 16,
+              ),
+              itemBuilder: (context, index) {
+                final address = sortedAddresses[index];
+                final isDefault = address['is_default'] == true;
+                final label = address['label'] ?? 'Address';
+
+                IconData addressIcon;
+                Color iconColor;
+                switch (label.toLowerCase()) {
+                  case 'home':
+                    addressIcon = Icons.home;
+                    iconColor = Colors.blue;
+                    break;
+                  case 'work':
+                    addressIcon = Icons.work;
+                    iconColor = Colors.green;
+                    break;
+                  case 'office':
+                    addressIcon = Icons.business;
+                    iconColor = Colors.indigo;
+                    break;
+                  default:
+                    addressIcon = Icons.location_on;
+                    iconColor = Colors.orange;
+                }
+
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: iconColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(addressIcon, size: 20, color: iconColor),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  label,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: _textDark,
                                   ),
-                                  child: const Text(
-                                    'Default',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
+                                ),
+                                if (isDefault) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _primary,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text(
+                                      'Default',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            address['full_address'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: _textMid,
-                              height: 1.4,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            const SizedBox(height: 4),
+                            Text(
+                              address['full_address'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: _textMid,
+                                height: 1.4,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _deleteAddress(address['id']),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _deleteAddress(address['id']),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          LucideIcons.trash2,
-                          size: 15,
-                          color: Colors.red,
+                          child: const Icon(
+                            Icons.delete_outline,
+                            size: 15,
+                            color: Colors.red,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1851,3 +2523,4 @@ class _MenuItem {
 
   _MenuItem(this.icon, this.label, this.sub, this.color, this.onTap);
 }
+

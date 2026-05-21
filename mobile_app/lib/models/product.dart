@@ -7,6 +7,7 @@ class Product {
   final double? salePrice;
   final String? imageUrl;
   final List<String>? images;
+  final List<String>? videos;
   final String category;
   final String? subcategory;
   final int stock;
@@ -28,6 +29,7 @@ class Product {
     this.salePrice,
     this.imageUrl,
     this.images,
+    this.videos,
     required this.category,
     this.subcategory,
     required this.stock,
@@ -77,6 +79,9 @@ class Product {
           : json['images'] != null
               ? List<String>.from(json['images'])
               : null,
+      videos: json['videos'] != null
+          ? List<String>.from(json['videos'])
+          : null,
       category: json['category'] ?? '',
       subcategory: json['subcategory'],
       stock: json['stock'] ?? 0,
@@ -106,6 +111,7 @@ class Product {
       'sale_price': salePrice,
       'image_url': imageUrl,
       'images': images,
+      'videos': videos,
       'category': category,
       'subcategory': subcategory,
       'stock': stock,

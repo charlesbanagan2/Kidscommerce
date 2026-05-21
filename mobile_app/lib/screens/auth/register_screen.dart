@@ -1,4 +1,5 @@
 // register_screen.dart
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,8 +8,7 @@ import 'package:http/http.dart' as http;
 import '../../services/api_service.dart';
 import 'pending_approval_screen.dart';
 
-/// Kids Kingdom - Modern Register Screen
-/// Matches the login screen's deep blue gradient, gold branding, and fun-professional vibe
+/// Kids Kingdom - Enhanced Modern Register Screen
 class WebStyleRegisterScreen extends StatefulWidget {
   const WebStyleRegisterScreen({super.key});
 
@@ -40,6 +40,8 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
   int _passwordStrength = 0;
   bool _showPassword = false;
   bool _showConfirmPassword = false;
+  bool _isVerifyingEmail = false;
+  String? _emailVerificationError;
   final ScrollController _scrollController = ScrollController();
   final ScrollController _buyerTermsController = ScrollController();
   final ScrollController _riderTermsController = ScrollController();
@@ -92,7 +94,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
   final _validIdController = TextEditingController();
   final _riderValidIdController = TextEditingController();
 
-  // Brand colors matching login screen
+  // Brand colors
   static const Color primaryBlue = Color(0xFF1A2980);
   static const Color goldColor = Color(0xFFFFD700);
   static const Color goldDark = Color(0xFFFFA500);
@@ -127,6 +129,8 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             _calculatePasswordStrength(_passwordController.text);
       });
     });
+
+    _emailController.addListener(_onEmailChanged);
     _buyerTermsController.addListener(() {
       if (_buyerTermsController.hasClients) {
         final position = _buyerTermsController.position;
@@ -164,8 +168,85 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     return strength;
   }
 
+  Timer? _emailDebounceTimer;
+
+  void _onEmailChanged() {
+    _emailDebounceTimer?.cancel();
+    if (_emailVerificationError != null) {
+      setState(() => _emailVerificationError = null);
+    }
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) return;
+    _emailDebounceTimer = Timer(const Duration(seconds: 1), () {
+      _verifyEmailAddress(email);
+    });
+  }
+
+  Future<void> _verifyEmailAddress(String email) async {
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) return;
+
+    setState(() {
+      _isVerifyingEmail = true;
+      _emailVerificationError = null;
+    });
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${ApiService.baseUrl}/api/check-email'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+      final data = jsonDecode(response.body);
+
+      setState(() {
+        _isVerifyingEmail = false;
+        if (response.statusCode == 200) {
+          if (data['ok'] == false) {
+            String errorMsg = data['message'] ?? 'Invalid email address';
+            String status = data['status'] ?? '';
+            if (status == 'pending') {
+              _emailVerificationError =
+                  'This email is waiting for admin approval. Please wait or contact support.';
+            } else if (errorMsg.toLowerCase().contains('already') ||
+                errorMsg.toLowerCase().contains('registered') ||
+                errorMsg.toLowerCase().contains('exist')) {
+              _emailVerificationError =
+                  'This email is already registered. Please use a different email or login.';
+            } else if (errorMsg.toLowerCase().contains('waiting') ||
+                errorMsg.toLowerCase().contains('approval')) {
+              _emailVerificationError =
+                  'This email is waiting for admin approval. Please wait or contact support.';
+            } else {
+              _emailVerificationError = errorMsg;
+            }
+            _fieldErrors['email'] = _emailVerificationError;
+          } else {
+            _emailVerificationError = null;
+            _fieldErrors['email'] = null;
+          }
+        } else {
+          _emailVerificationError = null;
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isVerifyingEmail = false;
+          _emailVerificationError = null;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _emailDebounceTimer?.cancel();
     _fadeController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
@@ -354,6 +435,10 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           _fieldErrors['email'] = emailError;
           hasErrors = true;
         }
+        if (_emailVerificationError != null) {
+          _fieldErrors['email'] = _emailVerificationError;
+          hasErrors = true;
+        }
         final phoneError = _validatePhone(_phoneController.text);
         if (phoneError != null) {
           _fieldErrors['phone'] = phoneError;
@@ -530,122 +615,122 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
   Widget _buildStepIndicator() {
     final labels = ['Role', 'Info', 'Details'];
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(_totalSteps, (index) {
         final step = index + 1;
         final isCompleted = step < _currentStep;
         final isActive = step == _currentStep;
-        return Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: isCompleted ? () => _goToStep(step) : null,
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isCompleted
-                              ? goldColor
-                              : isActive
-                                  ? Colors.white
-                                  : Colors.white24,
-                          border: Border.all(
-                            color: isActive ? goldColor : Colors.transparent,
-                            width: 2,
-                          ),
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: goldColor.withValues(alpha: 0.5),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  )
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: isCompleted
-                              ? const Icon(Icons.check,
-                                  color: primaryBlue, size: 16)
-                              : Text(
-                                  '$step',
-                                  style: TextStyle(
-                                    color:
-                                        isActive ? primaryBlue : Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        labels[index],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive
-                              ? goldColor
-                              : isCompleted
-                                  ? Colors.white70
-                                  : Colors.white38,
-                        ),
-                      ),
-                    ],
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (index > 0)
+              Container(
+                width: 36,
+                height: 2,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isCompleted
+                        ? [goldColor, goldColor]
+                        : [Colors.white24, Colors.white12],
                   ),
+                  borderRadius: BorderRadius.circular(1),
                 ),
               ),
-              if (index < _totalSteps - 1)
-                Expanded(
-                  child: Container(
-                    height: 2,
-                    margin: const EdgeInsets.only(bottom: 16),
+            GestureDetector(
+              onTap: isCompleted ? () => _goToStep(step) : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 30,
+                    height: 30,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isCompleted
-                            ? [goldColor, goldColor]
-                            : [Colors.white24, Colors.white12],
+                      shape: BoxShape.circle,
+                      color: isCompleted
+                          ? goldColor
+                          : isActive
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.15),
+                      border: Border.all(
+                        color: isActive ? goldColor : Colors.transparent,
+                        width: 2,
                       ),
-                      borderRadius: BorderRadius.circular(1),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: goldColor.withValues(alpha: 0.5),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: isCompleted
+                          ? const Icon(Icons.check,
+                              color: primaryBlue, size: 15)
+                          : Text(
+                              '$step',
+                              style: TextStyle(
+                                color: isActive
+                                    ? primaryBlue
+                                    : Colors.white.withValues(alpha: 0.5),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
                     ),
                   ),
-                ),
-            ],
-          ),
+                  const SizedBox(height: 4),
+                  Text(
+                    labels[index],
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      color: isActive
+                          ? goldColor
+                          : isCompleted
+                              ? Colors.white70
+                              : Colors.white38,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         );
       }),
     );
   }
 
+  // ─── STEP 1: ROLE SELECTION ───────────────────────────────────────────────
   Widget _buildStep1RoleSelection() {
     return Column(
-      key: const ValueKey(1),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildStepIndicator(),
+        const SizedBox(height: 20),
         const Text(
           'Choose Your Role',
           style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
             color: textWhite,
             letterSpacing: 0.3,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         const Text(
           'How will you use Kids Kingdom?',
-          style: TextStyle(
-            fontSize: 12,
-            color: textWhite70,
-          ),
+          style: TextStyle(fontSize: 12, color: textWhite70),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        // Taller side-by-side role cards
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _buildRoleCard(
@@ -695,7 +780,8 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        height: 175,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
           gradient: isSelected
               ? LinearGradient(
@@ -704,48 +790,82 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                   colors: gradientColors,
                 )
               : null,
-          color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(14),
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
-                ? Colors.white.withValues(alpha: 0.6)
-                : Colors.white24,
+                ? Colors.white.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.18),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: gradientColors[0].withValues(alpha: 0.5),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
+                    color: gradientColors[0].withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
                   ),
                 ]
-              : null,
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 24)),
-            const SizedBox(height: 5),
+            // Emoji with subtle background circle
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.07),
+              ),
+              child: Center(
+                child: Text(emoji, style: const TextStyle(fontSize: 28)),
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
                 color: isSelected ? Colors.white : textWhite70,
+                letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               description,
               style: TextStyle(
-                fontSize: 9.5,
+                fontSize: 11,
                 color: isSelected
                     ? Colors.white.withValues(alpha: 0.85)
                     : Colors.white38,
-                height: 1.3,
+                height: 1.4,
               ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            // Selection indicator dot
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: isSelected ? 24 : 8,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ],
         ),
@@ -753,50 +873,47 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     );
   }
 
+  // ─── STEP 2: PERSONAL INFO ────────────────────────────────────────────────
   Widget _buildStep2PersonalInfo() {
     return Column(
-      key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: _selectedRole == 'buyer'
-                      ? [const Color(0xFF4776E6), const Color(0xFF8E54E9)]
-                      : [const Color(0xFF11998E), const Color(0xFF38EF7D)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedRole == 'buyer' ? '🛍️' : '🛵',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _selectedRole == 'buyer' ? 'Buyer' : 'Rider',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+        // Role badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: _selectedRole == 'buyer'
+                  ? [const Color(0xFF4776E6), const Color(0xFF8E54E9)]
+                  : [const Color(0xFF11998E), const Color(0xFF38EF7D)],
             ),
-          ],
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _selectedRole == 'buyer' ? '🛍️' : '🛵',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                _selectedRole == 'buyer' ? 'Buyer' : 'Rider',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         const Text(
           'Personal Information',
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
             color: textWhite,
             letterSpacing: 0.3,
           ),
@@ -804,9 +921,9 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         const SizedBox(height: 2),
         const Text(
           'Tell us a bit about yourself',
-          style: const TextStyle(fontSize: 11, color: textWhite70),
+          style: TextStyle(fontSize: 11, color: textWhite70),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
         Row(
           children: [
             Expanded(
@@ -818,7 +935,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                 prefixIcon: Icons.person_outline,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: _buildTextField(
                 label: 'Last Name',
@@ -830,16 +947,9 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        _buildTextField(
-          label: 'Email Address',
-          hint: 'your@email.com',
-          controller: _emailController,
-          fieldErrorKey: 'email',
-          keyboardType: TextInputType.emailAddress,
-          prefixIcon: Icons.email_outlined,
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
+        _buildEmailField(),
+        const SizedBox(height: 10),
         _buildTextField(
           label: 'Phone Number',
           hint: '09123456789',
@@ -863,13 +973,13 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         ),
         const SizedBox(height: 2),
         const Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: const Text(
+          padding: EdgeInsets.only(left: 4),
+          child: Text(
             'Must start with 09 and be 11 digits',
-            style: const TextStyle(fontSize: 10, color: Colors.white38),
+            style: TextStyle(fontSize: 9, color: Colors.white38),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         _buildPasswordField(
           label: 'Password',
           hint: 'Create a strong password',
@@ -878,7 +988,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           isPasswordField: true,
         ),
         _buildPasswordStrengthIndicator(),
-        const SizedBox(height: 4),
+        const SizedBox(height: 10),
         _buildPasswordField(
           label: 'Confirm Password',
           hint: 'Re-enter your password',
@@ -890,6 +1000,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     );
   }
 
+  // ─── STEP 3: COMPLETE DETAILS ─────────────────────────────────────────────
   Widget _buildStep3CompleteDetails() {
     final buyerProvinces = _selectedRegionCode == null
         ? <_PsgcOption>[]
@@ -912,34 +1023,33 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         : _barangayCache[_selectedRiderCityCode!] ?? <_PsgcOption>[];
 
     return Column(
-      key: const ValueKey(3),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Complete Your Details',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
             color: textWhite,
             letterSpacing: 0.3,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         const Text(
           'Almost there! Fill in your address info.',
-          style: const TextStyle(fontSize: 13, color: textWhite70),
+          style: TextStyle(fontSize: 11, color: textWhite70),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         _buildSectionLabel('📍 Address Information'),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (_isLoadingRegions)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: const LinearProgressIndicator(
                 backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation<Color>(goldColor),
+                valueColor: AlwaysStoppedAnimation<Color>(goldColor),
               ),
             ),
           ),
@@ -974,7 +1084,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             if (mounted) setState(() {});
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         _buildDropdown(
           label: 'Province',
           value: _selectedRole == 'buyer'
@@ -1022,7 +1132,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             if (mounted) setState(() {});
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         _buildDropdown(
           label: 'City / Municipality',
           value: _selectedRole == 'buyer'
@@ -1066,7 +1176,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             if (mounted) setState(() {});
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         _buildDropdown(
           label: 'Barangay',
           value: _selectedRole == 'buyer'
@@ -1087,7 +1197,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             });
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         _buildTextField(
           label: 'Street Address',
           hint: 'House number, street name',
@@ -1095,14 +1205,14 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           prefixIcon: Icons.home_outlined,
         ),
         if (_selectedRole == 'buyer') ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           _buildSectionLabel('🪪 Verification Information'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
             ),
             child: Column(
@@ -1114,11 +1224,11 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                   controller: _validIdController,
                   prefixIcon: Icons.badge_outlined,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(10),
@@ -1126,16 +1236,20 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                         Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   child: const Row(
-                    children: const [
-                      const Icon(Icons.upload_file,
-                          color: Colors.white38, size: 20),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Upload Valid ID (Not available on mobile)',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white38,
-                          fontStyle: FontStyle.italic,
+                    children: [
+                      Icon(Icons.upload_file, color: Colors.white38, size: 18),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Upload Valid ID (Not available on mobile)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white38,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          softWrap: true,
                         ),
                       ),
                     ],
@@ -1144,7 +1258,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildTermsSection(
             title: 'Buyer Terms and Conditions',
             controller: _buyerTermsController,
@@ -1162,14 +1276,14 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           ),
         ],
         if (_selectedRole == 'rider') ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
           _buildSectionLabel('🛵 Vehicle Information'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
             ),
             child: Column(
@@ -1190,32 +1304,32 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                     setState(() => _vehicleTypeController.text = value ?? '');
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 _buildTextField(
                   label: 'Plate Number',
                   hint: 'ABC-123',
                   controller: _vehicleNumberController,
                   prefixIcon: Icons.directions_car_outlined,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 _buildTextField(
                   label: "Driver's License",
                   hint: 'License number',
                   controller: _driversLicenseController,
                   prefixIcon: Icons.credit_card_outlined,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 _buildTextField(
                   label: 'Valid Government ID Type',
                   hint: 'e.g. UMID, Passport',
                   controller: _riderValidIdController,
                   prefixIcon: Icons.badge_outlined,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(10),
@@ -1223,16 +1337,19 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                         Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   child: const Row(
-                    children: const [
-                      const Icon(Icons.upload_file,
-                          color: Colors.white38, size: 20),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Upload Government ID (Not available on mobile)',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white38,
-                          fontStyle: FontStyle.italic,
+                    children: [
+                      Icon(Icons.upload_file, color: Colors.white38, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Upload Government ID (Not available on mobile)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white38,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
                         ),
                       ),
                     ],
@@ -1241,7 +1358,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           _buildTermsSection(
             title: 'Rider Terms and Conditions',
             controller: _riderTermsController,
@@ -1266,11 +1383,134 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     return Text(
       text,
       style: const TextStyle(
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: FontWeight.w700,
         color: textWhite,
         letterSpacing: 0.2,
       ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    final hasError =
+        _fieldErrors['email'] != null || _emailVerificationError != null;
+    final errorMessage = _fieldErrors['email'] ?? _emailVerificationError;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Email Address',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: textWhite70,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'your@email.com',
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+            prefixIcon: Icon(
+              Icons.email_outlined,
+              color: hasError ? errorRed : Colors.white54,
+              size: 19,
+            ),
+            suffixIcon: _isVerifyingEmail
+                ? const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(goldColor),
+                      ),
+                    ),
+                  )
+                : hasError
+                    ? const Icon(Icons.error_outline, color: errorRed, size: 19)
+                    : (_emailController.text.isNotEmpty &&
+                            _emailVerificationError == null &&
+                            _fieldErrors['email'] == null)
+                        ? const Icon(Icons.check_circle,
+                            color: Color(0xFF38EF7D), size: 19)
+                        : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: hasError ? errorRed : Colors.white24,
+                width: hasError ? 1.5 : 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: hasError ? errorRed : Colors.white24,
+                width: hasError ? 1.5 : 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: hasError ? errorRed : goldColor,
+                width: 1.5,
+              ),
+            ),
+            filled: true,
+            fillColor: hasError
+                ? errorRed.withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.08),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+        if (hasError) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: errorRed, size: 12),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    errorMessage ?? '',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: errorRed,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (_isVerifyingEmail) ...[
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(left: 4),
+            child: Row(
+              children: [
+                Icon(Icons.hourglass_empty, color: goldColor, size: 12),
+                SizedBox(width: 4),
+                Text(
+                  'Verifying email address...',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: goldColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1295,12 +1535,12 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: textWhite70,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -1309,13 +1549,13 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
             prefixIcon: prefixIcon != null
                 ? Icon(prefixIcon,
-                    color: hasError ? errorRed : Colors.white54, size: 20)
+                    color: hasError ? errorRed : Colors.white54, size: 19)
                 : null,
             suffixIcon: hasError
-                ? const Icon(Icons.error_outline, color: errorRed, size: 20)
+                ? const Icon(Icons.error_outline, color: errorRed, size: 19)
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1343,22 +1583,22 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                 ? errorRed.withValues(alpha: 0.08)
                 : Colors.white.withValues(alpha: 0.08),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
         if (hasError) ...[
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: errorRed, size: 13),
+                const Icon(Icons.info_outline, color: errorRed, size: 12),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     errorMessage ?? '',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: errorRed,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1395,21 +1635,21 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: textWhite70,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: !showPassword,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
             prefixIcon: Icon(Icons.lock_outline,
-                color: hasError ? errorRed : Colors.white54, size: 20),
+                color: hasError ? errorRed : Colors.white54, size: 19),
             suffixIcon: GestureDetector(
               onTap: () {
                 setState(() {
@@ -1423,7 +1663,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
               child: Icon(
                 showPassword ? Icons.visibility : Icons.visibility_off,
                 color: Colors.white38,
-                size: 20,
+                size: 19,
               ),
             ),
             border: OutlineInputBorder(
@@ -1448,22 +1688,22 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                 ? errorRed.withValues(alpha: 0.08)
                 : Colors.white.withValues(alpha: 0.08),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
         if (hasError) ...[
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 4),
             child: Row(
               children: [
-                const Icon(Icons.info_outline, color: errorRed, size: 13),
+                const Icon(Icons.info_outline, color: errorRed, size: 12),
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
                     errorMessage ?? '',
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: errorRed,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1494,11 +1734,11 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: Container(
-            height: 4,
+            height: 3,
             width: double.infinity,
             color: Colors.white12,
             child: FractionallySizedBox(
@@ -1511,24 +1751,26 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 3),
         const Text(
           'At least 10 chars with uppercase, lowercase, number & special character',
-          style: const TextStyle(fontSize: 11, color: Colors.white38),
+          style: TextStyle(fontSize: 9, color: Colors.white38),
         ),
         if (strengthText.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Row(
             children: [
               const Icon(Icons.warning_amber_rounded,
-                  color: errorRed, size: 13),
+                  color: errorRed, size: 11),
               const SizedBox(width: 4),
-              Text(
-                strengthText,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: errorRed,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  strengthText,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: errorRed,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -1551,12 +1793,12 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
         Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: textWhite70,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: value,
           isExpanded: true,
@@ -1575,7 +1817,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           onChanged: enabled ? onChanged : null,
           decoration: InputDecoration(
             hintText: 'Select $label',
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.white24),
@@ -1597,7 +1839,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
                 ? Colors.white.withValues(alpha: 0.08)
                 : Colors.white.withValues(alpha: 0.03),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],
@@ -1613,10 +1855,10 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
     required String body,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: Column(
@@ -1625,15 +1867,15 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           Text(
             title,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: textWhite,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
-            height: 130,
-            padding: const EdgeInsets.all(12),
+            height: 90,
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.black26,
               borderRadius: BorderRadius.circular(10),
@@ -1644,22 +1886,24 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
               child: Text(
                 body,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: textWhite70,
-                  height: 1.5,
+                  height: 1.4,
                 ),
               ),
             ),
           ),
           if (!isRead) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             const Row(
               children: [
-                Icon(Icons.arrow_downward, color: Colors.white38, size: 13),
+                Icon(Icons.arrow_downward, color: Colors.white38, size: 11),
                 SizedBox(width: 4),
-                Text(
-                  'Scroll to the bottom to enable the checkbox',
-                  style: TextStyle(fontSize: 11, color: Colors.white38),
+                Expanded(
+                  child: Text(
+                    'Scroll to the bottom to enable the checkbox',
+                    style: TextStyle(fontSize: 9, color: Colors.white38),
+                  ),
                 ),
               ],
             ),
@@ -1686,7 +1930,7 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
               title: Text(
                 'I agree to the terms and conditions',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   color: isRead ? textWhite : Colors.white38,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1695,6 +1939,214 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // ─── CONTINUE BUTTON ──────────────────────────────────────────────────────
+  Widget _buildContinueButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading
+            ? null
+            : (_currentStep == _totalSteps ? _submitRegistration : _nextStep),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [goldDark, goldColor],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: goldColor.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Container(
+            alignment: Alignment.center,
+            child: _isLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryBlue),
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _currentStep == _totalSteps
+                            ? '🎉  Complete Registration'
+                            : 'Continue',
+                        style: const TextStyle(
+                          color: primaryBlue,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      if (_currentStep != _totalSteps) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward_rounded,
+                            color: primaryBlue, size: 18),
+                      ],
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignInLink() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          'Already have an account? ',
+          style: TextStyle(color: Colors.white60, fontSize: 13),
+        ),
+        GestureDetector(
+          onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+          child: const Text(
+            'Sign In 🚀',
+            style: TextStyle(
+              color: goldColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── HEADER ───────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              if (_currentStep > 1)
+                GestureDetector(
+                  onTap: _previousStep,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2)),
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new,
+                        color: Colors.white, size: 16),
+                  ),
+                ),
+              Expanded(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 88,
+                      child: Image.asset(
+                        'assets/images/logo_ulit.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Text(
+                            'KIDS KINGDOM',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 2,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('✦ ',
+                            style: TextStyle(color: goldColor, fontSize: 9)),
+                        Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: goldColor,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        Text(' ✦',
+                            style: TextStyle(color: goldColor, fontSize: 9)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (_currentStep > 1) const SizedBox(width: 40),
+            ],
+          ),
+        ),
+        // Colorful accent bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Row(
+            children: [
+              Expanded(
+                  child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: Colors.yellow,
+                          borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: Colors.pink,
+                          borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: Colors.cyan,
+                          borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(2)))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1747,306 +2199,131 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
             SafeArea(
               child: Column(
                 children: [
-                  // App Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
-                    child: Row(
-                      children: [
-                        if (_currentStep > 1)
-                          GestureDetector(
-                            onTap: _previousStep,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2)),
-                              ),
-                              child: const Icon(Icons.arrow_back_ios_new,
-                                  color: Colors.white, size: 16),
-                            ),
-                          ),
-                        const Expanded(
-                          child: Column(
-                            children: [
-                              Text(
-                                'KIDS KINGDOM',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 2,
+                  _buildHeader(),
+                  const SizedBox(height: 8),
+
+                  // ── STEP 1: Fixed layout, not scrollable ──────────────
+                  if (_currentStep == 1)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.15)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.3),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('✦ ',
-                                      style: TextStyle(
-                                          color: goldColor, fontSize: 10)),
-                                  Text(
-                                    'Create Account',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: goldColor,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                  Text(' ✦',
-                                      style: TextStyle(
-                                          color: goldColor, fontSize: 10)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_currentStep > 1)
-                          const SizedBox(width: 40), // Balance back button
-                      ],
-                    ),
-                  ),
-
-                  // Colorful accent line (matching login screen)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.yellow,
-                                borderRadius: BorderRadius.circular(2),
-                              )),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.pink,
-                                borderRadius: BorderRadius.circular(2),
-                              )),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.cyan,
-                                borderRadius: BorderRadius.circular(2),
-                              )),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(2),
-                              )),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(2),
-                              )),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Scrollable content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          // Glass card
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.15)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Error message
-                                if (_errorMessage != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: errorRed.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                          color:
-                                              errorRed.withValues(alpha: 0.4)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.error_outline,
-                                            color: errorRed, size: 16),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            _errorMessage!,
-                                            style: const TextStyle(
-                                                color: errorRed, fontSize: 12),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                ],
-
-                                // Step indicator
-                                _buildStepIndicator(),
-                                const SizedBox(height: 8),
-
-                                // Step content with fade
-                                FadeTransition(
+                                padding: const EdgeInsets.all(18),
+                                child: FadeTransition(
                                   opacity: _fadeAnimation,
-                                  child: IndexedStack(
-                                    index: _currentStep - 1,
-                                    children: [
-                                      _buildStep1RoleSelection(),
-                                      _buildStep2PersonalInfo(),
-                                      _buildStep3CompleteDetails(),
-                                    ],
-                                  ),
+                                  child: _buildStep1RoleSelection(),
                                 ),
-
-                                const SizedBox(height: 6),
-
-                                // Navigation button (Next / Complete)
-                                if (_currentStep != 1)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 52,
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : (_currentStep == _totalSteps
-                                              ? _submitRegistration
-                                              : _nextStep),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        padding: EdgeInsets.zero,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                        ),
-                                      ),
-                                      child: Ink(
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [goldDark, goldColor],
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: goldColor.withValues(
-                                                  alpha: 0.4),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Container(
-                                          alignment: Alignment.center,
-                                          child: _isLoading
-                                              ? const SizedBox(
-                                                  height: 22,
-                                                  width: 22,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2.5,
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<
-                                                            Color>(primaryBlue),
-                                                  ),
-                                                )
-                                              : Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      _currentStep ==
-                                                              _totalSteps
-                                                          ? '🎉  Complete Registration'
-                                                          : '  Continue  →',
-                                                      style: const TextStyle(
-                                                        color: primaryBlue,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        fontSize: 15,
-                                                        letterSpacing: 0.5,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Sign in link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Already have an account? ',
-                                style: const TextStyle(
-                                    color: Colors.white60, fontSize: 13),
-                              ),
-                              GestureDetector(
-                                onTap: () => Navigator.pushReplacementNamed(
-                                    context, '/login'),
-                                child: const Text(
-                                  'Sign In 🚀',
-                                  style: const TextStyle(
-                                    color: goldColor,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 20),
-                        ],
+                            const SizedBox(height: 10),
+                            _buildSignInLink(),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+
+                  // ── STEPS 2 & 3: Scrollable ───────────────────────────
+                  if (_currentStep > 1)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        child: Column(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.15)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Error message
+                                  if (_errorMessage != null) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: errorRed.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                            color: errorRed.withValues(
+                                                alpha: 0.4)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.error_outline,
+                                              color: errorRed, size: 16),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              _errorMessage!,
+                                              style: const TextStyle(
+                                                  color: errorRed,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                  ],
+
+                                  // Step indicator
+                                  _buildStepIndicator(),
+                                  const SizedBox(height: 14),
+
+                                  // Step content — conditional, no IndexedStack
+                                  FadeTransition(
+                                    opacity: _fadeAnimation,
+                                    child: _currentStep == 2
+                                        ? _buildStep2PersonalInfo()
+                                        : _buildStep3CompleteDetails(),
+                                  ),
+
+                                  const SizedBox(height: 16),
+                                  _buildContinueButton(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildSignInLink(),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

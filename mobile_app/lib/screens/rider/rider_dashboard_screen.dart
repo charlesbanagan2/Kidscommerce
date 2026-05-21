@@ -77,7 +77,9 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
 
       final myOrders = await ApiService.getRiderOrders();
       final earningsPayload = await ApiService.getRiderEarnings();
-      final notifResponse = await ApiService.getNotifications();
+
+      // Use unread count API instead of fetching all notifications
+      final unreadCount = await ApiService.getUnreadNotificationsCount();
 
       _totalEarnings = (earningsPayload['total'] as num?)?.toDouble() ?? 0.0;
       _earningsToday = (earningsPayload['today'] as num?)?.toDouble() ?? 0.0;
@@ -86,11 +88,7 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
 
       final orders = myOrders.map((json) => Order.fromJson(json)).toList();
 
-      if (notifResponse['success'] == true) {
-        final notifications = notifResponse['notifications'] as List? ?? [];
-        _unreadNotificationCount =
-            notifications.where((n) => n['is_read'] == false).length;
-      }
+      _unreadNotificationCount = unreadCount;
 
       if (mounted)
         setState(() {
@@ -375,20 +373,17 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFFFA6B02), Color(0xFFFF9A3C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(11),
             boxShadow: [
               BoxShadow(
-                  color: _primary.withValues(alpha: 0.3),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 3))
             ],
           ),
-          child: const Icon(Icons.two_wheeler_rounded,
-              color: Colors.white, size: 18),
+          child:
+              const Icon(Icons.two_wheeler_rounded, color: _primary, size: 18),
         ),
         const SizedBox(width: 11),
         const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -546,27 +541,27 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
                             color: Colors.white.withValues(alpha: 0.4),
                             width: 1.5)),
                     clipBehavior: Clip.antiAlias,
-                    child: _profileImageUrl != null &&
-                            _profileImageUrl!.isNotEmpty
-                        ? Image.network(
-                            UrlConfig.toAbsoluteImageUrl(_profileImageUrl!),
-                            width: 44,
-                            height: 44,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                              child: Text(initial,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 20)),
-                            ),
-                          )
-                        : Center(
-                            child: Text(initial,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 20))),
+                    child:
+                        _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                            ? Image.network(
+                                UrlConfig.toAbsoluteImageUrl(_profileImageUrl!),
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Text(initial,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 20)),
+                                ),
+                              )
+                            : Center(
+                                child: Text(initial,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 20))),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -735,48 +730,164 @@ class _RiderDashboardScreenState extends State<RiderDashboardScreen>
   }
 
   Widget _earningsMiniCard(_StatData s) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-      decoration: BoxDecoration(
-          color: _surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: s.borderColor, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-                color: s.color.withValues(alpha: 0.07),
-                blurRadius: 16,
-                offset: const Offset(0, 6))
-          ]),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                    color: s.bgColor, borderRadius: BorderRadius.circular(10)),
-                child: Icon(s.icon, color: s.color, size: 15)),
-            const SizedBox(height: 8),
-            Text(s.label,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: s.color.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 3),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(s.value,
-                  style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: _textPrimary,
-                      letterSpacing: -0.4)),
+    return GestureDetector(
+      onTap: () {
+        // Show detailed earnings breakdown
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) => Container(
+            decoration: const BoxDecoration(
+              color: _surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-          ]),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Icon and title
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: s.bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(s.icon, color: s.color, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.label,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: _textPrimary,
+                            ),
+                          ),
+                          const Text(
+                            'Earnings breakdown',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _textSub,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                // Amount display
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [s.color, s.color.withValues(alpha: 0.8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'TOTAL EARNED',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        s.value,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Info text
+                Text(
+                  'This shows your earnings for ${s.label.toLowerCase()}. Keep delivering to earn more!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _textSub,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+        decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: s.borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                  color: s.color.withValues(alpha: 0.07),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6))
+            ]),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                      color: s.bgColor,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Icon(s.icon, color: s.color, size: 15)),
+              const SizedBox(height: 8),
+              Text(s.label,
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: s.color.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 3),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(s.value,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: _textPrimary,
+                        letterSpacing: -0.4)),
+              ),
+            ]),
+      ),
     );
   }
 

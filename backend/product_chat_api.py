@@ -74,7 +74,7 @@ def register_product_chat_api(app, db, socketio, token_required):
             result = []
             for msg in messages:
                 sender_result = db.session.execute(
-                    text("SELECT id, first_name, last_name, role, profile_image FROM \"user\" WHERE id = :sender_id"),
+                    text("SELECT id, first_name, last_name, role, profile_picture FROM \"user\" WHERE id = :sender_id"),
                     {'sender_id': msg[1]}
                 )
                 sender_row = sender_result.fetchone()
@@ -259,7 +259,7 @@ def register_product_chat_api(app, db, socketio, token_required):
                 # Determine other user
                 other_user_id = last_msg_row[1] if last_msg_row[1] != user_id else last_msg_row[2]
                 other_user_result = db.session.execute(
-                    text("SELECT id, first_name, last_name, role, profile_image FROM \"user\" WHERE id = :other_user_id"),
+                    text("SELECT id, first_name, last_name, role, profile_picture FROM \"user\" WHERE id = :other_user_id"),
                     {'other_user_id': other_user_id}
                 )
                 other_user_row = other_user_result.fetchone()

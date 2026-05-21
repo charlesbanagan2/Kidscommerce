@@ -49,7 +49,6 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen>
   static const Color _goldDark = Color(0xFFFFA500);
   static const Color _white = Color(0xFFFFFFFF);
   static const Color _white70 = Color(0xB3FFFFFF);
-  static const Color _white12 = Color(0x1FFFFFFF);
   static const Color _white08 = Color(0x14FFFFFF);
 
   // ── Gradient stops (same as other screens) ───────────────────────────────

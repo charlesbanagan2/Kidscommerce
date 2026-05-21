@@ -47,8 +47,8 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
   void initState() {
     super.initState();
     _fetchUnreadCounts();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      _fetchUnreadCounts();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (mounted) _fetchUnreadCounts();
     });
   }
 
@@ -75,7 +75,6 @@ class _RiderHomeScreenState extends State<RiderHomeScreen> {
     if (i == _currentIndex) return;
     HapticFeedback.selectionClick();
     setState(() => _currentIndex = i);
-    if (i == 3) _fetchUnreadCounts(); // Messages tab
   }
 
   @override

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import '../../config/url_config.dart';
 import '../../providers/buyer_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/modern_snackbar.dart';
 import '../../services/api_service.dart';
+import 'cart_screen.dart';
 import 'checkout_screen.dart';
 import 'product_reviews_screen.dart';
 import 'store_detail_screen.dart';
@@ -32,6 +34,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   bool _isLoadingReviews = false;
   double _averageRating = 0.0;
   int _reviewCount = 0;
+  late PageController _pageController;
+  final Map<String, VideoPlayerController> _videoControllers = {};
 
   // Theme
   static const Color _primaryDark = Color(0xFF1a2f6b);
@@ -53,14 +57,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   @override
   void initState() {
     super.initState();
+    print('🔵 ProductDetailScreen initState called');
     _scrollController = ScrollController();
+    _pageController = PageController();
     _fetchProductReviews();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final buyerProvider = context.read<BuyerProvider>();
-        buyerProvider.fetchWishlist();
-      }
-    });
+    _loadWishlist();
+  }
+
+  Future<void> _loadWishlist() async {
+    if (mounted) {
+      final buyerProvider = context.read<BuyerProvider>();
+      await buyerProvider.fetchWishlist();
+    }
   }
 
   Future<void> _fetchProductReviews() async {
@@ -86,6 +94,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   @override
   void dispose() {
     _scrollController.dispose();
+    _pageController.dispose();
+    for (var controller in _videoControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -97,23 +109,48 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       ModernSnackBar.showError(context, 'Please log in to like products');
       return;
     }
+    
+    // Check current state BEFORE toggling
+    final wasLiked = buyerProvider.isProductLiked(productId);
+    
     final success = await buyerProvider.toggleWishlist(productId);
     if (mounted) {
       if (success) {
-        final isLiked = buyerProvider.isProductLiked(productId);
-        ModernSnackBar.show(
-          context,
-          message: isLiked
-              ? 'Added to liked products'
-              : 'Removed from liked products',
-        );
+        // Show message based on what action was performed
+        if (wasLiked) {
+          // Was liked, now removed
+          _showCustomSnackBar(
+            'Removed from wishlist',
+            isSuccess: false,
+          );
+        } else {
+          // Was not liked, now added
+          _showCustomSnackBar(
+            'Added to wishlist',
+            isSuccess: true,
+          );
+        }
       } else {
         ModernSnackBar.showError(
           context,
-          buyerProvider.errorMessage ?? 'Failed to update liked products',
+          buyerProvider.errorMessage ?? 'Failed to update wishlist',
         );
       }
     }
+  }
+
+  void _showCustomSnackBar(String message, {required bool isSuccess}) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => _WishlistOverlay(
+        message: message,
+        isSuccess: isSuccess,
+      ),
+    );
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3), () {
+      overlayEntry.remove();
+    });
   }
 
   // ─── Open Product Chat ────────────────────────────────────────────────────
@@ -174,8 +211,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   // ─── Add to Cart / Buy Now Sheet ──────────────────────────────────────────
   void _showCartSheet({required bool isBuyNow}) {
-    final images = _getImages();
-    final mainImage = images.isNotEmpty ? images[0] : '';
+    final mediaItems = _getMediaItems();
+    final mainImage = mediaItems.isNotEmpty && mediaItems[0]['type'] == 'image'
+        ? mediaItems[0]['url']!
+        : '';
 
     showModalBottomSheet(
       context: context,
@@ -229,11 +268,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                   mainImage,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => Icon(
-                                    LucideIcons.image,
+                                    Icons.image,
                                     color: Colors.grey.shade400,
                                   ),
                                 )
-                              : Icon(LucideIcons.image,
+                              : Icon(Icons.image,
                                   color: Colors.grey.shade400),
                         ),
                       ),
@@ -268,7 +307,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                             // Stock
                             Row(
                               children: [
-                                Icon(LucideIcons.package,
+                                Icon(Icons.inventory_2_outlined,
                                     size: 12, color: Colors.grey.shade500),
                                 const SizedBox(width: 4),
                                 Text(
@@ -297,7 +336,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                             color: Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(LucideIcons.x,
+                          child: const Icon(Icons.close,
                               size: 16, color: _textMid),
                         ),
                       ),
@@ -331,7 +370,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         child: Row(
                           children: [
                             _qtyButton(
-                              icon: LucideIcons.minus,
+                              icon: Icons.remove,
                               onTap: qty > 1
                                   ? () => setSheet(() {
                                         qty--;
@@ -353,7 +392,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                               ),
                             ),
                             _qtyButton(
-                              icon: LucideIcons.plus,
+                              icon: Icons.add,
                               onTap: qty < widget.product.stock
                                   ? () => setSheet(() {
                                         qty++;
@@ -401,7 +440,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(LucideIcons.zap,
+                                      Icon(Icons.flash_on,
                                           color: Colors.white, size: 18),
                                       SizedBox(width: 8),
                                       Text(
@@ -437,7 +476,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(LucideIcons.shoppingCart,
+                                Icon(Icons.shopping_cart_outlined,
                                     size: 18, color: Colors.white),
                                 SizedBox(width: 8),
                                 Text(
@@ -489,19 +528,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     );
   }
 
-  List<String> _getImages() {
-    final images = <String>[];
+  List<Map<String, String>> _getMediaItems() {
+    final items = <Map<String, String>>[];
+
     if (widget.product.imageUrl != null &&
         widget.product.imageUrl!.isNotEmpty) {
-      images.add(UrlConfig.toAbsoluteImageUrl(widget.product.imageUrl!));
+      items.add({
+        'type': 'image',
+        'url': UrlConfig.toAbsoluteImageUrl(widget.product.imageUrl!),
+      });
     }
+
     if (widget.product.images != null && widget.product.images!.isNotEmpty) {
-      images.addAll(UrlConfig.toAbsoluteImageUrls(widget.product.images!));
+      for (final img in widget.product.images!) {
+        items.add({
+          'type': 'image',
+          'url': UrlConfig.toAbsoluteImageUrl(img),
+        });
+      }
     }
-    if (images.isEmpty) {
-      images.add(UrlConfig.toAbsoluteImageUrl('placeholder.png'));
+
+    if (widget.product.videos != null && widget.product.videos!.isNotEmpty) {
+      for (final video in widget.product.videos!) {
+        items.add({
+          'type': 'video',
+          'url': UrlConfig.toAbsoluteImageUrl(video),
+        });
+      }
     }
-    return images;
+
+    if (items.isEmpty) {
+      items.add({
+        'type': 'image',
+        'url': UrlConfig.toAbsoluteImageUrl('placeholder.png'),
+      });
+    }
+
+    return items;
   }
 
   @override
@@ -557,28 +620,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   // ─── Image Gallery ────────────────────────────────────────────────────────
   Widget _buildImageGallery() {
-    final images = _getImages();
+    final mediaItems = _getMediaItems();
     return Container(
       color: Colors.white,
       child: Column(
         children: [
           Stack(
             children: [
-              // Main image
               AspectRatio(
                 aspectRatio: 1.0,
-                child: Container(
-                  width: double.infinity,
-                  color: Colors.grey.shade50,
-                  child: Image.network(
-                    images[_selectedImageIndex],
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.image,
-                      size: 80,
-                      color: Colors.grey.shade300,
-                    ),
-                  ),
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: mediaItems.length,
+                  onPageChanged: (index) {
+                    setState(() => _selectedImageIndex = index);
+                  },
+                  itemBuilder: (context, index) {
+                    final item = mediaItems[index];
+                    if (item['type'] == 'video') {
+                      return _buildVideoPlayer(item['url']!);
+                    }
+                    return Container(
+                      width: double.infinity,
+                      color: Colors.grey.shade50,
+                      child: Image.network(
+                        item['url']!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.image,
+                          size: 80,
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
 
@@ -611,13 +686,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _circleButton(
-                        LucideIcons.arrowLeft, () => Navigator.pop(context)),
+                        Icons.arrow_back, () => Navigator.pop(context)),
                     Row(
                       children: [
-                        _circleButton(LucideIcons.share2, () {}),
+                        _circleButton(Icons.share, () {}),
                         const SizedBox(width: 10),
                         _circleButton(
-                          LucideIcons.heart,
+                          Icons.favorite,
                           () => _toggleLike(),
                           color: context
                                   .watch<BuyerProvider>()
@@ -666,8 +741,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   ),
                 ),
 
-              // Image counter badge (top-right of image)
-              if (images.length > 1)
+              if (mediaItems.length > 1)
                 Positioned(
                   bottom: 14,
                   right: 16,
@@ -678,21 +752,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      '${_selectedImageIndex + 1}/${images.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (mediaItems[_selectedImageIndex]['type'] == 'video')
+                          const Icon(Icons.videocam,
+                              color: Colors.white, size: 11),
+                        if (mediaItems[_selectedImageIndex]['type'] == 'video')
+                          const SizedBox(width: 4),
+                        Text(
+                          '${_selectedImageIndex + 1}/${mediaItems.length}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
             ],
           ),
-
-          // Thumbnail strip
-          if (images.length > 1)
+          if (mediaItems.length > 1)
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               color: Colors.white,
@@ -700,43 +782,184 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 height: 60,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: images.length,
-                  itemBuilder: (context, index) => GestureDetector(
-                    onTap: () => setState(() => _selectedImageIndex = index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _selectedImageIndex == index
-                              ? _primary
-                              : Colors.grey.shade200,
-                          width: _selectedImageIndex == index ? 2 : 1.5,
+                  itemCount: mediaItems.length,
+                  itemBuilder: (context, index) {
+                    final item = mediaItems[index];
+                    final isVideo = item['type'] == 'video';
+                    return GestureDetector(
+                      onTap: () {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.only(right: 8),
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _selectedImageIndex == index
+                                ? _primary
+                                : Colors.grey.shade200,
+                            width: _selectedImageIndex == index ? 2 : 1.5,
+                          ),
+                          boxShadow: _selectedImageIndex == index
+                              ? [
+                                  BoxShadow(
+                                    color: _primary.withValues(alpha: 0.2),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
                         ),
-                        boxShadow: _selectedImageIndex == index
-                            ? [
-                                BoxShadow(
-                                  color: _primary.withValues(alpha: 0.2),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ]
-                            : null,
-                        image: DecorationImage(
-                          image: NetworkImage(images[index]),
-                          fit: BoxFit.cover,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              isVideo
+                                  ? _buildVideoThumbnail(item['url']!)
+                                  : Image.network(
+                                      item['url']!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: Colors.grey.shade200,
+                                        child:
+                                            const Icon(Icons.image, size: 20),
+                                      ),
+                                    ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVideoPlayer(String videoUrl) {
+    if (!_videoControllers.containsKey(videoUrl)) {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
+        ..initialize().then((_) {
+          if (mounted) setState(() {});
+        });
+      _videoControllers[videoUrl] = controller;
+    }
+
+    final controller = _videoControllers[videoUrl]!;
+
+    return Container(
+      color: Colors.black,
+      child: controller.value.isInitialized
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: AspectRatio(
+                    aspectRatio: controller.value.aspectRatio,
+                    child: VideoPlayer(controller),
+                  ),
+                ),
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (controller.value.isPlaying) {
+                          controller.pause();
+                        } else {
+                          for (var c in _videoControllers.values) {
+                            if (c != controller) c.pause();
+                          }
+                          controller.play();
+                        }
+                      });
+                    },
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        controller.value.isPlaying
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                ),
+                if (controller.value.isPlaying)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: VideoProgressIndicator(
+                      controller,
+                      allowScrubbing: true,
+                      colors: const VideoProgressColors(
+                        playedColor: _primary,
+                        bufferedColor: Colors.white24,
+                        backgroundColor: Colors.white10,
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : const Center(
+              child: CircularProgressIndicator(
+                color: _primary,
+                strokeWidth: 2,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildVideoThumbnail(String videoUrl) {
+    if (!_videoControllers.containsKey(videoUrl)) {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl))
+        ..initialize().then((_) {
+          if (mounted) setState(() {});
+        });
+      _videoControllers[videoUrl] = controller;
+    }
+
+    final controller = _videoControllers[videoUrl]!;
+
+    return Container(
+      color: Colors.grey.shade200,
+      child: controller.value.isInitialized
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                VideoPlayer(controller),
+                Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: const Center(
+                    child: Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : const Center(
+              child: Icon(Icons.videocam, size: 20, color: Colors.grey),
+            ),
     );
   }
 
@@ -847,7 +1070,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   children: List.generate(5, (index) {
                     final filled = index < widget.product.rating.round();
                     return Icon(
-                      LucideIcons.star,
+                      Icons.star,
                       color: filled ? Colors.amber : Colors.grey.shade300,
                       size: 15,
                       fill: filled ? 0.8 : 0,
@@ -919,12 +1142,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         widget.product.storeLogo!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Icon(
-                          LucideIcons.store,
+                          Icons.store,
                           color: Colors.white,
                           size: 22,
                         ),
                       )
-                    : const Icon(LucideIcons.store,
+                    : const Icon(Icons.store,
                         color: Colors.white, size: 22),
               ),
             ),
@@ -963,7 +1186,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         ),
                       ),
                       const SizedBox(width: 6),
-                      const Icon(LucideIcons.star,
+                      const Icon(Icons.star,
                           size: 11, color: Colors.amber, fill: 0.8),
                       const SizedBox(width: 3),
                       Text(
@@ -1109,8 +1332,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                     const SizedBox(width: 4),
                     Icon(
                       _showFullDescription
-                          ? LucideIcons.chevronUp
-                          : LucideIcons.chevronDown,
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
                       size: 14,
                       color: _primary,
                     ),
@@ -1199,7 +1422,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(LucideIcons.chevronRight,
+                      const Icon(Icons.chevron_right,
                           size: 14, color: _primary),
                     ],
                   ),
@@ -1234,7 +1457,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       Row(
                         children: List.generate(5, (i) {
                           return Icon(
-                            LucideIcons.star,
+                            Icons.star,
                             size: 13,
                             color: i < _averageRating.floor()
                                 ? Colors.amber
@@ -1278,7 +1501,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              const Icon(LucideIcons.star,
+                              const Icon(Icons.star,
                                   size: 10, color: Colors.amber, fill: 0.8),
                               const SizedBox(width: 6),
                               Expanded(
@@ -1319,7 +1542,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         color: _bgColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Icon(LucideIcons.messageSquare,
+                      child: Icon(Icons.message,
                           size: 32, color: Colors.grey.shade400),
                     ),
                     const SizedBox(height: 12),
@@ -1465,7 +1688,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 Row(
                   children: List.generate(5, (index) {
                     return Icon(
-                      LucideIcons.star,
+                      Icons.star,
                       color:
                           index < rating ? Colors.amber : Colors.grey.shade300,
                       size: 13,
@@ -1557,7 +1780,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                           width: 64,
                           height: 64,
                           color: Colors.grey.shade200,
-                          child: Icon(LucideIcons.image,
+                          child: Icon(Icons.image,
                               color: Colors.grey.shade400),
                         ),
                       ),
@@ -1688,12 +1911,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                         UrlConfig.toAbsoluteImageUrl(product.imageUrl ?? ''),
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Icon(
-                          LucideIcons.imageOff,
+                          Icons.hide_image,
                           color: Colors.grey.shade400,
                           size: isTablet ? 36 : 30,
                         ),
                       )
-                    : Icon(LucideIcons.image,
+                    : Icon(Icons.image,
                         color: Colors.grey.shade400, size: isTablet ? 36 : 30),
               ),
             ),
@@ -1727,7 +1950,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(LucideIcons.package,
+                        Icon(Icons.inventory_2_outlined,
                             size: 11, color: Colors.grey.shade500),
                         const SizedBox(width: 3),
                         Expanded(
@@ -1798,7 +2021,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                     ),
                                   )
                                 : const Icon(
-                                    LucideIcons.shoppingCart,
+                                    Icons.shopping_cart_outlined,
                                     size: 14,
                                     color: Colors.white,
                                   ),
@@ -1850,7 +2073,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 border: Border.all(color: Colors.grey.shade200),
               ),
               child: IconButton(
-                icon: Icon(LucideIcons.messageCircle,
+                icon: Icon(Icons.chat_bubble_outline,
                     color: Colors.grey.shade600, size: 20),
                 onPressed: () => _openProductChat(),
                 padding: EdgeInsets.zero,
@@ -1885,7 +2108,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(LucideIcons.shoppingCart,
+                            Icon(Icons.shopping_cart_outlined,
                                 color: Colors.white, size: 16),
                             SizedBox(width: 6),
                             Text(
@@ -1946,7 +2169,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(LucideIcons.zap,
+                            Icon(Icons.flash_on,
                                 color: Colors.white, size: 16),
                             SizedBox(width: 6),
                             Text(
@@ -1973,15 +2196,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     required bool goToCart,
     required bool goToCheckout,
   }) async {
-    if (_isBottomBarLoading) return;
+    debugPrint('🛒 _handleCartAction called - goToCart: $goToCart, goToCheckout: $goToCheckout');
+    
+    if (_isBottomBarLoading) {
+      debugPrint('⚠️ Already loading, skipping...');
+      return;
+    }
 
     final authProvider = context.read<AuthProvider>();
     if (!authProvider.isAuthenticated) {
+      debugPrint('❌ User not authenticated');
       ModernSnackBar.showError(context, 'Please log in to add items to cart');
       return;
     }
 
     if (goToCheckout) {
+      debugPrint('🛒 Buy Now flow - going to checkout');
       final productItem = {
         'product_id': widget.product.id as int,
         'name': widget.product.name as String,
@@ -2002,38 +2232,69 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       return;
     }
 
+    debugPrint('🛒 Add to Cart flow - starting...');
     setState(() {
       _isBottomBarLoading = true;
-      _isBuyAction = goToCheckout;
+      _isBuyAction = false;
     });
+    debugPrint('🛒 Loading state set to true');
+
+    debugPrint('🛒 Adding to cart - Product ID: ${widget.product.id}, Quantity: $_quantity');
+    debugPrint('🛒 Product Stock: ${widget.product.stock}');
 
     final buyerProvider = context.read<BuyerProvider>();
-    final success = await buyerProvider.addProductToCart(
-      widget.product,
-      quantity: _quantity,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      await buyerProvider.fetchCart();
-      if (!mounted) return;
-      if (goToCart)
-        ModernSnackBar.showCartSuccess(context, widget.product.name);
-    } else {
-      ModernSnackBar.showError(
-        context,
-        _friendlyCartMessage(buyerProvider.errorMessage),
+    debugPrint('🛒 Calling buyerProvider.addProductToCart...');
+    
+    try {
+      final success = await buyerProvider.addProductToCart(
+        widget.product,
+        quantity: _quantity,
       );
-    }
+      
+      debugPrint('🛒 addProductToCart returned: $success');
 
-    if (mounted) setState(() => _isBottomBarLoading = false);
+      if (!mounted) {
+        debugPrint('⚠️ Widget not mounted, returning...');
+        return;
+      }
+
+      setState(() => _isBottomBarLoading = false);
+      debugPrint('🛒 Loading state set to false');
+
+      if (success) {
+        debugPrint('✅ Add to cart successful, fetching cart...');
+        await buyerProvider.fetchCart();
+        if (!mounted) {
+          debugPrint('⚠️ Widget not mounted after fetchCart, returning...');
+          return;
+        }
+        
+        debugPrint('✅ Cart fetched, showing success message');
+        ModernSnackBar.showCartSuccess(context, widget.product.name);
+        
+        // Reset quantity after successful add
+        setState(() => _quantity = 1);
+        debugPrint('✅ Quantity reset to 1');
+      } else {
+        debugPrint('❌ Add to cart failed: ${buyerProvider.errorMessage}');
+        ModernSnackBar.showError(
+          context,
+          _friendlyCartMessage(buyerProvider.errorMessage),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Exception in _handleCartAction: $e');
+      if (mounted) {
+        setState(() => _isBottomBarLoading = false);
+        ModernSnackBar.showError(context, 'An error occurred. Please try again.');
+      }
+    }
   }
 
   String _friendlyCartMessage(String? rawMessage) {
     final message = (rawMessage ?? '').toLowerCase();
-    if (message.contains('404'))
-      return 'Service unavailable. Please try again later.';
+    if (message.contains('404') || message.contains('not found'))
+      return 'Product is currently unavailable. Please try again later.';
     if (message.contains('network') ||
         message.contains('socket') ||
         message.contains('connection'))
@@ -2042,6 +2303,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       return 'Request timeout. Please try again.';
     if (message.contains('login') || message.contains('auth'))
       return 'Please log in again.';
+    if (message.contains('stock') || message.contains('available'))
+      return rawMessage ?? 'Product stock issue.';
     return 'Could not add to cart. Please try again.';
   }
 
@@ -2077,3 +2340,134 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     );
   }
 }
+
+// ─── Wishlist Overlay Widget ──────────────────────────────────────────────────
+
+class _WishlistOverlay extends StatefulWidget {
+  final String message;
+  final bool isSuccess;
+
+  const _WishlistOverlay({
+    required this.message,
+    required this.isSuccess,
+  });
+
+  @override
+  State<_WishlistOverlay> createState() => _WishlistOverlayState();
+}
+
+class _WishlistOverlayState extends State<_WishlistOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    ));
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 16,
+      left: 16,
+      right: 16,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: widget.isSuccess
+                          ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                          : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.isSuccess ? Icons.favorite : Icons.favorite_border,
+                      color: widget.isSuccess
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.isSuccess
+                              ? 'Added to wishlist'
+                              : 'Removed from wishlist',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.isSuccess
+                              ? 'Product saved to your favorites'
+                              : 'Product removed from favorites',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+

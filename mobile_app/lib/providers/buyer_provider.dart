@@ -601,7 +601,13 @@ class BuyerProvider with ChangeNotifier {
     try {
       await ApiService.bootstrapFromStorage();
       
+      debugPrint('📦 BuyerProvider: Fetching orders by status...');
       final grouped = await BuyerService.getOrdersByStatus();
+      
+      debugPrint('📊 Received grouped orders: ${grouped.keys.toList()}');
+      grouped.forEach((status, orders) {
+        debugPrint('   $status: ${orders.length} orders');
+      });
       
       _ordersByStatus = grouped.map((status, orders) {
         final sortedOrders = List<order_model.Order>.from(orders);
@@ -615,14 +621,24 @@ class BuyerProvider with ChangeNotifier {
       });
       _allOrders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
       
+      debugPrint('✅ Total orders loaded: ${_allOrders.length}');
+      debugPrint('📊 Orders by status after processing:');
+      _ordersByStatus.forEach((status, orders) {
+        debugPrint('   $status: ${orders.length} orders');
+        if (orders.isNotEmpty) {
+          debugPrint('      First order: #${orders.first.id}');
+        }
+      });
+      
       notifyListeners();
     } catch (e) {
-      debugPrint('⚠️ Orders fetch error (check backend): $e');
+      debugPrint('❌ Orders fetch error: $e');
+      _setError('Failed to fetch orders: $e');
       _ordersByStatus = {};
       _allOrders = [];
+      notifyListeners();
     } finally {
       _setLoading(false);
-      notifyListeners();
     }
   }
 
@@ -994,7 +1010,7 @@ class BuyerProvider with ChangeNotifier {
     if (error is ApiException) {
       final status = error.statusCode;
       if (status == 404) {
-        return 'Service unavailable. Please try again later.';
+        return 'Product not found or unavailable. Please refresh and try again.';
       }
       if (status == 401 || status == 403) {
         return 'Please log in again.';
@@ -1006,6 +1022,9 @@ class BuyerProvider with ChangeNotifier {
       if (message.contains('timeout')) {
         return 'Request timeout. Please try again.';
       }
+      if (message.contains('stock')) {
+        return error.message;
+      }
     }
 
     final fallback = error.toString().toLowerCase();
@@ -1016,6 +1035,9 @@ class BuyerProvider with ChangeNotifier {
     }
     if (fallback.contains('timeout')) {
       return 'Request timeout. Please try again.';
+    }
+    if (fallback.contains('not found') || fallback.contains('404')) {
+      return 'Product not found. Please refresh and try again.';
     }
     return 'Could not add to cart. Please try again.';
   }
@@ -1145,7 +1167,7 @@ class BuyerProvider with ChangeNotifier {
             category: item['category'] ?? '',
             stock: item['stock'] as int? ?? 0,
             sellerId: item['seller_id'] as int? ?? 0,
-            imageUrl: item['image_url'] as String?,
+            imageUrl: item['product_image'] as String? ?? item['image_url'] as String?,
             description: item['description'] as String?,
             rating: (item['rating'] as num?)?.toDouble() ?? 0.0,
             reviewCount: item['review_count'] as int? ?? 0,
@@ -1488,7 +1510,7 @@ class BuyerProvider with ChangeNotifier {
     try {
       final imageUrl = await BuyerService.updateProfilePicture(imagePath);
       if (_profile != null) {
-        _profile!['profile_image'] = imageUrl;
+        _profile!['profile_picture'] = imageUrl;
       }
       return true;
     } catch (e) {

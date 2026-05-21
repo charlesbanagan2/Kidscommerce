@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../services/api_service.dart';
 import '../../widgets/skeleton_loader.dart';
 
@@ -155,7 +155,14 @@ class _NotificationScreenState extends State<NotificationScreen>
               imageUrl: notif['image_url'],
               createdAt: _parseDateTime(notif['created_at']),
             );
-          }).toList();
+          }).toList()
+            ..sort((a, b) {
+              // Sort by createdAt descending (latest first)
+              if (a.createdAt == null && b.createdAt == null) return 0;
+              if (a.createdAt == null) return 1;
+              if (b.createdAt == null) return -1;
+              return b.createdAt!.compareTo(a.createdAt!);
+            });
 
           if (refresh) {
             _notifications = mapped;
@@ -369,7 +376,7 @@ class _NotificationScreenState extends State<NotificationScreen>
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
-            LucideIcons.chevronLeft,
+            Icons.chevron_left,
             color: Colors.white,
             size: 20,
           ),
@@ -395,7 +402,7 @@ class _NotificationScreenState extends State<NotificationScreen>
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
-              LucideIcons.settings,
+              Icons.settings,
               color: Colors.white,
               size: 18,
             ),
@@ -455,6 +462,16 @@ class _NotificationScreenState extends State<NotificationScreen>
       groups.putIfAbsent(group, () => []).add(item);
     }
 
+    // Sort items within each group by createdAt descending (latest first)
+    for (final groupItems in groups.values) {
+      groupItems.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+    }
+
     final order = ['Today', 'Yesterday', 'This Week', 'Earlier', 'Recent'];
     final slivers = <Widget>[];
 
@@ -504,28 +521,28 @@ class _NotificationScreenState extends State<NotificationScreen>
       child: Row(
         children: [
           _buildSummaryBadge(
-            icon: LucideIcons.package,
+            icon: Icons.inventory_2_outlined,
             label: 'Orders',
             count: orderCount,
             color: _AppColors.orderGreen,
           ),
           _buildVerticalDivider(),
           _buildSummaryBadge(
-            icon: LucideIcons.tag,
+            icon: Icons.local_offer,
             label: 'Promos',
             count: promoCount,
             color: _AppColors.promoAmber,
           ),
           _buildVerticalDivider(),
           _buildSummaryBadge(
-            icon: LucideIcons.shoppingBag,
+            icon: Icons.shopping_bag_outlined,
             label: 'Products',
             count: productCount,
             color: _AppColors.productBlue,
           ),
           _buildVerticalDivider(),
           _buildSummaryBadge(
-            icon: LucideIcons.bell,
+            icon: Icons.notifications_outlined,
             label: 'System',
             count: systemCount,
             color: _AppColors.systemPurple,
@@ -609,32 +626,32 @@ class _NotificationScreenState extends State<NotificationScreen>
       _FilterTab(
         filter: NotificationFilter.all,
         label: 'All',
-        icon: LucideIcons.layoutGrid,
+        icon: Icons.grid_view,
       ),
       _FilterTab(
         filter: NotificationFilter.unread,
         label: 'Unread',
-        icon: LucideIcons.bellDot,
+        icon: Icons.notifications_active,
       ),
       _FilterTab(
         filter: NotificationFilter.orders,
         label: 'Orders',
-        icon: LucideIcons.package,
+        icon: Icons.inventory_2_outlined,
       ),
       _FilterTab(
         filter: NotificationFilter.promos,
         label: 'Promos',
-        icon: LucideIcons.tag,
+        icon: Icons.local_offer,
       ),
       _FilterTab(
         filter: NotificationFilter.products,
         label: 'Products',
-        icon: LucideIcons.shoppingBag,
+        icon: Icons.shopping_bag_outlined,
       ),
       _FilterTab(
         filter: NotificationFilter.system,
         label: 'System',
-        icon: LucideIcons.bell,
+        icon: Icons.notifications_outlined,
       ),
     ];
 
@@ -789,7 +806,7 @@ class _NotificationScreenState extends State<NotificationScreen>
               borderRadius: BorderRadius.circular(24),
             ),
             child: Icon(
-              isUnread ? LucideIcons.checkCheck : LucideIcons.inbox,
+              isUnread ? Icons.check : Icons.inbox,
               size: 36,
               color: _AppColors.primary,
             ),
@@ -963,7 +980,7 @@ class _NotificationTile extends StatelessWidget {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.trash2, color: Colors.white, size: 20),
+            Icon(Icons.delete_outline, color: Colors.white, size: 20),
             SizedBox(height: 4),
             Text(
               'Delete',
@@ -1091,7 +1108,7 @@ class _NotificationTile extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(LucideIcons.hash, size: 10, color: _AppColors.primary.withValues(alpha: 0.6)),
+                                  Icon(Icons.tag, size: 10, color: _AppColors.primary.withValues(alpha: 0.6)),
                                   const SizedBox(width: 2),
                                   Text(
                                     '${notification.orderId}',
@@ -1168,15 +1185,15 @@ class _NotificationTile extends StatelessWidget {
   IconData get _typeIcon {
     switch (notification.type) {
       case NotificationType.order:
-        return LucideIcons.package;
+        return Icons.inventory_2_outlined;
       case NotificationType.promotion:
-        return LucideIcons.tag;
+        return Icons.local_offer;
       case NotificationType.product:
-        return LucideIcons.shoppingBag;
+        return Icons.shopping_bag_outlined;
       case NotificationType.system:
-        return LucideIcons.shield;
+        return Icons.shield;
       case NotificationType.payment:
-        return LucideIcons.creditCard;
+        return Icons.credit_card;
     }
   }
 
@@ -1299,7 +1316,7 @@ class _NotificationSettingsSheetState extends State<_NotificationSettingsSheet> 
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(LucideIcons.trash2, color: _AppColors.danger, size: 18),
+                    Icon(Icons.delete_outline, color: _AppColors.danger, size: 18),
                     SizedBox(width: 8),
                     Text('Clear All Read Notifications', style: TextStyle(color: _AppColors.danger, fontWeight: FontWeight.w600, fontSize: 14)),
                   ],
@@ -1354,3 +1371,4 @@ class _NotificationSettingsSheetState extends State<_NotificationSettingsSheet> 
     );
   }
 }
+

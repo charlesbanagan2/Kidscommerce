@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../config/url_config.dart';
-import '../../utils/profile_photo_helper.dart';
 import '../../models/order.dart';
 import 'rider_edit_profile_screen.dart';
 
@@ -17,7 +16,6 @@ class RiderProfileScreen extends StatefulWidget {
 class _RiderProfileScreenState extends State<RiderProfileScreen> {
   List<Order> _orders = [];
   bool _loadingOrders = true;
-  bool _isUploadingImage = false;
 
   static const Color _primary = Color(0xFFFA6B02);
   static const Color _surface = Color(0xFFFFFFFF);
@@ -33,7 +31,14 @@ class _RiderProfileScreenState extends State<RiderProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _loadProfile();
     _loadOrders();
+  }
+
+  Future<void> _loadProfile() async {
+    // Refresh user profile from backend to get latest profile image
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.refreshUser();
   }
 
   Future<void> _loadOrders() async {
@@ -57,38 +62,9 @@ class _RiderProfileScreenState extends State<RiderProfileScreen> {
   int get _deliveredOrders =>
       _orders.where((o) => o.status == 'delivered').length;
 
-  Future<void> _pickAndUploadProfilePhoto() async {
-    setState(() => _isUploadingImage = true);
-    try {
-      final imageUrl =
-          await ProfilePhotoHelper.pickAndUploadProfilePhoto(context);
-      if (imageUrl == null) return;
-
-      await Provider.of<AuthProvider>(context, listen: false).refreshUser();
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Profile photo updated'),
-          backgroundColor: Color(0xFF059669),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to upload photo: $e'),
-          backgroundColor: Colors.red.shade600,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _isUploadingImage = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
 
     return Scaffold(
@@ -222,80 +198,40 @@ class _RiderProfileScreenState extends State<RiderProfileScreen> {
                 offset: const Offset(0, 8))
           ]),
       child: Row(children: [
-        GestureDetector(
-          onTap: _isUploadingImage ? null : _pickAndUploadProfilePhoto,
-          child: Stack(
-            children: [
-              Container(
-                width: 66,
-                height: 66,
-                decoration: BoxDecoration(
-                    gradient: profileImage == null || profileImage.isEmpty
-                        ? const LinearGradient(
-                            colors: [Color(0xFFFA6B02), Color(0xFFFF9A3C)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight)
-                        : null,
-                    borderRadius: BorderRadius.circular(20)),
-                child: profileImage != null && profileImage.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(
-                          UrlConfig.toAbsoluteImageUrl(profileImage),
-                          width: 66,
-                          height: 66,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(initial,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: Text(initial,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800))),
-              ),
-              if (_isUploadingImage)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(20),
+        Container(
+          width: 66,
+          height: 66,
+          decoration: BoxDecoration(
+              gradient: profileImage == null || profileImage.isEmpty
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFA6B02), Color(0xFFFF9A3C)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight)
+                  : null,
+              borderRadius: BorderRadius.circular(20)),
+          child: profileImage != null && profileImage.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    UrlConfig.toAbsoluteImageUrl(profileImage),
+                    width: 66,
+                    height: 66,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(initial,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800)),
                     ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
+                  ),
+                )
+              : Center(
+                  child: Text(initial,
+                      style: const TextStyle(
                           color: Colors.white,
-                          strokeWidth: 2.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: _primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(Icons.camera_alt_rounded,
-                      color: Colors.white, size: 12),
-                ),
-              ),
-            ],
-          ),
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800))),
         ),
         const SizedBox(width: 16),
         Expanded(

@@ -50,6 +50,9 @@ class BuyerService {
         auth: true,
       );
 
+      debugPrint('📦 API Response type: ${result.runtimeType}');
+      debugPrint('📦 API Response keys: ${result is Map ? result.keys.toList() : "not a map"}');
+
       if (result is! Map<String, dynamic>) {
         debugPrint('⚠️ Invalid response type, returning empty');
         return {};
@@ -60,16 +63,23 @@ class BuyerService {
         result.forEach((key, value) {
           if (key != 'success' && key != 'counts' && value is List) {
             try {
-              groupedOrders[key] =
-                  value.map((order) => Order.fromJson(order)).toList();
+              final orders = value.map((order) => Order.fromJson(order)).toList();
+              groupedOrders[key] = orders;
+              debugPrint('✅ Parsed $key: ${orders.length} orders');
+              if (orders.isNotEmpty) {
+                debugPrint('   First order in $key: #${orders.first.id}');
+              }
             } catch (e) {
               debugPrint('⚠️ Error parsing orders for status "$key": $e');
             }
           }
         });
+        
+        debugPrint('✅ Total groups: ${groupedOrders.keys.length}');
         return groupedOrders;
       }
 
+      debugPrint('⚠️ API returned success=false');
       return {};
     } catch (e) {
       debugPrint('⚠️ Orders fetch failed (backend issue): $e');

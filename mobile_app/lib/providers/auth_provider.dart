@@ -44,6 +44,14 @@ class AuthProvider with ChangeNotifier {
       if (_tokens != null) {
         _isAuthenticated = true;
         ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+
+        // Refresh user data from backend to ensure latest profile image and info
+        try {
+          await refreshUser();
+        } catch (e) {
+          debugPrint('Failed to refresh user on init: $e');
+          // Continue with stored data if refresh fails
+        }
       }
     } catch (e) {
       debugPrint('Auth initialization error: $e');
@@ -105,8 +113,7 @@ class AuthProvider with ChangeNotifier {
             expiresIn: tokensData['expires_in'] ?? 86400,
             issuedAt: DateTime.now(),
           );
-          ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
-          debugPrint('âœ… Tokens set from nested format');
+          debugPrint('✅ Tokens created from nested format (login)');
         }
       } else if (result['access_token'] != null &&
           result['refresh_token'] != null) {
@@ -117,8 +124,7 @@ class AuthProvider with ChangeNotifier {
           expiresIn: result['expires_in'] ?? 86400,
           issuedAt: DateTime.now(),
         );
-        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
-        debugPrint('âœ… Tokens set from flat format');
+        debugPrint('✅ Tokens created from flat format (login)');
       } else {
         debugPrint('âš ï¸ WARNING: No tokens found in response!');
       }
@@ -138,10 +144,21 @@ class AuthProvider with ChangeNotifier {
       _pendingApproval = false;
       _pendingApprovalMessage = null;
 
-      // Save to preferences
+      // CRITICAL: Save to preferences BEFORE setting tokens in ApiService
+      // This ensures tokens are persisted before any API calls are made
       await _saveData();
+      
+      // Now set tokens in ApiService after they're saved
+      if (_tokens != null) {
+        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+        debugPrint('✅ Tokens set in ApiService after saving to storage (login)');
+      }
 
       await _checkAddressSetup();
+      
+      // Clear loading state before notifying
+      _isLoading = false;
+      
       notifyListeners();
       debugPrint('=== LOGIN COMPLETE ===');
       return true;
@@ -186,7 +203,6 @@ class AuthProvider with ChangeNotifier {
             expiresIn: tokensData['expires_in'] ?? 86400,
             issuedAt: DateTime.now(),
           );
-          ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
           debugPrint('✅ Tokens set from nested format (Google)');
         }
       } else if (result['access_token'] != null &&
@@ -198,7 +214,6 @@ class AuthProvider with ChangeNotifier {
           expiresIn: result['expires_in'] ?? 86400,
           issuedAt: DateTime.now(),
         );
-        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
         debugPrint('✅ Tokens set from flat format (Google)');
       }
 
@@ -208,16 +223,24 @@ class AuthProvider with ChangeNotifier {
 
       if (userData is Map<String, dynamic>) {
         _user = User.fromJson(userData);
-        debugPrint(
-            '✅ User created: ${_user?.fullName}, Role: ${_user?.role}, Authenticated: $_isAuthenticated');
       }
 
       _isAuthenticated = true;
       _pendingApproval = false;
       _pendingApprovalMessage = null;
+      
+      debugPrint(
+          '✅ User created: ${_user?.fullName}, Role: ${_user?.role}, Authenticated: $_isAuthenticated');
 
-      // Save to preferences
+      // CRITICAL: Save to preferences BEFORE setting tokens in ApiService
+      // This ensures tokens are persisted before any API calls are made
       await _saveData();
+      
+      // Now set tokens in ApiService after they're saved
+      if (_tokens != null) {
+        ApiService.setTokens(_tokens!.accessToken, _tokens!.refreshToken);
+        debugPrint('✅ Tokens set in ApiService after saving to storage');
+      }
 
       await _checkAddressSetup();
       notifyListeners();

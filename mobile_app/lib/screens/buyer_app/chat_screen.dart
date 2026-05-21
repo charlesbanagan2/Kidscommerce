@@ -83,6 +83,13 @@ class _ChatScreenState extends State<ChatScreen>
   void initState() {
     super.initState();
 
+    // Debug: Log received profile picture
+    debugPrint('💬 ChatScreen initialized');
+    debugPrint('   Other User ID: ${widget.otherUserId}');
+    debugPrint('   Other User Name: ${widget.otherUserName}');
+    debugPrint('   Other User Role: ${widget.otherUserRole}');
+    debugPrint('   Other User Profile Picture: "${widget.otherUserProfilePicture}"');
+
     _typingAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -107,27 +114,60 @@ class _ChatScreenState extends State<ChatScreen>
     _currentUserId = authProvider.user?.id;
 
     if (accessToken != null) {
+      // register handlers so we can remove them on dispose
+      final onNewMessageHandler = (Map<String, dynamic> messageData) {
+        // If the new message is in this chat, add it directly instead of reloading
+        final senderId = messageData['sender_id'] as int?;
+        final receiverId = messageData['receiver_id'] as int?;
+        
+        if (senderId == widget.otherUserId || receiverId == widget.otherUserId) {
+          // Check if message already exists (avoid duplicates)
+          final messageId = messageData['id'];
+          final exists = _messages.any((m) => m['id'] == messageId);
+          
+          if (!exists && mounted) {
+            setState(() {
+              // Remove any temp/sending messages
+              _messages.removeWhere((m) => m['_sending'] == true);
+              // Add the new message
+              _messages.add(messageData);
+            });
+            
+            // Scroll to bottom
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          }
+        }
+      };
+
+      final onTypingHandler = (int senderId) {
+        if (senderId == widget.otherUserId)
+          setState(() => _isOtherUserTyping = true);
+      };
+
+      final onStopTypingHandler = (int senderId) {
+        if (senderId == widget.otherUserId)
+          setState(() => _isOtherUserTyping = false);
+      };
+
       ChatService.initializeSocket(
         accessToken,
         userId: _currentUserId,
-        onNewMessage: (messageData) {
-          if (messageData['sender_id'] == widget.otherUserId) {
-            _loadMessages();
-          }
-        },
-        onUserTyping: (senderId) {
-          if (senderId == widget.otherUserId) {
-            setState(() => _isOtherUserTyping = true);
-          }
-        },
-        onUserStopTyping: (senderId) {
-          if (senderId == widget.otherUserId) {
-            setState(() => _isOtherUserTyping = false);
-          }
-        },
+        onNewMessage: onNewMessageHandler,
+        onUserTyping: onTypingHandler,
+        onUserStopTyping: onStopTypingHandler,
       );
+
+      _onNewMessageHandler = onNewMessageHandler;
+      _onTypingHandler = onTypingHandler;
+      _onStopTypingHandler = onStopTypingHandler;
     }
   }
+
+  late Function(Map<String, dynamic>) _onNewMessageHandler;
+  late Function(int) _onTypingHandler;
+  late Function(int) _onStopTypingHandler;
 
   Future<void> _loadMessages() async {
     setState(() {
@@ -154,11 +194,19 @@ class _ChatScreenState extends State<ChatScreen>
         _isLoading = false;
         if (result['success'] == true) {
           _messages = result['messages'] ?? [];
-          _scrollToBottom();
+          // Scroll to bottom after messages load
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
         } else {
           _error = result['error'] ?? 'Failed to load messages';
         }
       });
+
+      // Mark messages as read
+      if (result['success'] == true) {
+        await ChatService.markMessagesRead(accessToken, widget.otherUserId);
+      }
     }
   }
 
@@ -178,6 +226,32 @@ class _ChatScreenState extends State<ChatScreen>
       return;
     }
 
+    // OPTIMISTIC UPDATE: Add message to UI immediately
+    final tempMessage = {
+      'id': DateTime.now().millisecondsSinceEpoch, // temporary ID
+      'sender_id': _currentUserId,
+      'receiver_id': widget.otherUserId,
+      'message': message,
+      'is_read': false,
+      'created_at': DateTime.now().toIso8601String(),
+      'sender': {
+        'id': _currentUserId,
+        'name': 'You',
+        'role': 'buyer',
+        'profile_picture': null,
+      },
+      '_sending': true, // flag to show sending state
+    };
+
+    setState(() {
+      _messages.add(tempMessage);
+    });
+
+    // Scroll to bottom immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+
     _messageController.clear();
     ChatService.emitStopTyping(widget.otherUserId);
 
@@ -191,24 +265,39 @@ class _ChatScreenState extends State<ChatScreen>
       setState(() => _isSending = false);
 
       if (result['success'] == true) {
-        _loadMessages();
+        // Remove temp message and reload to get real message with ID
+        setState(() {
+          _messages.removeWhere((m) => m['_sending'] == true);
+        });
+        await _loadMessages();
+        // Ensure scroll to bottom after new message
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text(result['error'] ?? 'Failed to send message'),
-              ],
+        // Remove temp message on error
+        setState(() {
+          _messages.removeWhere((m) => m['_sending'] == true);
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(result['error'] ?? 'Failed to send message'),
+                ],
+              ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+          );
+        }
       }
     }
   }
@@ -240,6 +329,11 @@ class _ChatScreenState extends State<ChatScreen>
     _focusNode.dispose();
     _typingTimer?.cancel();
     _typingAnimController.dispose();
+    try {
+      ChatService.removeOnNewMessageListener(_onNewMessageHandler);
+      ChatService.removeOnUserTypingListener(_onTypingHandler);
+      ChatService.removeOnUserStopTypingListener(_onStopTypingHandler);
+    } catch (_) {}
     super.dispose();
   }
 
@@ -260,6 +354,13 @@ class _ChatScreenState extends State<ChatScreen>
 
   // ── AppBar ────────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar() {
+    // Debug: Log profile picture URL
+    final profilePicUrl = widget.otherUserProfilePicture != null &&
+            widget.otherUserProfilePicture!.isNotEmpty
+        ? UrlConfig.toAbsoluteImageUrl(widget.otherUserProfilePicture!)
+        : null;
+    debugPrint('💬 Building AppBar - Profile Picture URL: "$profilePicUrl"');
+
     return AppBar(
       elevation: 0,
       backgroundColor: _primary,

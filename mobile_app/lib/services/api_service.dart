@@ -16,8 +16,10 @@ class ApiService {
   static void initializeBaseUrl() {
     try {
       if (kIsWeb) {
+        UrlConfig.setPreferredBackendHost('localhost');
         baseUrl = 'http://localhost:5000';
       } else {
+        UrlConfig.setPreferredBackendHost(UrlConfig.defaultBackendHost);
         baseUrl = UrlConfig.baseUrl;
       }
     } catch (e) {
@@ -32,14 +34,15 @@ class ApiService {
     }
   }
 
-  static const Duration _timeout = Duration(seconds: 60); // Increased for slow connections
+  static const Duration _timeout =
+      Duration(seconds: 60); // Increased for slow connections
   static final http.Client _client = http.Client();
   static bool debugMode = true;
 
   static String? _accessToken;
   static String? _refreshToken;
   static Future<void>? _tokenLoadFuture;
-  
+
   // Simple cache for orders to reduce API calls (public for BuyerService)
   static Map<String, dynamic>? ordersCache;
   static DateTime? ordersCacheTime;
@@ -69,7 +72,7 @@ class ApiService {
     await _ensureTokensLoaded();
     return _accessToken;
   }
-  
+
   /// Clear orders cache
   static void clearOrdersCache() {
     ordersCache = null;
@@ -153,122 +156,143 @@ class ApiService {
       await _ensureTokensLoaded();
     }
 
-    Uri uri = Uri.parse('$baseUrl$path');
-    if (query != null && query.isNotEmpty) {
-      final filtered = <String, String>{};
-      query.forEach((key, value) {
-        if (value != null) {
-          filtered[key] = value.toString();
-        }
-      });
-      uri = uri.replace(queryParameters: filtered);
-    }
-
-    if (debugMode) {
-      debugPrint('ðŸ“¤ API $method $uri');
-      if (body != null) {
-        debugPrint('   Body: $body');
+    final candidateBaseUrls = <String>[baseUrl, ...UrlConfig.fallbackUrls];
+    final uniqueBaseUrls = <String>[];
+    for (final candidate in candidateBaseUrls) {
+      if (!uniqueBaseUrls.contains(candidate)) {
+        uniqueBaseUrls.add(candidate);
       }
     }
 
-    http.Response response;
-    try {
-      switch (method.toUpperCase()) {
-        case 'GET':
-          response =
-              await _client.get(uri, headers: _headers(auth: auth)).timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException(
-                'Request timeout after ${_timeout.inSeconds}s: $method $path',
-                _timeout,
-              );
-            },
-          );
-          break;
-        case 'POST':
-          response = await _client
-              .post(
-            uri,
-            headers: _headers(auth: auth),
-            body: jsonEncode(body ?? {}),
-          )
-              .timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException(
-                'Request timeout after ${_timeout.inSeconds}s: $method $path',
-                _timeout,
-              );
-            },
-          );
-          break;
-        case 'PUT':
-          response = await _client
-              .put(
-            uri,
-            headers: _headers(auth: auth),
-            body: jsonEncode(body ?? {}),
-          )
-              .timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException(
-                'Request timeout after ${_timeout.inSeconds}s: $method $path',
-                _timeout,
-              );
-            },
-          );
-          break;
-        case 'DELETE':
-          response = await _client
-              .delete(
-            uri,
-            headers: _headers(auth: auth),
-            body: jsonEncode(body ?? {}),
-          )
-              .timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException(
-                'Request timeout after ${_timeout.inSeconds}s: $method $path',
-                _timeout,
-              );
-            },
-          );
-          break;
-        default:
-          throw ApiException(message: 'Unsupported method: $method');
+    Exception? lastNetworkError;
+
+    for (final candidateBaseUrl in uniqueBaseUrls) {
+      Uri uri = Uri.parse('$candidateBaseUrl$path');
+      if (query != null && query.isNotEmpty) {
+        final filtered = <String, String>{};
+        query.forEach((key, value) {
+          if (value != null) {
+            filtered[key] = value.toString();
+          }
+        });
+        uri = uri.replace(queryParameters: filtered);
       }
 
       if (debugMode) {
-        debugPrint(
-          'ðŸ“¥ API Response (${response.statusCode}): ${response.body.substring(0, 200.clamp(0, response.body.length))}',
-        );
+        debugPrint('ðŸ“¤ API $method $uri');
+        if (body != null) {
+          debugPrint('   Body: $body');
+        }
       }
-    } on TimeoutException catch (e) {
-      debugPrint('âŒ Timeout Error: $e');
-      throw ApiException(
-        message: 'Request timeout. Server not responding.',
-        originalException: e as Exception,
-      );
-    } catch (e) {
-      // Handle network errors and other exceptions
-      final errorMsg = e.toString();
-      if (errorMsg.contains('Socket') ||
-          errorMsg.contains('Connection') ||
-          errorMsg.contains('Network')) {
-        debugPrint('âŒ Network Error: $e');
-        throw ApiException(
-          message: 'Network error: Check internet connection.',
-          originalException: e as Exception,
-        );
+
+      try {
+        http.Response response;
+        switch (method.toUpperCase()) {
+          case 'GET':
+            response =
+                await _client.get(uri, headers: _headers(auth: auth)).timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException(
+                  'Request timeout after ${_timeout.inSeconds}s: $method $path',
+                  _timeout,
+                );
+              },
+            );
+            break;
+          case 'POST':
+            response = await _client
+                .post(
+              uri,
+              headers: _headers(auth: auth),
+              body: jsonEncode(body ?? {}),
+            )
+                .timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException(
+                  'Request timeout after ${_timeout.inSeconds}s: $method $path',
+                  _timeout,
+                );
+              },
+            );
+            break;
+          case 'PUT':
+            response = await _client
+                .put(
+              uri,
+              headers: _headers(auth: auth),
+              body: jsonEncode(body ?? {}),
+            )
+                .timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException(
+                  'Request timeout after ${_timeout.inSeconds}s: $method $path',
+                  _timeout,
+                );
+              },
+            );
+            break;
+          case 'DELETE':
+            response = await _client
+                .delete(
+              uri,
+              headers: _headers(auth: auth),
+              body: jsonEncode(body ?? {}),
+            )
+                .timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException(
+                  'Request timeout after ${_timeout.inSeconds}s: $method $path',
+                  _timeout,
+                );
+              },
+            );
+            break;
+          default:
+            throw ApiException(message: 'Unsupported method: $method');
+        }
+
+        if (candidateBaseUrl != baseUrl) {
+          baseUrl = candidateBaseUrl;
+          UrlConfig.setPreferredBackendHost(Uri.parse(candidateBaseUrl).host);
+          if (debugMode) {
+            debugPrint('✅ Switched API base URL to $baseUrl');
+          }
+        }
+
+        if (debugMode) {
+          debugPrint(
+            'ðŸ“¥ API Response (${response.statusCode}): ${response.body.substring(0, 200.clamp(0, response.body.length))}',
+          );
+        }
+
+        return _handleResponse(response);
+      } on TimeoutException catch (e) {
+        lastNetworkError = e;
+        debugPrint('⏱️ Timeout Error on $candidateBaseUrl: $e');
+        continue;
+      } catch (e) {
+        final errorMsg = e.toString();
+        if (errorMsg.contains('Socket') ||
+            errorMsg.contains('Connection') ||
+            errorMsg.contains('Network') ||
+            errorMsg.contains('ClientException')) {
+          lastNetworkError = e is Exception ? e : Exception(errorMsg);
+          debugPrint('❌ Network Error on $candidateBaseUrl: $e');
+          continue;
+        }
+        debugPrint('❌ Request Error: $e');
+        rethrow;
       }
-      debugPrint('âŒ Request Error: $e');
-      rethrow;
     }
 
-    return _handleResponse(response);
+    throw ApiException(
+      message: 'Network error: Check internet connection.',
+      originalException: lastNetworkError,
+    );
   }
 
   static dynamic _handleResponse(http.Response response) {
@@ -412,7 +436,7 @@ class ApiService {
         'id_token': idToken,
       },
     );
-    
+
     // Handle tokens from response
     final tokensData = result['tokens'] as Map<String, dynamic>?;
     String? resultAccessToken;
@@ -475,12 +499,12 @@ class ApiService {
       'per_page': perPage,
       'in_stock': inStockOnly ? 'true' : null,
     };
-    
+
     // Add timestamp to bust cache when needed
     if (bustCache) {
       queryParams['_t'] = DateTime.now().millisecondsSinceEpoch.toString();
     }
-    
+
     final result = await request(
       'GET',
       '/api/v1/products',
@@ -758,7 +782,7 @@ class ApiService {
     try {
       debugPrint('📷 Uploading proof for order $orderId');
       debugPrint('📷 File path: ${file.path}');
-      
+
       // Try multiple possible endpoints
       final possibleEndpoints = [
         '/api/v1/rider/orders/$orderId/upload-proof',
@@ -766,42 +790,45 @@ class ApiService {
         '/api/v1/orders/$orderId/upload-proof',
         '/api/rider/orders/$orderId/upload-proof',
       ];
-      
+
       for (final endpoint in possibleEndpoints) {
         try {
           final uri = Uri.parse('$baseUrl$endpoint');
           debugPrint('📷 Trying upload URI: $uri');
-          
+
           final request = http.MultipartRequest('POST', uri);
           request.headers['Authorization'] = 'Bearer $_accessToken';
-          request.files.add(await http.MultipartFile.fromPath('proof_photo', file.path));
-          
+          request.files
+              .add(await http.MultipartFile.fromPath('proof_photo', file.path));
+
           debugPrint('📷 Sending request...');
           final response = await request.send().timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => throw TimeoutException('Upload timeout'),
-          );
+                const Duration(seconds: 15),
+                onTimeout: () => throw TimeoutException('Upload timeout'),
+              );
           final responseBody = await response.stream.bytesToString();
           debugPrint('📷 Response status: ${response.statusCode}');
-          
+
           if (response.statusCode == 404) {
             debugPrint('⚠️ Endpoint not found, trying next...');
             continue;
           }
-          
+
           debugPrint('📷 Response body: $responseBody');
-          
+
           try {
             final result = jsonDecode(responseBody);
-            
+
             if (response.statusCode >= 400) {
               throw ApiException(
                 message: result['error'] ?? 'Upload failed',
                 statusCode: response.statusCode,
               );
             }
-            
-            final photoUrl = result['proof_photo_url'] ?? result['photo_url'] ?? '/uploads/proof_$orderId.jpg';
+
+            final photoUrl = result['proof_photo_url'] ??
+                result['photo_url'] ??
+                '/uploads/proof_$orderId.jpg';
             debugPrint('✅ Photo uploaded successfully: $photoUrl');
             return photoUrl;
           } catch (e) {
@@ -825,10 +852,11 @@ class ApiService {
           continue;
         }
       }
-      
+
       // All endpoints failed - throw clear error
       throw ApiException(
-        message: 'Backend upload endpoint not implemented. Please contact support.',
+        message:
+            'Backend upload endpoint not implemented. Please contact support.',
         statusCode: 501,
       );
     } catch (e) {
@@ -837,7 +865,8 @@ class ApiService {
     }
   }
 
-  static Future<List<dynamic>> getOrderChatMessages({required int orderId}) async {
+  static Future<List<dynamic>> getOrderChatMessages(
+      {required int orderId}) async {
     final result = await request('GET', '/api/v1/orders/$orderId/messages');
     if (result is List) {
       return result;
@@ -868,9 +897,11 @@ class ApiService {
 
   // ============= NOTIFICATION METHODS =============
 
-  static Future<Map<String, dynamic>> getNotifications({Map<String, dynamic>? query}) async {
+  static Future<Map<String, dynamic>> getNotifications(
+      {Map<String, dynamic>? query}) async {
     try {
-      final result = await request('GET', '/api/v1/notifications', query: query);
+      final result =
+          await request('GET', '/api/v1/notifications', query: query);
       return result is Map<String, dynamic>
           ? result
           : <String, dynamic>{'success': false, 'notifications': <dynamic>[]};
@@ -953,9 +984,11 @@ class ApiService {
     }
   }
 
-  static Future<bool> updateNotificationSettings(Map<String, dynamic> settings) async {
+  static Future<bool> updateNotificationSettings(
+      Map<String, dynamic> settings) async {
     try {
-      final result = await request('PUT', '/api/v1/notifications/settings', body: settings);
+      final result = await request('PUT', '/api/v1/notifications/settings',
+          body: settings);
       return result['success'] == true;
     } catch (e) {
       debugPrint('❌ Error updating notification settings: $e');
@@ -1057,7 +1090,8 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getProductChatMessages(int productId) async {
+  static Future<Map<String, dynamic>> getProductChatMessages(
+      int productId) async {
     try {
       final result = await request(
         'GET',
@@ -1098,6 +1132,19 @@ class ApiService {
     }
   }
 
+  static Future<List<dynamic>> getProductConversations() async {
+    try {
+      final result = await request('GET', '/api/v1/chat/conversations/product');
+      if (result is Map<String, dynamic> && result['conversations'] is List) {
+        return result['conversations'] as List;
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching product conversations: $e');
+      return [];
+    }
+  }
+
   // ============= Wishlist Methods =============
 
   static Future<List<dynamic>> getWishlist() async {
@@ -1106,8 +1153,15 @@ class ApiService {
       if (result is List) {
         return result;
       }
-      if (result is Map<String, dynamic> && result['wishlist'] is List) {
-        return result['wishlist'] as List<dynamic>;
+      if (result is Map<String, dynamic>) {
+        // Backend returns 'wishlist_items' key
+        if (result['wishlist_items'] is List) {
+          return result['wishlist_items'] as List<dynamic>;
+        }
+        // Fallback to 'wishlist' key for compatibility
+        if (result['wishlist'] is List) {
+          return result['wishlist'] as List<dynamic>;
+        }
       }
       return <dynamic>[];
     } catch (e) {
@@ -1118,28 +1172,39 @@ class ApiService {
 
   static Future<Map<String, dynamic>> addToWishlist(int productId) async {
     try {
+      debugPrint('🛒 Adding product $productId to wishlist...');
       final result = await request(
         'POST',
         '/api/v1/wishlist',
         body: {'product_id': productId},
+        auth: true,
       );
+      debugPrint('✅ Wishlist add response: $result');
       return result is Map<String, dynamic>
           ? result
           : <String, dynamic>{'success': false};
     } catch (e) {
       debugPrint('❌ Error adding to wishlist: $e');
+      // Extract more specific error message if available
+      String errorMessage = 'Failed to add to wishlist. Please try again.';
+      if (e.toString().contains('not available')) {
+        errorMessage = 'This product is currently unavailable';
+      } else if (e.toString().contains('not found')) {
+        errorMessage = 'Product not found';
+      }
       return <String, dynamic>{
         'success': false,
-        'message': 'Failed to add to wishlist. Please try again.',
+        'message': errorMessage,
       };
     }
   }
 
   static Future<Map<String, dynamic>> removeFromWishlist(int productId) async {
     try {
+      // Backend expects product_id as query parameter, not in path
       final result = await request(
         'DELETE',
-        '/api/v1/wishlist/$productId',
+        '/api/v1/wishlist?product_id=$productId',
       );
       return result is Map<String, dynamic>
           ? result
@@ -1156,10 +1221,9 @@ class ApiService {
   static Future<bool> isInWishlist(int productId) async {
     try {
       final wishlist = await getWishlist();
-      return wishlist.any((item) => 
-        (item['product_id'] as int?) == productId ||
-        (item['id'] as int?) == productId
-      );
+      return wishlist.any((item) =>
+          (item['product_id'] as int?) == productId ||
+          (item['id'] as int?) == productId);
     } catch (e) {
       debugPrint('⚠️ Error checking wishlist: $e');
       return false;
@@ -1179,7 +1243,7 @@ class ApiService {
     }
 
     final uri = Uri.parse('$baseUrl$path');
-    
+
     if (debugMode) {
       debugPrint('📤 Multipart $method $uri');
       if (fields != null) {
@@ -1192,18 +1256,18 @@ class ApiService {
 
     try {
       final request = http.MultipartRequest(method.toUpperCase(), uri);
-      
+
       // Add headers
       if (auth && _accessToken != null) {
         request.headers['Authorization'] = 'Bearer $_accessToken';
       }
       request.headers['Accept'] = 'application/json';
-      
+
       // Add fields
       if (fields != null) {
         request.fields.addAll(fields);
       }
-      
+
       // Add files
       if (files != null) {
         for (final entry in files.entries) {
@@ -1212,7 +1276,7 @@ class ApiService {
           );
         }
       }
-      
+
       final response = await request.send().timeout(
         _timeout,
         onTimeout: () {
@@ -1222,15 +1286,15 @@ class ApiService {
           );
         },
       );
-      
+
       final responseBody = await response.stream.bytesToString();
-      
+
       if (debugMode) {
         debugPrint(
           '🔥 Multipart Response (${response.statusCode}): ${responseBody.substring(0, 200.clamp(0, responseBody.length))}',
         );
       }
-      
+
       dynamic payload;
       try {
         payload = jsonDecode(responseBody);
@@ -1241,7 +1305,7 @@ class ApiService {
           originalException: e as Exception?,
         );
       }
-      
+
       if (response.statusCode >= 400) {
         String message = 'Upload failed';
         if (payload is Map) {
@@ -1254,7 +1318,7 @@ class ApiService {
           statusCode: response.statusCode,
         );
       }
-      
+
       if (payload is Map) {
         return payload.cast<String, dynamic>();
       }
@@ -1267,7 +1331,7 @@ class ApiService {
       );
     } catch (e) {
       if (e is ApiException) rethrow;
-      
+
       final errorMsg = e.toString();
       if (errorMsg.contains('Socket') ||
           errorMsg.contains('Connection') ||
@@ -1291,13 +1355,13 @@ class ApiService {
     try {
       final uri = Uri.parse('${UrlConfig.baseUrl}/api/return-evidence/upload');
       final request = http.MultipartRequest('POST', uri);
-      
+
       // Add auth token
       final token = await _getToken();
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
       }
-      
+
       // Add file
       request.files.add(
         await http.MultipartFile.fromPath(
@@ -1306,18 +1370,18 @@ class ApiService {
           filename: file.path.split('/').last,
         ),
       );
-      
+
       // Send request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           return data['url'];
         }
       }
-      
+
       debugPrint('Upload failed: ${response.body}');
       return null;
     } catch (e) {
@@ -1424,4 +1488,3 @@ class ApiException implements Exception {
     return 'ApiException: $message';
   }
 }
-

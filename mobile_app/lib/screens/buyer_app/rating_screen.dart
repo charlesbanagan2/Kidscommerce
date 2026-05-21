@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../providers/buyer_provider.dart';
@@ -32,10 +32,10 @@ class _RatingScreenState extends State<RatingScreen>
   };
 
   final Map<String, IconData> _categoryIcons = {
-    'Product Quality': LucideIcons.shoppingBag,
-    'Delivery Speed': LucideIcons.zap,
-    'Packaging': LucideIcons.package,
-    'Rider Service': LucideIcons.bike,
+    'Product Quality': Icons.shopping_bag_outlined,
+    'Delivery Speed': Icons.flash_on,
+    'Packaging': Icons.inventory_2_outlined,
+    'Rider Service': Icons.pedal_bike,
   };
 
   // Quick tags
@@ -129,7 +129,7 @@ class _RatingScreenState extends State<RatingScreen>
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -170,7 +170,7 @@ class _RatingScreenState extends State<RatingScreen>
             ),
             child: Row(
               children: [
-                const Icon(LucideIcons.star, color: Colors.amber, size: 13),
+                const Icon(Icons.star, color: Colors.amber, size: 13),
                 const SizedBox(width: 5),
                 Text(
                   'Review',
@@ -214,7 +214,7 @@ class _RatingScreenState extends State<RatingScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.clipboardList,
+                child: const Icon(Icons.assignment,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -242,7 +242,7 @@ class _RatingScreenState extends State<RatingScreen>
                 ),
                 child: const Row(
                   children: [
-                    Icon(LucideIcons.checkCircle2,
+                    Icon(Icons.check_circle,
                         size: 12, color: Colors.green),
                     SizedBox(width: 5),
                     Text(
@@ -408,7 +408,7 @@ class _RatingScreenState extends State<RatingScreen>
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.elasticOut,
                     child: Icon(
-                      LucideIcons.star,
+                      Icons.star,
                       size: 42,
                       color: filled ? Colors.amber : Colors.grey.shade200,
                     ),
@@ -486,7 +486,7 @@ class _RatingScreenState extends State<RatingScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.layoutGrid,
+                child: const Icon(Icons.grid_view,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -542,7 +542,7 @@ class _RatingScreenState extends State<RatingScreen>
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: Icon(
-                              LucideIcons.star,
+                              Icons.star,
                               size: 22,
                               color:
                                   filled ? Colors.amber : Colors.grey.shade200,
@@ -589,7 +589,7 @@ class _RatingScreenState extends State<RatingScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.tag,
+                child: const Icon(Icons.local_offer,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -680,7 +680,7 @@ class _RatingScreenState extends State<RatingScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.messageSquare,
+                child: const Icon(Icons.message,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -756,7 +756,7 @@ class _RatingScreenState extends State<RatingScreen>
                   color: const Color(0xFF1e4db7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(LucideIcons.camera,
+                child: const Icon(Icons.camera_alt,
                     color: Color(0xFF1e4db7), size: 18),
               ),
               const SizedBox(width: 10),
@@ -816,7 +816,7 @@ class _RatingScreenState extends State<RatingScreen>
                                   Container(
                                     color: Colors.black12,
                                     child: const Icon(
-                                      LucideIcons.play,
+                                      Icons.play_arrow,
                                       color: Colors.white,
                                       size: 32,
                                     ),
@@ -868,7 +868,7 @@ class _RatingScreenState extends State<RatingScreen>
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            LucideIcons.x,
+                            Icons.close,
                             color: Colors.white,
                             size: 12,
                           ),
@@ -888,7 +888,7 @@ class _RatingScreenState extends State<RatingScreen>
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _selectedMedia.length >= 5 ? null : _pickImages,
-                  icon: const Icon(LucideIcons.image, size: 16),
+                  icon: const Icon(Icons.image, size: 16),
                   label: const Text(
                     'Gallery',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -913,7 +913,7 @@ class _RatingScreenState extends State<RatingScreen>
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _selectedMedia.length >= 5 ? null : _captureCamera,
-                  icon: const Icon(LucideIcons.camera, size: 16),
+                  icon: const Icon(Icons.camera_alt, size: 16),
                   label: const Text(
                     'Camera',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -937,8 +937,8 @@ class _RatingScreenState extends State<RatingScreen>
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _selectedMedia.length >= 5 ? null : _pickVideo,
-                  icon: const Icon(LucideIcons.video, size: 16),
+                  onPressed: _selectedMedia.length >= 5 ? null : _captureVideo,
+                  icon: const Icon(Icons.videocam, size: 16),
                   label: const Text(
                     'Video',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -1017,12 +1017,12 @@ class _RatingScreenState extends State<RatingScreen>
     }
   }
 
-  Future<void> _pickVideo() async {
+  Future<void> _captureVideo() async {
     if (_selectedMedia.length >= 5) return;
 
     try {
       final XFile? video = await _picker.pickVideo(
-        source: ImageSource.gallery,
+        source: ImageSource.camera,
         maxDuration: const Duration(minutes: 2), // 2 minute limit
       );
 
@@ -1034,7 +1034,7 @@ class _RatingScreenState extends State<RatingScreen>
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error picking video: $e'),
+          content: Text('Error capturing video: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1083,7 +1083,7 @@ class _RatingScreenState extends State<RatingScreen>
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : const Icon(LucideIcons.send, size: 18),
+                : const Icon(Icons.send, size: 18),
             label: Text(
               _isSubmitting ? 'Submitting...' : 'Submit Rating',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -1289,7 +1289,7 @@ class _RatingScreenState extends State<RatingScreen>
                               ],
                             ),
                             child: const Icon(
-                              LucideIcons.checkCircle2,
+                              Icons.check_circle,
                               color: Colors.white,
                               size: 60,
                             ),
@@ -1311,7 +1311,7 @@ class _RatingScreenState extends State<RatingScreen>
                       child: Column(
                         children: [
                           Text(
-                            _rating >= 4 ? '🎉 Salamat!' : 'Nareceive na!',
+                            _rating >= 4 ? '🎉 Thank You!' : 'Review Received!',
                             style: const TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
@@ -1323,8 +1323,8 @@ class _RatingScreenState extends State<RatingScreen>
                           const SizedBox(height: 12),
                           Text(
                             _rating >= 4
-                                ? 'Masaya kami na nag-enjoy ka sa iyong order!'
-                                : 'Salamat sa iyong feedback. Makakatulong ito sa amin na mag-improve.',
+                                ? 'We\'re thrilled you enjoyed your order!\nYour feedback helps us serve you better.'
+                                : 'Thank you for your honest feedback.\nWe\'ll use it to improve our service.',
                             style: TextStyle(
                               fontSize: 15,
                               color: Colors.grey.shade600,
@@ -1380,7 +1380,7 @@ class _RatingScreenState extends State<RatingScreen>
                                     child: Transform.rotate(
                                       angle: (1 - scale) * 0.5,
                                       child: Icon(
-                                        LucideIcons.star,
+                                        Icons.star,
                                         size: 32,
                                         color: i < _rating
                                             ? const Color(0xFFFCD34D)
@@ -1458,31 +1458,69 @@ class _RatingScreenState extends State<RatingScreen>
                     ),
                     const SizedBox(height: 24),
                     
-                    // Info message
+                    // Info message with improved UI
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF6B35).withValues(alpha: 0.08),
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF1e4db7).withValues(alpha: 0.08),
+                            const Color(0xFF3B6FE0).withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFFF6B35).withValues(alpha: 0.2),
+                          color: const Color(0xFF1e4db7).withValues(alpha: 0.15),
+                          width: 1.5,
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(
-                            LucideIcons.sparkles,
-                            size: 20,
-                            color: Color(0xFFFF6B35),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1e4db7).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.check_circle,
+                              size: 20,
+                              color: Color(0xFF1e4db7),
+                            ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
-                            child: Text(
-                              'Redirecting to your completed orders...',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade700,
-                                fontWeight: FontWeight.w500,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Rating Submitted Successfully',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Redirecting you back to orders...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF1e4db7),
                               ),
                             ),
                           ),
@@ -1601,3 +1639,4 @@ class _ConfettiPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

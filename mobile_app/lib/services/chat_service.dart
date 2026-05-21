@@ -7,9 +7,11 @@ import '../config/url_config.dart';
 /// Chat Service for handling chat API calls and real-time messaging
 class ChatService {
   static IO.Socket? _socket;
-  static Function(Map<String, dynamic>)? _onNewMessage;
-  static Function(int)? _onUserTyping;
-  static Function(int)? _onUserStopTyping;
+  static final List<Function(Map<String, dynamic>)> _onNewMessageListeners = [];
+  static final List<Function(int)> _onUserTypingListeners = [];
+  static final List<Function(int)> _onUserStopTypingListeners = [];
+  static final List<Function(Map<String, dynamic>)> _onConversationUpdatedListeners = [];
+  static final List<Function(Map<String, dynamic>)> _onUnreadClearedListeners = [];
   static int? _currentUserId;
 
   /// Initialize Socket.IO connection for real-time chat
@@ -19,10 +21,17 @@ class ChatService {
     Function(Map<String, dynamic>)? onNewMessage,
     Function(int)? onUserTyping,
     Function(int)? onUserStopTyping,
+    Function(Map<String, dynamic>)? onConversationUpdated,
+    Function(Map<String, dynamic>)? onUnreadCleared,
   }) {
-    _onNewMessage = onNewMessage;
-    _onUserTyping = onUserTyping;
-    _onUserStopTyping = onUserStopTyping;
+    if (onNewMessage != null) _onNewMessageListeners.add(onNewMessage);
+    if (onUserTyping != null) _onUserTypingListeners.add(onUserTyping);
+    if (onUserStopTyping != null)
+      _onUserStopTypingListeners.add(onUserStopTyping);
+    if (onConversationUpdated != null)
+      _onConversationUpdatedListeners.add(onConversationUpdated);
+    if (onUnreadCleared != null)
+      _onUnreadClearedListeners.add(onUnreadCleared);
     _currentUserId = userId;
 
     _socket = IO.io(UrlConfig.baseUrl, <String, dynamic>{
@@ -50,24 +59,82 @@ class ChatService {
     // Listen for new messages
     _socket?.on('new_message', (data) {
       debugPrint('🔔 New message received: $data');
-      if (_onNewMessage != null) {
-        _onNewMessage!(data as Map<String, dynamic>);
+      try {
+        final map = data as Map<String, dynamic>;
+        int? peerId;
+        if (_currentUserId != null) {
+          if (map['sender_id'] == _currentUserId) {
+            peerId = map['receiver_id'] as int?;
+          } else {
+            peerId = map['sender_id'] as int?;
+          }
+        }
+        final enriched = <String, dynamic>{...map};
+        if (peerId != null) enriched['peer_id'] = peerId;
+
+        for (final listener in _onNewMessageListeners) {
+          try {
+            listener(enriched);
+          } catch (_) {}
+        }
+      } catch (e) {
+        for (final listener in _onNewMessageListeners) {
+          try {
+            listener(Map<String, dynamic>.from({'message': data}));
+          } catch (_) {}
+        }
       }
     });
 
     // Listen for typing indicators
     _socket?.on('user_typing', (data) {
       debugPrint('⌨️ User typing: $data');
-      if (_onUserTyping != null && data['sender_id'] != null) {
-        _onUserTyping!(data['sender_id'] as int);
+      if (data is Map<String, dynamic> && data['sender_id'] != null) {
+        final senderId = data['sender_id'] as int;
+        for (final listener in _onUserTypingListeners) {
+          try {
+            listener(senderId);
+          } catch (_) {}
+        }
       }
     });
 
     _socket?.on('user_stop_typing', (data) {
       debugPrint('⌨️ User stopped typing: $data');
-      if (_onUserStopTyping != null && data['sender_id'] != null) {
-        _onUserStopTyping!(data['sender_id'] as int);
+      if (data is Map<String, dynamic> && data['sender_id'] != null) {
+        final senderId = data['sender_id'] as int;
+        for (final listener in _onUserStopTypingListeners) {
+          try {
+            listener(senderId);
+          } catch (_) {}
+        }
       }
+    });
+
+    // Listen for conversation updates (for list re-sorting)
+    _socket?.on('conversation_updated', (data) {
+      debugPrint('🔄 Conversation updated: $data');
+      try {
+        final map = data as Map<String, dynamic>;
+        for (final listener in _onConversationUpdatedListeners) {
+          try {
+            listener(map);
+          } catch (_) {}
+        }
+      } catch (_) {}
+    });
+
+    // Listen for unread cleared events
+    _socket?.on('unread_cleared', (data) {
+      debugPrint('✅ Unread cleared: $data');
+      try {
+        final map = data as Map<String, dynamic>;
+        for (final listener in _onUnreadClearedListeners) {
+          try {
+            listener(map);
+          } catch (_) {}
+        }
+      } catch (_) {}
     });
 
     _socket?.on('disconnect', (_) {
@@ -86,6 +153,36 @@ class ChatService {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
+    _onNewMessageListeners.clear();
+    _onUserTypingListeners.clear();
+    _onUserStopTypingListeners.clear();
+    _onConversationUpdatedListeners.clear();
+    _onUnreadClearedListeners.clear();
+  }
+
+  /// Remove a previously registered new message listener
+  static void removeOnNewMessageListener(Function(Map<String, dynamic>) fn) {
+    _onNewMessageListeners.remove(fn);
+  }
+
+  /// Remove a previously registered typing listener
+  static void removeOnUserTypingListener(Function(int) fn) {
+    _onUserTypingListeners.remove(fn);
+  }
+
+  /// Remove a previously registered stop-typing listener
+  static void removeOnUserStopTypingListener(Function(int) fn) {
+    _onUserStopTypingListeners.remove(fn);
+  }
+
+  /// Remove a previously registered conversation updated listener
+  static void removeOnConversationUpdatedListener(Function(Map<String, dynamic>) fn) {
+    _onConversationUpdatedListeners.remove(fn);
+  }
+
+  /// Remove a previously registered unread cleared listener
+  static void removeOnUnreadClearedListener(Function(Map<String, dynamic>) fn) {
+    _onUnreadClearedListeners.remove(fn);
   }
 
   /// Emit typing event
@@ -182,7 +279,30 @@ class ChatService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return json.decode(response.body);
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+
+        // Notify local listeners (sender) so conversation list updates immediately.
+        try {
+          final createdAt =
+              decoded['created_at'] ?? DateTime.now().toIso8601String();
+          final senderId = decoded['sender_id'] ?? _currentUserId;
+          final receiver = decoded['receiver_id'] ?? receiverId;
+          final payload = <String, dynamic>{
+            'sender_id': senderId,
+            'receiver_id': receiver,
+            'message': decoded['message'] ?? message,
+            'created_at': createdAt,
+            // peer_id is the other user in the conversation relative to current user
+            'peer_id': (senderId == _currentUserId) ? receiver : senderId,
+          };
+          for (final listener in _onNewMessageListeners) {
+            try {
+              listener(payload);
+            } catch (_) {}
+          }
+        } catch (_) {}
+
+        return decoded;
       } else {
         final data = json.decode(response.body);
         return {

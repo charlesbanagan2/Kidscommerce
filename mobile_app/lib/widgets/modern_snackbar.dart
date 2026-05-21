@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 
 class ModernSnackBar {
   static void show(
@@ -21,7 +21,7 @@ class ModernSnackBar {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
-              isSuccess ? LucideIcons.checkCircle2 : LucideIcons.alertCircle,
+              isSuccess ? Icons.check_circle : Icons.error,
               color: Colors.white,
               size: 20,
             ),
@@ -188,7 +188,7 @@ class _CartSuccessOverlayState extends State<_CartSuccessOverlay>
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
-                      LucideIcons.checkCircle2,
+                      Icons.check_circle,
                       color: Color(0xFF10B981),
                       size: 24,
                     ),
@@ -247,3 +247,4 @@ class _CartSuccessOverlayState extends State<_CartSuccessOverlay>
     );
   }
 }
+

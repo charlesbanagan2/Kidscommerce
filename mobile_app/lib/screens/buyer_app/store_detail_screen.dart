@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+
 import 'package:provider/provider.dart';
 import '../../models/product.dart';
 import '../../providers/buyer_provider.dart';
@@ -114,7 +114,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(LucideIcons.arrowLeft,
+                      child: const Icon(Icons.arrow_back,
                           color: Colors.white, size: 20),
                     ),
                   ),
@@ -134,7 +134,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                           shape: BoxShape.circle,
                         ),
                         padding: const EdgeInsets.all(8),
-                        child: const Icon(LucideIcons.shoppingCart,
+                        child: const Icon(Icons.shopping_cart_outlined,
                             color: Colors.white, size: 20),
                       ),
                     ),
@@ -161,11 +161,11 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                                       widget.storeLogo!),
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => const Icon(
-                                      LucideIcons.store,
+                                      Icons.store,
                                       color: Colors.white,
                                       size: 16),
                                 )
-                              : const Icon(LucideIcons.store,
+                              : const Icon(Icons.store,
                                   color: Colors.white, size: 16),
                         ),
                       ),
@@ -224,7 +224,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                             color: Colors.grey.shade400, fontSize: 13),
                         prefixIcon: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 14),
-                          child: Icon(LucideIcons.search,
+                          child: Icon(Icons.search,
                               color: _primary, size: 18),
                         ),
                         prefixIconConstraints: const BoxConstraints(
@@ -238,7 +238,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                                 child: const Padding(
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 14),
-                                  child: Icon(LucideIcons.x,
+                                  child: Icon(Icons.close,
                                       color: _textMid, size: 16),
                                 ),
                               )
@@ -306,7 +306,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Icon(LucideIcons.shoppingBag,
+                            child: Icon(Icons.shopping_bag_outlined,
                                 size: 36, color: Colors.grey.shade400),
                           ),
                           const SizedBox(height: 14),
@@ -423,7 +423,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             color: _primaryDark,
-                            child: const Icon(LucideIcons.store,
+                            child: const Icon(Icons.store,
                                 color: Colors.white, size: 36),
                           ),
                         )
@@ -435,7 +435,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                               end: Alignment.bottomRight,
                             ),
                           ),
-                          child: const Icon(LucideIcons.store,
+                          child: const Icon(Icons.store,
                               color: Colors.white, size: 36),
                         ),
                 ),
@@ -464,7 +464,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(LucideIcons.star,
+                        const Icon(Icons.star,
                             color: Colors.amber, size: 13, fill: 0.8),
                         const SizedBox(width: 4),
                         Text(
@@ -561,8 +561,8 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                   children: [
                     Icon(
                       _isFollowing
-                          ? LucideIcons.heartOff
-                          : LucideIcons.heart,
+                          ? Icons.favorite_border
+                          : Icons.favorite,
                       size: 15,
                       color:
                           _isFollowing ? Colors.white : _textMid,
@@ -593,7 +593,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(LucideIcons.messageCircle,
+                  Icon(Icons.chat_bubble_outline,
                       size: 15, color: _primary),
                   SizedBox(width: 6),
                   Text(
@@ -632,7 +632,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
       child: Row(
         children: [
           _statItem(
-            icon: LucideIcons.star,
+            icon: Icons.star,
             iconColor: Colors.amber,
             value:
                 '${(widget.storeRating ?? 0).toStringAsFixed(1)}',
@@ -640,14 +640,14 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
           ),
           _statDivider(),
           _statItem(
-            icon: LucideIcons.users,
+            icon: Icons.people,
             iconColor: _primary,
             value: '${widget.followersCount ?? 0}',
             label: 'Followers',
           ),
           _statDivider(),
           _statItem(
-            icon: LucideIcons.package,
+            icon: Icons.inventory_2_outlined,
             iconColor: const Color(0xFF16A34A),
             value: '$productCount',
             label: 'Products',
@@ -754,12 +754,12 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                                 product.imageUrl ?? ''),
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Icon(
-                              LucideIcons.imageOff,
+                              Icons.hide_image,
                               color: Colors.grey.shade400,
                               size: isTablet ? 36 : 30,
                             ),
                           )
-                        : Icon(LucideIcons.image,
+                        : Icon(Icons.image,
                             color: Colors.grey.shade400,
                             size: isTablet ? 36 : 30),
                   ),
@@ -815,7 +815,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(LucideIcons.package,
+                        Icon(Icons.inventory_2_outlined,
                             size: 11, color: Colors.grey.shade500),
                         const SizedBox(width: 3),
                         Expanded(
@@ -895,7 +895,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
                                     ),
                                   )
                                 : const Icon(
-                                    LucideIcons.shoppingCart,
+                                    Icons.shopping_cart_outlined,
                                     size: 14,
                                     color: Colors.white,
                                   ),
@@ -919,7 +919,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
         content: Row(
           children: [
             Icon(
-              isSuccess ? LucideIcons.checkCircle : LucideIcons.alertCircle,
+              isSuccess ? Icons.check_circle : Icons.error,
               color: Colors.white,
               size: 16,
             ),
@@ -952,3 +952,4 @@ class _StoreDetailScreenState extends State<StoreDetailScreen>
     return 'Could not add to cart. Please try again.';
   }
 }
+

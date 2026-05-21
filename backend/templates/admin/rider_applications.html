@@ -47,7 +47,7 @@
                             <p class="small text-muted mb-2">{{ app.user.email }}</p>
                             
                             <div class="d-flex flex-wrap gap-3 small text-muted mb-3">
-                              <span>Applied: <strong class="text-dark">{{ app.applied_at.strftime('%b %d, %Y %H:%M') if app.applied_at else '—' }}</strong></span>
+                              <span>Applied: <strong class="text-dark">{{ app.applied_at|ph_time }}</strong></span>
                               <span>Status: <span class="badge bg-warning text-dark ms-1">{{ app.status|title }}</span></span>
                               <span>Phone: <strong class="text-dark">{{ app.user.phone or '—' }}</strong></span>
                             </div>
@@ -70,7 +70,7 @@
                                         <li class="mb-1"><i class="fas fa-motorcycle me-2 text-primary"></i>Vehicle Type: <strong class="text-dark">{{ app.vehicle_type }}</strong></li>
                                         <li class="mb-1"><i class="fas fa-hashtag me-2 text-primary"></i>Plate Number: <strong class="text-dark">{{ app.vehicle_number }}</strong></li>
                                         <li class="mb-1"><i class="fas fa-hourglass-half me-2 text-secondary"></i>Status: <span class="badge bg-warning text-dark">{{ app.status|title }}</span></li>
-                                        <li class="mb-1"><i class="fas fa-calendar-alt me-2 text-secondary"></i>Applied At: <strong class="text-dark">{{ app.applied_at.strftime('%b %d, %Y %H:%M') if app.applied_at else '—' }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-calendar-alt me-2 text-secondary"></i>Applied At: <strong class="text-dark">{{ app.applied_at|ph_time }}</strong></li>
                                       </ul>
                                     </div>
 
@@ -82,7 +82,7 @@
                                         <li class="mb-1"><i class="fas fa-envelope me-2 text-secondary"></i>Email: <strong class="text-dark">{{ app.user.email }}</strong></li>
                                         <li class="mb-1"><i class="fas fa-phone me-2 text-secondary"></i>Phone: <strong class="text-dark">{{ app.user.phone or '—' }}</strong></li>
                                         <li class="mb-1"><i class="fas fa-user-tag me-2 text-secondary"></i>Role: <strong class="text-dark">{{ app.user.role|title or 'Rider' }}</strong></li>
-                                        <li class="mb-1"><i class="fas fa-calendar me-2 text-secondary"></i>Registered: <strong class="text-dark">{{ app.user.created_at.strftime('%b %d, %Y %H:%M') if app.user.created_at else '—' }}</strong></li>
+                                        <li class="mb-1"><i class="fas fa-calendar me-2 text-secondary"></i>Registered: <strong class="text-dark">{{ app.user.created_at|ph_time }}</strong></li>
                                       </ul>
                                     </div>
 
