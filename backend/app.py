@@ -15258,9 +15258,16 @@ BUYER_STATUS_LABELS = {
 def _safe_upload_url(filename):
     if not filename:
         return None
-    # If already a full URL or starts with /static/, return as-is
-    if filename.startswith('http') or filename.startswith('/static/'):
+    # If already a full URL, return as-is
+    if filename.startswith('http'):
         return filename
+    # If starts with /static/, return as-is (already a valid path)
+    if filename.startswith('/static/'):
+        return filename
+    # If starts with just /, assume it's a valid path from root
+    if filename.startswith('/'):
+        return filename
+    # Otherwise, assume it's just a filename in uploads folder
     try:
         return url_for('static', filename=f'uploads/{filename}')
     except Exception:
@@ -18168,13 +18175,13 @@ def api_v1_product_detail(product_id):
                     'seller_id': seller_id,
                     'seller_name': f"{seller.get('first_name', '')} {seller.get('last_name', '')}".strip() if seller else None,
                     'store_name': seller_app.get('store_name') if seller_app else None,
-                    'store_logo': url_for('static', filename=f'uploads/{seller_app.get("store_logo")}') if seller_app and seller_app.get('store_logo') else None,
-                    'store_background': url_for('static', filename=f'uploads/{seller_app.get("store_background")}') if seller_app and seller_app.get('store_background') else None,
+                    'store_logo': _safe_upload_url(seller_app.get('store_logo')) if seller_app and seller_app.get('store_logo') else None,
+                    'store_background': _safe_upload_url(seller_app.get('store_background')) if seller_app and seller_app.get('store_background') else None,
                     'seller': {
                         'id': seller.get('id') if seller else None,
                         'name': f"{seller.get('first_name', '')} {seller.get('last_name', '')}".strip() if seller else None,
                         'store_name': seller_app.get('store_name') if seller_app else None,
-                        'store_logo': url_for('static', filename=f'uploads/{seller_app.get("store_logo")}') if seller_app and seller_app.get('store_logo') else None
+                        'store_logo': _safe_upload_url(seller_app.get('store_logo')) if seller_app and seller_app.get('store_logo') else None
                     },
                     'featured': product.get('featured'),
                     'rating': round(float(avg_rating), 1),
@@ -18254,7 +18261,7 @@ def api_v1_product_detail(product_id):
                     'id': seller.get('id') if seller else None,
                     'name': f"{seller.get('first_name', '')} {seller.get('last_name', '')}".strip() if seller else None,
                     'store_name': seller_app.get('store_name') if seller_app else None,
-                    'store_logo': url_for('static', filename=f'uploads/{seller_app.get("store_logo")}') if seller_app and seller_app.get('store_logo') else None
+                    'store_logo': _safe_upload_url(seller_app.get('store_logo')) if seller_app and seller_app.get('store_logo') else None
                 },
                 'featured': product.get('featured'),
                 'rating': round(float(avg_rating), 1),
