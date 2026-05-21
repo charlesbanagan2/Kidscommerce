@@ -50,20 +50,20 @@ instance/
 Thumbs.db
 
 # Uploads (use cloud storage in production)
-static/uploads/*
+# Allow all image files for deployment
+!static/uploads/*.png
+!static/uploads/*.jpg
+!static/uploads/*.jpeg
+!static/uploads/*.gif
+!static/uploads/*.webp
 !static/uploads/.gitkeep
 
-# Allow essential logo and branding files
-!static/uploads/kklogo_black.png
-!static/uploads/logo_ulit.png
-!static/uploads/logo_white.png
-!static/uploads/logo_150x40.png
-!static/uploads/logo1.png
-!static/uploads/logo_2.png
-!static/uploads/default-store-logo.png
-!static/uploads/hero_slide_1.png
-!static/uploads/hero_slide_4_new_arrival.png
-!static/uploads/kk_logo.png
+# Exclude large files (videos, PSD) - use cloud storage instead
+static/uploads/**/*.mp4
+static/uploads/**/*.avi
+static/uploads/**/*.mov
+static/uploads/**/*.psd
+static/uploads/**/*.ai
 
 # Logs
 *.log
