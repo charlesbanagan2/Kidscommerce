@@ -1,51 +1,42 @@
 /// URL configuration helper for API and asset URLs
 class UrlConfig {
-  // Backend server configuration
-  // Multiple IP addresses for different network scenarios:
-  static const String _emulatorHost =
-      '10.0.2.2'; // Android emulator host machine
-  static const String _wifiHost = '192.168.1.26'; // WiFi network
-  static const String _hotspotHost = '172.20.10.12'; // Mobile Hotspot
-  static const String _localhostHost = 'localhost'; // Emulator/Web
-  static const int backendPort = 5000;
-  static const String backendScheme = 'http';
+  // ✅ I-UPDATE MO ITO: Palitan ng totoong Render URL ng app mo (Wala dapat "/" sa dulo)
+  static const String _renderUrl = 'https://kidscommerce-backend.onrender.com';
 
-  static String _preferredHost = _wifiHost;
+  // Mga lumang variables na iniwan nating blangko o fixed para hindi mag-error ang ibang code mo
+  static const String _emulatorHost = 'onrender.com';
+  static const String _wifiHost = 'onrender.com';
+  static const String _hotspotHost = 'onrender.com';
+  static const String _localhostHost = 'onrender.com';
+  static const int backendPort = 443; // Standard port para sa HTTPS
+  static const String backendScheme = 'https';
+
+  static String _preferredHost = 'onrender.com';
 
   /// Default host used when no working backend has been discovered yet.
-  static String get defaultBackendHost => _wifiHost;
+  static String get defaultBackendHost => 'onrender.com';
 
   /// Automatically detect which host to use based on network
-  static String get backendHost {
-    return _preferredHost;
-  }
+  static String get backendHost => 'onrender.com';
 
   /// Update the preferred backend host after a successful request.
-  static void setPreferredBackendHost(String host) {
-    final normalizedHost = host.trim();
-    if (normalizedHost.isNotEmpty) {
-      _preferredHost = normalizedHost;
-    }
-  }
+  static void setPreferredBackendHost(String host) {}
 
-  /// Get base backend URL
-  static String get baseUrl => '$backendScheme://$backendHost:$backendPort';
+  /// ✅ BASE URL: Direkta nang kumokonekta sa iyong Live Render Server gamit ang HTTPS
+  static String get baseUrl => _renderUrl;
 
-  /// Get alternative URLs to try if primary fails
+  /// ✅ FALLBACK URLS: Dahil iisa na lang ang server natin sa internet, Render URL na rin ang fallback
   static List<String> get fallbackUrls => [
-        '$backendScheme://$_wifiHost:$backendPort', // Try WiFi first
-        '$backendScheme://$_hotspotHost:$backendPort', // Then hotspot
-        '$backendScheme://$_emulatorHost:$backendPort', // Android emulator host machine
-        '$backendScheme://$_localhostHost:$backendPort', // Then localhost
+        _renderUrl,
       ];
 
   /// Convert relative image URL to absolute URL
-  /// Handles various image path formats:
-  /// - /static/uploads/image.png → http://192.168.1.20:5000/static/uploads/image.png
-  /// - image.png → http://192.168.1.20:5000/static/uploads/image.png
-  /// - http://... → http://... (returns as-is)
+  /// Handles various image path formats and points them to the live Render storage:
+  /// - /static/uploads/image.png → https://[your-app].onrender.com/static/uploads/image.png
+  /// - image.png → https://[your-app].onrender.com/static/uploads/image.png
+  /// - https://... → https://... (returns as-is)
   static String toAbsoluteImageUrl(String? relativeUrl) {
-    // ✅ FIX: Return empty string instead of placeholder.png to avoid 404
+    // Return empty string instead of placeholder.png to avoid 404
     if (relativeUrl == null ||
         relativeUrl.isEmpty ||
         relativeUrl == 'placeholder.png') {
