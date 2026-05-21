@@ -60,7 +60,7 @@
   <!-- Sticky chat header -->
   <div class="d-flex align-items-center justify-content-between mb-3" style="position:sticky;top:0;z-index:2;">
     <div class="d-flex align-items-center gap-2">
-      <a class="btn btn-light border d-inline-flex align-items-center" href="{{ url_for('buyer_messages') }}">
+      <a class="btn btn-light border d-inline-flex align-items-center" href="{{ url_for('chat_list') }}">
         <i class="fa fa-arrow-left"></i>
       </a>
       <img src="{{ (rider_profile.photo_path if rider_profile and rider_profile.photo_path else url_for('static', filename='user_avatar.png')) }}" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">
