@@ -54,8 +54,8 @@ class _CouponsScreenState extends State<CouponsScreen> {
   }
 
   Color _getDiscountColor(String discountType) {
-    return discountType == 'percent' 
-        ? const Color(0xFF1E4DB7) 
+    return discountType == 'percent'
+        ? const Color(0xFF1E4DB7)
         : const Color(0xFF2E7D32);
   }
 
@@ -179,14 +179,14 @@ class _CouponsScreenState extends State<CouponsScreen> {
         gradient: LinearGradient(
           colors: [
             discountColor,
-            discountColor.withOpacity(0.8),
+            discountColor.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: discountColor.withOpacity(0.25),
+            color: discountColor.withValues(alpha: 0.25),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -205,7 +205,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 height: 70,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -217,11 +217,11 @@ class _CouponsScreenState extends State<CouponsScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
-            
+
             // Content
             Padding(
               padding: const EdgeInsets.all(14),
@@ -255,7 +255,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: IconButton(
@@ -272,7 +272,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  
+
                   // Coupon code
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -280,10 +280,10 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -308,7 +308,7 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       ],
                     ),
                   ),
-                  
+
                   if (description.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -322,9 +322,9 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  
+
                   const SizedBox(height: 10),
-                  
+
                   // Details
                   Row(
                     children: [
@@ -362,9 +362,9 @@ class _CouponsScreenState extends State<CouponsScreen> {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 10),
-                  
+
                   // Use button
                   SizedBox(
                     width: double.infinity,

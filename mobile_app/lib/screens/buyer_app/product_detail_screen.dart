@@ -7,7 +7,6 @@ import '../../providers/buyer_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/modern_snackbar.dart';
 import '../../services/api_service.dart';
-import 'cart_screen.dart';
 import 'checkout_screen.dart';
 import 'product_reviews_screen.dart';
 import 'store_detail_screen.dart';
@@ -109,10 +108,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       ModernSnackBar.showError(context, 'Please log in to like products');
       return;
     }
-    
+
     // Check current state BEFORE toggling
     final wasLiked = buyerProvider.isProductLiked(productId);
-    
+
     final success = await buyerProvider.toggleWishlist(productId);
     if (mounted) {
       if (success) {
@@ -272,8 +271,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                     color: Colors.grey.shade400,
                                   ),
                                 )
-                              : Icon(Icons.image,
-                                  color: Colors.grey.shade400),
+                              : Icon(Icons.image, color: Colors.grey.shade400),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -1147,8 +1145,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                           size: 22,
                         ),
                       )
-                    : const Icon(Icons.store,
-                        color: Colors.white, size: 22),
+                    : const Icon(Icons.store, color: Colors.white, size: 22),
               ),
             ),
             const SizedBox(width: 12),
@@ -1780,8 +1777,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                           width: 64,
                           height: 64,
                           color: Colors.grey.shade200,
-                          child: Icon(Icons.image,
-                              color: Colors.grey.shade400),
+                          child: Icon(Icons.image, color: Colors.grey.shade400),
                         ),
                       ),
                     );
@@ -2169,8 +2165,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                       : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.flash_on,
-                                color: Colors.white, size: 16),
+                            Icon(Icons.flash_on, color: Colors.white, size: 16),
                             SizedBox(width: 6),
                             Text(
                               'Buy Now',
@@ -2196,8 +2191,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     required bool goToCart,
     required bool goToCheckout,
   }) async {
-    debugPrint('🛒 _handleCartAction called - goToCart: $goToCart, goToCheckout: $goToCheckout');
-    
+    debugPrint(
+        '🛒 _handleCartAction called - goToCart: $goToCart, goToCheckout: $goToCheckout');
+
     if (_isBottomBarLoading) {
       debugPrint('⚠️ Already loading, skipping...');
       return;
@@ -2239,18 +2235,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     });
     debugPrint('🛒 Loading state set to true');
 
-    debugPrint('🛒 Adding to cart - Product ID: ${widget.product.id}, Quantity: $_quantity');
+    debugPrint(
+        '🛒 Adding to cart - Product ID: ${widget.product.id}, Quantity: $_quantity');
     debugPrint('🛒 Product Stock: ${widget.product.stock}');
 
     final buyerProvider = context.read<BuyerProvider>();
     debugPrint('🛒 Calling buyerProvider.addProductToCart...');
-    
+
     try {
       final success = await buyerProvider.addProductToCart(
         widget.product,
         quantity: _quantity,
       );
-      
+
       debugPrint('🛒 addProductToCart returned: $success');
 
       if (!mounted) {
@@ -2268,10 +2265,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           debugPrint('⚠️ Widget not mounted after fetchCart, returning...');
           return;
         }
-        
+
         debugPrint('✅ Cart fetched, showing success message');
         ModernSnackBar.showCartSuccess(context, widget.product.name);
-        
+
         // Reset quantity after successful add
         setState(() => _quantity = 1);
         debugPrint('✅ Quantity reset to 1');
@@ -2286,7 +2283,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       debugPrint('❌ Exception in _handleCartAction: $e');
       if (mounted) {
         setState(() => _isBottomBarLoading = false);
-        ModernSnackBar.showError(context, 'An error occurred. Please try again.');
+        ModernSnackBar.showError(
+            context, 'An error occurred. Please try again.');
       }
     }
   }
@@ -2469,5 +2467,3 @@ class _WishlistOverlayState extends State<_WishlistOverlay>
     );
   }
 }
-
-
