@@ -82,14 +82,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   bool _shouldShowDeliveryProof(dynamic order) {
     final status = order.status.toString().toLowerCase();
-    return (status == 'to_receive' ||
-            status == 'out_for_delivery' ||
-            status == 'in_transit' ||
-            status == 'ready_for_pickup' ||
-            status == 'delivered' ||
-            status == 'completed') &&
-        order.proofPhotoUrl != null &&
-        order.proofPhotoUrl!.isNotEmpty;
+    
+    // Debug logging
+    debugPrint('🔍 DELIVERY PROOF CHECK FOR ORDER #${widget.orderId}:');
+    debugPrint('   Status: "$status"');
+    debugPrint('   ProofPhotoUrl: "${order.proofPhotoUrl}"');
+    debugPrint('   ProofPhotoUrl type: ${order.proofPhotoUrl.runtimeType}');
+    
+    // Check if proof photo exists and is not empty
+    final hasProofPhoto = order.proofPhotoUrl != null && 
+                          order.proofPhotoUrl.toString().trim().isNotEmpty &&
+                          order.proofPhotoUrl.toString().toLowerCase() != 'null';
+    
+    debugPrint('   HasProofPhoto: $hasProofPhoto');
+    
+    // Show delivery proof for these statuses when proof photo exists
+    final shouldShow = hasProofPhoto &&
+        (status == 'to_receive' ||
+         status == 'out_for_delivery' ||
+         status == 'in_transit' ||
+         status == 'ready_for_pickup' ||
+         status == 'delivered' ||
+         status == 'completed');
+    
+    debugPrint('   ✅ ShouldShowDeliveryProof: $shouldShow');
+    
+    return shouldShow;
   }
 
   Widget _buildHeader() {
@@ -889,7 +907,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   // ── Delivery Proof ───────────────────────────────────────────────────────────
 
   Widget _buildDeliveryProof(dynamic order) {
-    final photoUrl = UrlConfig.toAbsoluteImageUrl(order.proofPhotoUrl!);
+    final proofPhotoUrl = order.proofPhotoUrl?.toString().trim() ?? '';
+    
+    // Additional validation
+    if (proofPhotoUrl.isEmpty || proofPhotoUrl.toLowerCase() == 'null') {
+      debugPrint('⚠️ Invalid proof photo URL: "$proofPhotoUrl"');
+      return const SizedBox.shrink();
+    }
+    
+    final photoUrl = UrlConfig.toAbsoluteImageUrl(proofPhotoUrl);
+    debugPrint('📸 Displaying delivery proof: $photoUrl');
 
     return _infoCard(
       icon: Icons.camera_alt,
@@ -938,20 +965,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     );
                   },
-                  errorBuilder: (context, error, _) => Container(
-                    color: Colors.grey.shade100,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.hide_image,
-                            size: 36, color: Colors.grey.shade400),
-                        const SizedBox(height: 8),
-                        Text('Unable to load photo',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade500)),
-                      ],
-                    ),
-                  ),
+                  errorBuilder: (context, error, _) {
+                    debugPrint('❌ Failed to load delivery proof image: $error');
+                    return Container(
+                      color: Colors.grey.shade100,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.hide_image,
+                              size: 36, color: Colors.grey.shade400),
+                          const SizedBox(height: 8),
+                          Text('Unable to load photo',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 Positioned(
                   bottom: 10,

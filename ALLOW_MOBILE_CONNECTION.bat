@@ -7,7 +7,7 @@ echo.
 echo This will open Windows Firewall port 5000
 echo so your phone can connect to the backend.
 echo.
-echo You need to run tahis as ADMINISTRATOR!
+echo You need to run this as ADMINISTRATOR!
 echo.
 pause
 
@@ -25,11 +25,11 @@ echo DONE! Port 5000 is now open.
 echo ========================================
 echo.
 echo Your phone can now connect to:
-echo http://192.168.1.26:5000
+echo http://172.20.10.12:5000
 echo.
 echo Make sure:
 echo 1. Backend is running (python backend/app.py)
-echo 2. Phone is on same WiFi network
-echo 3. Restart Flutter app
+echo 2. Phone is connected to your mobile hotspot
+echo 3. Restart Flutter app after backend starts
 echo.
 pause
