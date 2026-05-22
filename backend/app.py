@@ -4560,9 +4560,22 @@ def force_fix_sequence_for_table(table_name):
 @app.route('/')
 def index():
     """
-    Homepage showing all approved products with hero slides.
+    Homepage - Returns API status for production, or renders template for web.
     Optimized with eager loading to prevent N+1 queries.
     """
+    # If this is an API request or production without templates, return JSON
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify({
+            'status': 'success',
+            'message': 'Kids Kingdom API is running',
+            'version': '1.0.0',
+            'endpoints': {
+                'health': '/api/v1/health',
+                'products': '/api/products',
+                'auth': '/api/v1/auth/login'
+            }
+        })
+    
     try:
         from sqlalchemy.orm import joinedload
 
@@ -21536,3 +21549,63 @@ def mark_notification_read(notification_id):
 # ═══════════════════════════════════════════════════════════════════════════
 # FORGOT PASSWORD & RESET PASSWORD API ENDPOINTS (Mobile)
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+# ============================================================================
+# ERROR HANDLERS FOR PRODUCTION
+# ============================================================================
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Endpoint not found',
+            'path': request.path
+        }), 404
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    db.session.rollback()
+    app.logger.error(f'Internal Server Error: {error}')
+    
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'An unexpected error occurred. Please try again later.'
+        }), 500
+    
+    return render_template('errors/500.html'), 500
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handle 403 errors"""
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Forbidden',
+            'message': 'You do not have permission to access this resource.'
+        }), 403
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Handle all unhandled exceptions"""
+    app.logger.error(f'Unhandled Exception: {error}', exc_info=True)
+    db.session.rollback()
+    
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': str(error) if app.debug else 'An unexpected error occurred.'
+        }), 500
+    
+    if app.debug:
+        raise error
+    
+    return render_template('errors/500.html'), 500
