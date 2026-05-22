@@ -16312,7 +16312,8 @@ def api_register():
         }), 201
     except Exception as e:
         app.logger.error(f'/api/register error: {e}')
-        return jsonify({'error': 'Internal server error'}), 500
+        app.logger.exception('Full registration error traceback:')
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 @app.route('/api/refresh', methods=['POST'])
 def api_refresh():
