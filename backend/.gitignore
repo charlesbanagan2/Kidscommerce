@@ -28,7 +28,7 @@ instance/
 .webassets-cache
 
 # Environment
-.env
+# .env - TEMPORARILY ALLOWING .env TO BE COMMITTED (SECURITY RISK!)
 .env.local
 
 # Database
