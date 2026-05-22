@@ -5432,8 +5432,10 @@ def register_start():
     session['reg_code_expires'] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
     # Send verification email
-    if not send_verification_email(email, code):
-        flash('Failed to send verification code. Please try again later.', 'danger')
+    email_sent = send_verification_email(email, code)
+    if not email_sent:
+        app.logger.error(f'Failed to send verification email to {email}')
+        flash('Email verification is temporarily unavailable. Please contact support.', 'danger')
         return render_template('register.html')
 
     # Go to verify page
