@@ -1039,8 +1039,8 @@ app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = os.getenv(
     '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',
 )
 
-app.config['MAIL_SENDER'] = os.getenv('MAIL_SENDER', 'gbanagan33@gmail.com')
-app.config['MAIL_APP_PASSWORD'] = os.getenv('MAIL_APP_PASSWORD', 'hprhqjfxpdfahxsf')
+app.config['MAIL_SENDER'] = os.getenv('MAIL_SENDER', 'charlesgabrielle.banagan@lspu.edu.ph')
+app.config['MAIL_APP_PASSWORD'] = os.getenv('MAIL_APP_PASSWORD', 'uadirdemyawgaemu')
 app.config['MAIL_SENDER_NAME'] = 'Kids Kingdom' 
 
 PSGC_REMOTE_BASE = 'https://psgc.vercel.app/api'
@@ -4892,12 +4892,73 @@ def login():
 
 # Helper: send 6-digit verification email (shared by registration/forgot-password)
 
+def send_email_with_retry(to_email, subject, body_text, body_html=None, max_retries=2):
+    """
+    Send email with retry logic and proper timeout handling.
+    Returns True if successful, False otherwise.
+    """
+    import socket
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr
+    
+    for attempt in range(max_retries):
+        try:
+            # Set socket timeout
+            socket.setdefaulttimeout(15)
+            
+            if body_html:
+                msg = MIMEMultipart('alternative')
+                msg.attach(MIMEText(body_text, 'plain'))
+                msg.attach(MIMEText(body_html, 'html'))
+            else:
+                msg = MIMEText(body_text)
+            
+            msg['Subject'] = subject
+            msg['From'] = formataddr(('Kids Kingdom', app.config['MAIL_SENDER']))
+            msg['To'] = to_email
+            
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as smtp:
+                smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
+                smtp.send_message(msg)
+            
+            app.logger.info(f'Email sent successfully to {to_email}')
+            return True
+            
+        except smtplib.SMTPAuthenticationError as e:
+            app.logger.error(f'SMTP Authentication failed (attempt {attempt + 1}/{max_retries}): {str(e)}')
+            app.logger.error('Please verify MAIL_SENDER and MAIL_APP_PASSWORD in .env file')
+            return False  # Don't retry auth errors
+            
+        except smtplib.SMTPException as e:
+            app.logger.error(f'SMTP error (attempt {attempt + 1}/{max_retries}): {str(e)}')
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(2)  # Wait 2 seconds before retry
+                continue
+            return False
+            
+        except socket.timeout:
+            app.logger.error(f'SMTP connection timeout (attempt {attempt + 1}/{max_retries})')
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(2)
+                continue
+            return False
+            
+        except Exception as e:
+            app.logger.exception(f'Unexpected email error (attempt {attempt + 1}/{max_retries}): {str(e)}')
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(2)
+                continue
+            return False
+    
+    return False
+
+
 def send_verification_email(email, code):
     try:
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.utils import formataddr
-        
         subject = '🔐 Password Reset Code - Kids Kingdom'
         
         # HTML Email Body
@@ -4981,18 +5042,9 @@ def send_verification_email(email, code):
         Need help? Contact us at support@kidskingdom.com
         """
         
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = formataddr(('Kids Kingdom', app.config['MAIL_SENDER']))
-        msg['To'] = email
+        # Use the new retry helper
+        return send_email_with_retry(email, subject, text_body, html_body)
         
-        msg.attach(MIMEText(text_body, 'plain'))
-        msg.attach(MIMEText(html_body, 'html'))
-        
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
-            smtp.send_message(msg)
-        return True
     except Exception as e:
         app.logger.exception('send_verification_email failed for %s: %s', email, e)
         return False
@@ -5643,11 +5695,14 @@ def register():
 
         # Optionally send email to user that registration is pending
         try:
+            import socket
+            socket.setdefaulttimeout(15)
+            
             msg = MIMEText("Thank you for registering. Your application is now under review. We will notify you via email once an administrator has reviewed your account.")
             msg['Subject'] = 'Registration Submitted - Pending Approval'
             msg['From'] = app.config['MAIL_SENDER']
             msg['To'] = email
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as smtp:
                 smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
                 smtp.send_message(msg)
         except Exception:
