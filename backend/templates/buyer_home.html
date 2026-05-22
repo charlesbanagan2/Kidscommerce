@@ -107,8 +107,13 @@
 <!-- Featured Products Section -->
 <section class="py-5">
     <style>
-    /* Make homepage product cards slightly wider on desktop (5 per row) */
-    @media (min-width: 992px){ .home-card-col{ flex: 0 0 20%; max-width: 20%; } }
+    /* Make homepage product cards responsive */
+    @media (min-width: 1400px){ .home-card-col{ flex: 0 0 16.666%; max-width: 16.666%; } } /* 6 per row on XXL */
+    @media (min-width: 1200px) and (max-width: 1399.98px){ .home-card-col{ flex: 0 0 20%; max-width: 20%; } } /* 5 per row on XL */
+    @media (min-width: 992px) and (max-width: 1199.98px){ .home-card-col{ flex: 0 0 25%; max-width: 25%; } } /* 4 per row on LG */
+    @media (min-width: 768px) and (max-width: 991.98px){ .home-card-col{ flex: 0 0 33.333%; max-width: 33.333%; } } /* 3 per row on MD */
+    @media (min-width: 576px) and (max-width: 767.98px){ .home-card-col{ flex: 0 0 50%; max-width: 50%; } } /* 2 per row on SM */
+    @media (max-width: 575.98px){ .home-card-col{ flex: 0 0 50%; max-width: 50%; } } /* 2 per row on XS */
     
     /* Ensure stretched-link overlay exists and buttons remain clickable */
     .card .stretched-link::after{ position:absolute; inset:0; content:""; }
@@ -116,24 +121,48 @@
     .btn-card-cart{ position:absolute; right:12px; bottom:12px; width:42px; height:42px; border-radius:50%; background:#0ea5e9; color:#fff; border:none; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(14,165,233,.25); }
     .btn-card-cart:hover{ filter:brightness(1.05); }
     
-    /* Product card responsiveness */
-    @media (max-width: 991.98px) {
+    /* Product card responsiveness - adjust image heights and text sizes */
+    .approved-product-card .card-img-top { 
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    @media (max-width: 1199.98px) {
         .approved-product-card .card-img-top { 
-            height: 150px; 
+            height: 180px; 
         }
     }
     
-    @media (max-width: 768px) {
+    @media (max-width: 991.98px) {
         .approved-product-card .card-img-top { 
-            height: 140px; 
+            height: 160px; 
         }
         .card-title { font-size: 0.95rem; }
     }
     
-    @media (max-width: 576px) {
-        .approved-product-card .card-img-top { height: 130px; }
+    @media (max-width: 768px) {
+        .approved-product-card .card-img-top { 
+            height: 150px; 
+        }
         .card-title { font-size: 0.9rem; }
         .card-text { font-size: 0.85rem; }
+    }
+    
+    @media (max-width: 576px) {
+        .approved-product-card .card-img-top { 
+            height: 140px; 
+        }
+        .card-title { font-size: 0.85rem; }
+        .card-text, .small { font-size: 0.8rem; }
+        .card-body { padding: 0.75rem; }
+    }
+    
+    @media (max-width: 400px) {
+        .approved-product-card .card-img-top { 
+            height: 120px; 
+        }
+        .card-title { font-size: 0.8rem; }
+        .card-text, .small { font-size: 0.75rem; }
     }
     </style>
 
@@ -149,7 +178,7 @@
         </div>
 
         <!-- Product Grid -->
-        <div class="row g-4 mb-4">
+        <div class="row g-3 g-md-4 mb-4">
             {% if products %}
                 {% for product in products[:12] %}
                     <div class="col-6 col-md-4 col-lg-2 home-card-col">
