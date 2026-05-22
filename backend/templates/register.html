@@ -950,13 +950,9 @@
                   class="form-control {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}{% if 'already registered' in message %}is-invalid{% endif %}{% endfor %}{% endwith %}" 
                   id="email" 
                   name="email" 
-                  placeholder="kidskingdom@gmail.com" 
-                  required 
-                  oninput="clearGmailError(this)" onblur="checkGmail(this)">
-                <!-- CLIENT-SIDE (GMAIL ONLY) WARNING -->
-                <div class="form-text error" id="gmail-warning" style="display:none;">Gmail address only required</div>
-                <!-- Server-side success indicator from EmailListVerify -->
-                <div class="form-text success" id="email-verify-ok" style="display:none;">Email verified.</div>
+                  placeholder="your.email@example.com" 
+                  required>
+                <small class="form-text">Enter your email address</small>
                 <!-- SERVER-SIDE DUPLICATE EMAIL ERROR -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                   {% if messages %}
@@ -1276,9 +1272,8 @@
 
               <div class="mb-3">
                 <label for="rider_email" class="form-label required">Email Address</label>
-                <input type="email" class="form-control" id="rider_email" name="rider_email" placeholder="kidskingdom@gmail.com" required oninput="clearGmailError(this)" onblur="checkGmail(this)">
-                <div class="form-text error" id="gmail-warning-rider" style="display:none;">Gmail address only required</div>
-                <div class="form-text success" id="email-verify-ok-rider" style="display:none;">Email verified.</div>
+                <input type="email" class="form-control" id="rider_email" name="rider_email" placeholder="your.email@example.com" required>
+                <small class="form-text">Enter your email address</small>
               </div>
 
               <div class="mb-3">
@@ -1983,26 +1978,6 @@
 
             var currentStep = parseInt(activeStepEl.getAttribute('data-step'), 10) || 1;
 
-            // Special case: Step 1 -> ensure email is fully validated (including server) before moving on.
-            if (currentStep === 1) {
-              var emailField = document.getElementById(role === 'rider' ? 'rider_email' : 'email');
-              if (emailField) {
-                // disable Next while verifying to avoid double clicks
-                var selfBtn = this;
-                var prevDisabled = selfBtn.disabled;
-                selfBtn.disabled = true;
-                try {
-                  var emailOk = await checkEmailServer(emailField);
-                  if (!emailOk) {
-                    emailField.focus();
-                    return;
-                  }
-                } finally {
-                  selfBtn.disabled = prevDisabled;
-                }
-              }
-            }
-
             // validate current step before moving on
             if (!validateCurrentStep(role, currentStep, true)) {
               return;
@@ -2256,137 +2231,18 @@
         }
       }
 
-      // clear Gmail error while the user is typing
+      // Email validation functions removed - no longer needed
       function clearGmailError(el) {
-        if (!el) return;
-
-        var isRider = el.id && el.id.indexOf('rider_') === 0;
-        var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
-        var warning = document.getElementById(warningId);
-
-        el.setCustomValidity('');
-        if (warning) {
-          warning.style.display = 'none';
-        }
-        // hide success badge when user edits
-        var okId = isRider ? 'email-verify-ok-rider' : 'email-verify-ok';
-        var okEl = document.getElementById(okId);
-        if (okEl) { okEl.style.display = 'none'; }
+        // No validation needed
       }
 
-      // call server to validate email (duplicate / disposable / non-existing) using /api/check-email
-      // Returns a Promise<boolean>: true = OK to proceed, false = invalid.
-      function checkEmailServer(el) {
-        return new Promise(function(resolve) {
-          if (!el) return resolve(true);
-          var value = (el.value || '').trim();
-          if (!value) return resolve(true);
-
-          var isRider = el.id && el.id.indexOf('rider_') === 0;
-          var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
-          var warning = document.getElementById(warningId);
-          var okId = isRider ? 'email-verify-ok-rider' : 'email-verify-ok';
-          var okEl = document.getElementById(okId);
-          var role = isRider ? 'rider' : 'buyer';
-
-          fetch('/api/check-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email: value, role: role })
-          })
-          .then(function(res){ return res.json().catch(function(){ return { ok: true }; }); })
-.then(function(data){
-            if (!data || typeof data.ok === 'undefined') {
-              // Inconclusive – do not block the user; final server-side check still runs.
-              el.setCustomValidity('');
-              if (okEl) okEl.style.display = 'none';
-              if (unavailEl) unavailEl.style.display = 'none';
-              return resolve(true);
-            }
-            if (!data.ok) {
-              var msg = data.message || 'Please enter a valid email address.';
-              el.setCustomValidity(msg);
-              if (warning) {
-                warning.textContent = msg;
-                warning.style.display = 'block';
-              }
-              if (okEl) okEl.style.display = 'none';
-              // report validity so browser shows tooltip if needed
-              if (typeof el.reportValidity === 'function') {
-                el.reportValidity();
-              }
-              resolve(false);
-            } else {
-              el.setCustomValidity('');
-              if (warning) {
-                warning.style.display = 'none';
-              }
-              // Show success for 'ok' and 'skipped' statuses; neutral otherwise
-              if (okEl) {
-                if (data.provider_status && (data.provider_status.toLowerCase() === 'ok' || data.provider_status.toLowerCase() === 'skipped')) {
-                  if (data.provider_status.toLowerCase() === 'skipped') {
-                    okEl.textContent = 'Email format validated';
-                  } else {
-                    okEl.textContent = 'Email verified (ok)';
-                  }
-                  okEl.style.display = 'block';
-                } else {
-                  okEl.style.display = 'none';
-                }
-              }
-              // If provider is unavailable, block and show error below the field
-              if (data.provider_status && data.provider_status.toLowerCase().startsWith('unavailable')) {
-                var msg = 'Email verification is temporarily unavailable. Please try again later.';
-                el.setCustomValidity(msg);
-                if (warning) { warning.textContent = msg; warning.style.display = 'block'; }
-                if (typeof el.reportValidity === 'function') { el.reportValidity(); }
-                return resolve(false);
-              }
-              resolve(true);
-            }
-          })
-          .catch(function(){
-            // On network/API error, do not block the user here; final server validation will still run.
-            el.setCustomValidity('');
-            resolve(true);
-          });
-        });
-      }
-
-      // validate that email is a proper Gmail address and show/hide warning text + server check
       function checkGmail(el) {
-        if (!el) return;
+        // No validation needed
+      }
 
-        var value = (el.value || '').trim();
-        var isRider = el.id && el.id.indexOf('rider_') === 0;
-        var warningId = isRider ? 'gmail-warning-rider' : 'gmail-warning';
-        var warning = document.getElementById(warningId);
-        var gmailPattern = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-
-        // default: hide warning and clear custom validity
-        if (warning) {
-          warning.style.display = 'none';
-        }
-
-        if (!value) {
-          el.setCustomValidity('');
-          return;
-        }
-
-        if (!gmailPattern.test(value)) {
-          var msg = 'Please enter a valid Gmail address (example@gmail.com).';
-          el.setCustomValidity(msg);
-          if (warning) {
-            warning.textContent = msg;
-            warning.style.display = 'block';
-          }
-        } else {
-          // Pattern is OK: now call server to check for disposable / non-existing / duplicate
-          el.setCustomValidity('');
-          checkEmailServer(el);
-        }
+      function checkEmailServer(el) {
+        // No validation needed - return true to allow progression
+        return Promise.resolve(true);
       }
 
       // password strength checker
