@@ -16,7 +16,7 @@ class UrlConfig {
   static const String _localUrl = 'http://172.20.10.12:5000';
   
   /// Production/Cloud URL (Render.com)
-  static const String _renderUrl = 'https://kids-kingdom.onrender.com';
+  static const String _renderUrl = 'https://kidscommerce-2.onrender.com';
 
   // ========================================
   // Active Configuration (Auto-selected based on USE_LOCAL)

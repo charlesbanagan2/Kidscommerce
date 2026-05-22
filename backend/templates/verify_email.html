@@ -7,7 +7,15 @@
             <div class="card shadow">
                 <div class="card-body p-4">
                     <h3 class="fw-bold mb-3 text-center">Verify Your Email</h3>
+                    {% if verification_code %}
+                    <div class="alert alert-info text-center mb-4">
+                        <p class="mb-2"><strong>Your Verification Code:</strong></p>
+                        <h2 class="mb-0" style="letter-spacing: 8px; font-family: monospace; color: #0b63a8;">{{ verification_code }}</h2>
+                        <small class="text-muted d-block mt-2">Email sending is temporarily unavailable. Please use the code above.</small>
+                    </div>
+                    {% else %}
                     <p class="text-muted text-center">A 6-digit code was sent to <b>{{ email }}</b>. Enter it below:</p>
+                    {% endif %}
                     <form method="POST">
                         <input type="hidden" name="email" value="{{ email }}">
                         <div class="mb-3">
@@ -18,12 +26,14 @@
                             <button type="submit" class="btn btn-primary btn-lg">Verify</button>
                         </div>
                     </form>
+                    {% if not verification_code %}
                     <form method="POST" action="{{ url_for('resend_verification_code') }}">
                         <input type="hidden" name="email" value="{{ email }}">
                         <div class="d-grid">
                             <button type="submit" class="btn btn-link">Resend Code</button>
                         </div>
                     </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -5485,16 +5485,11 @@ def register_start():
     session['reg_code'] = code
     session['reg_code_expires'] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
-    # Send verification email (non-blocking - don't fail if email fails)
-    try:
-        email_sent = send_verification_email(email, code)
-        if not email_sent:
-            app.logger.warning(f'Failed to send verification email to {email}, but continuing registration')
-    except Exception as e:
-        app.logger.error(f'Email sending error for {email}: {e}')
-        # Continue anyway - user can still verify with the code
+    # Skip email sending to avoid timeout - user will see code on verification page
+    # Email sending is disabled on Render due to network restrictions
+    app.logger.info(f'Registration code generated for {email}: {code}')
 
-    # Go to verify page (even if email failed, user can manually enter code)
+    # Go to verify page immediately
     return redirect(url_for('verify_email', email=email))
 
 # Backward compatible endpoint name (HTML action changed to /register/start). Finalization happens after OTP.
@@ -5740,7 +5735,7 @@ def verify_email():
             if expired or not stored or code != stored:
                 flash('Disposable email addresses are not allowed.' if is_disposable_or_invalid_email(email) else 'Invalid or expired verification code.', 'danger')
                 # Do not finalize
-                return render_template('verify_email.html', email=email)
+                return render_template('verify_email.html', email=email, verification_code=stored)
 
             # Code matches -> finalize original registration (save to DB now)
             data = session.pop('reg_data')
@@ -5853,8 +5848,9 @@ def verify_email():
                 return render_template('rider/account_under_review.html', user=new_user)
             return redirect(url_for('registration_status', role=role))
 
-        # GET: render verify page with email displayed
-        return render_template('verify_email.html', email=email)
+        # GET: render verify page with email and code displayed
+        verification_code = session.get('reg_code')
+        return render_template('verify_email.html', email=email, verification_code=verification_code)
 
     # Legacy path: verifying an already-saved user (forgot password / older flow)
     if request.method == 'POST':
