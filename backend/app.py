@@ -4959,6 +4959,15 @@ def send_email_with_retry(to_email, subject, body_text, body_html=None, max_retr
                 continue
             return False
             
+        except OSError as e:
+            # Network unreachable or connection refused
+            app.logger.error(f'Network error sending email (attempt {attempt + 1}/{max_retries}): {str(e)}')
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(1)  # Shorter wait for network errors
+                continue
+            return False
+            
         except Exception as e:
             app.logger.exception(f'Unexpected email error (attempt {attempt + 1}/{max_retries}): {str(e)}')
             if attempt < max_retries - 1:
@@ -5496,14 +5505,16 @@ def register_start():
     session['reg_code'] = code
     session['reg_code_expires'] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
-    # Send verification email
-    email_sent = send_verification_email(email, code)
-    if not email_sent:
-        app.logger.error(f'Failed to send verification email to {email}')
-        flash('Email verification is temporarily unavailable. Please contact support.', 'danger')
-        return render_template('register.html')
+    # Send verification email (non-blocking - don't fail if email fails)
+    try:
+        email_sent = send_verification_email(email, code)
+        if not email_sent:
+            app.logger.warning(f'Failed to send verification email to {email}, but continuing registration')
+    except Exception as e:
+        app.logger.error(f'Email sending error for {email}: {e}')
+        # Continue anyway - user can still verify with the code
 
-    # Go to verify page
+    # Go to verify page (even if email failed, user can manually enter code)
     return redirect(url_for('verify_email', email=email))
 
 # Backward compatible endpoint name (HTML action changed to /register/start). Finalization happens after OTP.
