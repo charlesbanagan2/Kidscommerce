@@ -16308,7 +16308,14 @@ def api_register():
         return jsonify({
             'success': True,
             'message': 'Registration successful. Your account is pending admin approval.',
-            'user': _serialize_user_api_dict(user),
+            'user': {
+                'id': user.get('id'),
+                'email': user.get('email'),
+                'first_name': user.get('first_name'),
+                'last_name': user.get('last_name'),
+                'role': user.get('role'),
+                'status': user.get('status'),
+            }
         }), 201
     except Exception as e:
         app.logger.error(f'/api/register error: {e}')
