@@ -1077,35 +1077,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
                           return SizedBox(
-                              height: 260,
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  value: progress.expectedTotalBytes != null
-                                      ? progress.cumulativeBytesLoaded /
-                                          progress.expectedTotalBytes!
-                                      : null,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, _, __) => Container(
                             height: 260,
-                            color: Colors.grey.shade100,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.hide_image,
-                                    size: 48, color: Colors.grey.shade400),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Failed to load image',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13),
-                                ),
-                              ],
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: progress.expectedTotalBytes != null
+                                    ? progress.cumulativeBytesLoaded /
+                                        progress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.green,
+                              ),
                             ),
+                          );
+                        },
+                        errorBuilder: (context, _, __) => Container(
+                          height: 260,
+                          color: Colors.grey.shade100,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.hide_image,
+                                  size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Failed to load image',
+                                style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13),
+                              ),
+                            ],
                           ),
                         ),
                       ),

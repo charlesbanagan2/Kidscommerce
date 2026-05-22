@@ -6240,11 +6240,12 @@ def admin_approve_registration(user_id):
     except Exception:
         db.session.rollback()
 
-    # Send approval email
+    # Send approval email (skip if SMTP not configured)
     try:
         send_account_status_email(user.email, approved=True)
-    except Exception:
-        app.logger.exception("Failed to send approval email to %s", user.email)
+    except Exception as e:
+        app.logger.warning(f"Failed to send approval email to {user.email}: {e}")
+        # Continue anyway - approval still succeeded
 
     flash(f'User {user.first_name} {user.last_name} approved.', 'success')
     return redirect(url_for('admin_pending_registrations'))
@@ -6268,12 +6269,13 @@ def admin_reject_registration(user_id):
     except Exception:
         db.session.rollback()
 
-    # Send rejection email (optional reason)
+    # Send rejection email (optional reason) - skip if SMTP not configured
     reason = request.args.get('reason') or request.form.get('reason') or None
     try:
         send_account_status_email(user.email, approved=False, reason=reason)
-    except Exception:
-        app.logger.exception("Failed to send rejection email to %s", user.email)
+    except Exception as e:
+        app.logger.warning(f"Failed to send rejection email to {user.email}: {e}")
+        # Continue anyway - rejection still succeeded
 
     flash(f'User {user.first_name} {user.last_name} rejected.', 'info')
     return redirect(url_for('admin_pending_registrations'))
@@ -14284,11 +14286,12 @@ def approve_rider(app_id):
         db.session.rollback()
         app.logger.error(f"Failed to create notification for rider {application.user.id}: {e}")
     
-    # Send approval email
+    # Send approval email (skip if SMTP not configured)
     try:
         send_rider_status_email(application.user.email, approved=True, user_name=f"{application.user.first_name} {application.user.last_name}")
     except Exception as e:
-        app.logger.exception(f"Failed to send approval email to {application.user.email}: {e}")
+        app.logger.warning(f"Failed to send approval email to {application.user.email}: {e}")
+        # Continue anyway - approval still succeeded
     
     flash('Rider application approved successfully!', 'success')
     return redirect(url_for('admin_rider_applications'))
@@ -14320,7 +14323,7 @@ def reject_rider(app_id):
         db.session.rollback()
         app.logger.error(f"Failed to create notification for rider {application.user.id}: {e}")
     
-    # Send rejection email
+    # Send rejection email (skip if SMTP not configured)
     try:
         send_rider_status_email(
             application.user.email, 
@@ -14329,7 +14332,8 @@ def reject_rider(app_id):
             reason=reason
         )
     except Exception as e:
-        app.logger.exception(f"Failed to send rejection email to {application.user.email}: {e}")
+        app.logger.warning(f"Failed to send rejection email to {application.user.email}: {e}")
+        # Continue anyway - rejection still succeeded
     
     flash('Rider application rejected.', 'info')
     return redirect(url_for('admin_rider_applications'))
