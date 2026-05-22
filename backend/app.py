@@ -16032,6 +16032,7 @@ def api_register():
         
         # Send registration confirmation email to user
         try:
+            account_type = 'Rider' if role == 'rider' else 'Buyer'
             subject = '🎉 Welcome to Kids Kingdom! Registration Received'
             
             # Create beautiful HTML email
