@@ -15,10 +15,11 @@ from datetime import datetime
 from sqlalchemy import or_, and_, func
 from functools import wraps
 
-def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs):
+def register_unified_chat_api(app, socketio, db, get_avatar_url=None, token_required=None, **_kwargs):
     """Register unified chat system with Flask app.
 
     get_avatar_url: optional callable(user_id, user_role) -> str for profile photo URLs.
+    token_required: decorator for JWT authentication (required for mobile API endpoints)
     """
     if get_avatar_url is None and _kwargs.get('get_avatar_url'):
         get_avatar_url = _kwargs['get_avatar_url']
@@ -50,27 +51,32 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     # HELPER FUNCTIONS
     # ============================================
     
-    def get_user_from_token():
-        """Extract user_id from JWT token in request"""
+    def get_current_user_id():
+        """Extract user_id from JWT token (mobile) or session (web)"""
+        # Check if token_required already set current_user_id
         if hasattr(request, 'current_user_id'):
             return request.current_user_id
         
-        # Try to extract from Authorization header
-        import jwt
-        import os
+        # Try JWT token from Authorization header (mobile)
         auth_header = request.headers.get('Authorization')
         if auth_header:
             try:
                 token = auth_header.split(" ")[1]
-                # Load JWT_SECRET_KEY from environment (REQUIRED)
+                import jwt, os
                 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-                if not JWT_SECRET_KEY:
-                    return None
-                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
-                return payload.get('user_id')
-            except:
-                pass
-        return None
+                if JWT_SECRET_KEY:
+                    payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=['HS256'])
+                    return payload.get('user_id')
+            except Exception as e:
+                print(f"[WARNING] JWT decode failed: {e}")
+        
+        # Fallback to session (web)
+        from flask import session
+        return session.get('user_id')
+    
+    def get_user_from_token():
+        """Legacy function - use get_current_user_id instead"""
+        return get_current_user_id()
     
     # ============================================
     # API ENDPOINTS
@@ -81,7 +87,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def get_conversations():
         """Get all conversations for current user"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
@@ -169,7 +175,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def get_messages(other_user_id):
         """Get all messages with a specific user (includes product chat messages)"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             print(f"[DEBUG] get_messages called: user_id={user_id}, other_user_id={other_user_id}")
             
             if not user_id:
@@ -277,7 +283,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def send_message():
         """Send a message to another user"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
@@ -357,7 +363,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def get_unread_count():
         """Get total unread message count"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
@@ -380,7 +386,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def mark_messages_read(other_user_id):
         """Mark all messages from a specific user as read"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
@@ -425,7 +431,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def start_product_chat():
         """Start a chat about a product"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
@@ -524,7 +530,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def handle_join_chat(data=None):
         """User joins their personal chat room"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if user_id:
                 join_room(f'user_{user_id}')
                 emit('joined_chat', {'message': 'Connected to chat'})
@@ -535,7 +541,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def handle_typing(data):
         """Notify other user that current user is typing"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return
             
@@ -551,7 +557,7 @@ def register_unified_chat_api(app, socketio, db, get_avatar_url=None, **_kwargs)
     def handle_stop_typing(data):
         """Notify other user that current user stopped typing"""
         try:
-            user_id = get_user_from_token()
+            user_id = get_current_user_id()
             if not user_id:
                 return
             

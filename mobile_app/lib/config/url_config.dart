@@ -1,33 +1,51 @@
 /// URL configuration helper for API and asset URLs
 class UrlConfig {
-  // ✅ I-UPDATE MO ITO: Palitan ng totoong Render URL ng app mo (Wala dapat "/" sa dulo)
-  static const String _renderUrl = 'https://kidscommerce-backend.onrender.com';
+  // ========================================
+  // 🔧 CONFIGURATION: Change this to switch between local and cloud
+  // ========================================
+  
+  /// Set to true for LOCAL development (hotspot)
+  /// Set to false for CLOUD/Production (Render.com)
+  static const bool USE_LOCAL = false;  // 👈 CHANGE THIS!
+  
+  // ========================================
+  // URL Definitions
+  // ========================================
+  
+  /// Local development URL (your computer via hotspot)
+  static const String _localUrl = 'http://172.20.10.12:5000';
+  
+  /// Production/Cloud URL (Render.com)
+  static const String _renderUrl = 'https://kids-kingdom.onrender.com';
 
-  // Mga lumang variables na iniwan nating blangko o fixed para hindi mag-error ang ibang code mo
-  static const String _emulatorHost = 'onrender.com';
-  static const String _wifiHost = 'onrender.com';
-  static const String _hotspotHost = 'onrender.com';
-  static const String _localhostHost = 'onrender.com';
-  static const int backendPort = 443; // Standard port para sa HTTPS
-  static const String backendScheme = 'https';
+  // ========================================
+  // Active Configuration (Auto-selected based on USE_LOCAL)
+  // ========================================
+  
+  static const String _emulatorHost = USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
+  static const String _wifiHost = USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
+  static const String _hotspotHost = USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
+  static const String _localhostHost = USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
+  static const int backendPort = USE_LOCAL ? 5000 : 443;
+  static const String backendScheme = USE_LOCAL ? 'http' : 'https';
 
-  static String _preferredHost = 'onrender.com';
+  static String _preferredHost = USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
 
   /// Default host used when no working backend has been discovered yet.
-  static String get defaultBackendHost => 'onrender.com';
+  static String get defaultBackendHost => USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
 
   /// Automatically detect which host to use based on network
-  static String get backendHost => 'onrender.com';
+  static String get backendHost => USE_LOCAL ? '172.20.10.12' : 'kids-kingdom.onrender.com';
 
   /// Update the preferred backend host after a successful request.
   static void setPreferredBackendHost(String host) {}
 
-  /// ✅ BASE URL: Direkta nang kumokonekta sa iyong Live Render Server gamit ang HTTPS
-  static String get baseUrl => _renderUrl;
+  /// ✅ BASE URL: Automatically selected based on USE_LOCAL setting
+  static String get baseUrl => USE_LOCAL ? _localUrl : _renderUrl;
 
-  /// ✅ FALLBACK URLS: Dahil iisa na lang ang server natin sa internet, Render URL na rin ang fallback
+  /// ✅ FALLBACK URLS: Automatically selected based on USE_LOCAL setting
   static List<String> get fallbackUrls => [
-        _renderUrl,
+        USE_LOCAL ? _localUrl : _renderUrl,
       ];
 
   /// Convert relative image URL to absolute URL

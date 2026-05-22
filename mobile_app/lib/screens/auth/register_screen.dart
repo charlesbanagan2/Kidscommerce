@@ -708,62 +708,64 @@ class _WebStyleRegisterScreenState extends State<WebStyleRegisterScreen>
 
   // ─── STEP 1: ROLE SELECTION ───────────────────────────────────────────────
   Widget _buildStep1RoleSelection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildStepIndicator(),
-        const SizedBox(height: 20),
-        const Text(
-          'Choose Your Role',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: textWhite,
-            letterSpacing: 0.3,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStepIndicator(),
+          const SizedBox(height: 20),
+          const Text(
+            'Choose Your Role',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: textWhite,
+              letterSpacing: 0.3,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'How will you use Kids Kingdom?',
-          style: TextStyle(fontSize: 12, color: textWhite70),
-        ),
-        const SizedBox(height: 16),
-        // Taller side-by-side role cards
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _buildRoleCard(
-                emoji: '🛍️',
-                icon: Icons.shopping_bag_outlined,
-                title: 'Buyer',
-                description: 'Shop amazing\nkids products',
-                isSelected: _selectedRole == 'buyer',
-                gradientColors: [
-                  const Color(0xFF4776E6),
-                  const Color(0xFF8E54E9)
-                ],
-                onTap: () => _selectRole('buyer'),
+          const SizedBox(height: 4),
+          const Text(
+            'How will you use Kids Kingdom?',
+            style: TextStyle(fontSize: 12, color: textWhite70),
+          ),
+          const SizedBox(height: 16),
+          // Taller side-by-side role cards
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildRoleCard(
+                  emoji: '🛍️',
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'Buyer',
+                  description: 'Shop amazing\nkids products',
+                  isSelected: _selectedRole == 'buyer',
+                  gradientColors: [
+                    const Color(0xFF4776E6),
+                    const Color(0xFF8E54E9)
+                  ],
+                  onTap: () => _selectRole('buyer'),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildRoleCard(
-                emoji: '🛵',
-                icon: Icons.delivery_dining,
-                title: 'Rider',
-                description: 'Deliver orders\nand earn more',
-                isSelected: _selectedRole == 'rider',
-                gradientColors: [
-                  const Color(0xFF11998E),
-                  const Color(0xFF38EF7D)
-                ],
-                onTap: () => _selectRole('rider'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildRoleCard(
+                  emoji: '🛵',
+                  icon: Icons.delivery_dining,
+                  title: 'Rider',
+                  description: 'Deliver orders\nand earn more',
+                  isSelected: _selectedRole == 'rider',
+                  gradientColors: [
+                    const Color(0xFF11998E),
+                    const Color(0xFF38EF7D)
+                  ],
+                  onTap: () => _selectRole('rider'),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 

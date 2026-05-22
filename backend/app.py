@@ -8134,16 +8134,13 @@ def notifications_summary():
     unread_count = Notification.query.filter_by(user_id=user_id, is_read=False).count()
     recent = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(5).all()
 
-    # Chat unread count per role
+    # Chat unread count using unified ChatMessage
     unread_chat = 0
     try:
-        if user.role == 'seller' or session.get('active_role') == 'seller':
-            unread_chat = StoreChatMessage.query.filter_by(seller_id=user_id, sender_role='buyer', is_read=False).count()
-        elif user.role == 'buyer' or session.get('active_role') == 'buyer':
-            unread_chat = StoreChatMessage.query.filter_by(buyer_id=user_id, sender_role='seller', is_read=False).count() \
-                          + RiderChatMessage.query.filter_by(buyer_id=user_id, sender_role='rider', is_read=False).count()
-        elif user.role == 'rider' or session.get('active_role') == 'rider':
-            unread_chat = RiderChatMessage.query.filter_by(rider_id=user_id, sender_role='buyer', is_read=False).count()
+        ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+        if ChatMessage:
+            # Count all unread messages where user is receiver
+            unread_chat = ChatMessage.query.filter_by(receiver_id=user_id, is_read=False).count()
     except Exception:
         unread_chat = 0
 
@@ -12916,25 +12913,58 @@ def comma_format(value, digits=None):
 def chat_list():
     user_id = session['user_id']
     active_role = session.get('active_role', 'buyer')
+    
+    # Get ChatMessage model from unified chat system
+    ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+    if not ChatMessage:
+        return render_template('store_chat.html', chats=[], users_by_id={}, chat_messages=[], selected_chat=None)
+    
     # Build conversation list with expected fields for template
     convos = []
     users_by_id = {}
-    if active_role == 'buyer':
-        rows = db.session.query(StoreChatMessage.seller_id, db.func.max(StoreChatMessage.created_at).label('last_at')).filter_by(buyer_id=user_id).group_by(StoreChatMessage.seller_id).order_by(db.func.max(StoreChatMessage.created_at).desc()).all()
-        peer_ids = [r[0] for r in rows]
+    
+    # Get unique peer IDs (users current user has chatted with)
+    from sqlalchemy import or_, and_
+    subq_sent = db.session.query(ChatMessage.receiver_id).filter(ChatMessage.sender_id == user_id).distinct()
+    subq_received = db.session.query(ChatMessage.sender_id).filter(ChatMessage.receiver_id == user_id).distinct()
+    
+    peer_ids = set()
+    for row in subq_sent.all():
+        peer_ids.add(row[0])
+    for row in subq_received.all():
+        peer_ids.add(row[0])
+    
+    if peer_ids:
         users_by_id = {u.id: u for u in User.query.filter(User.id.in_(peer_ids)).all()}
-        for sid, _ in rows:
-            last = StoreChatMessage.query.filter_by(buyer_id=user_id, seller_id=sid).order_by(StoreChatMessage.created_at.desc()).first()
-            unread = StoreChatMessage.query.filter_by(buyer_id=user_id, seller_id=sid, sender_role='seller', is_read=False).count()
-            convos.append(type('Obj', (), {'seller_id': sid, 'last_message': getattr(last,'message',''), 'unread_count': unread}))
-    else:
-        rows = db.session.query(StoreChatMessage.buyer_id, db.func.max(StoreChatMessage.created_at).label('last_at')).filter_by(seller_id=user_id).group_by(StoreChatMessage.buyer_id).order_by(db.func.max(StoreChatMessage.created_at).desc()).all()
-        peer_ids = [r[0] for r in rows]
-        users_by_id = {u.id: u for u in User.query.filter(User.id.in_(peer_ids)).all()}
-        for bid, _ in rows:
-            last = StoreChatMessage.query.filter_by(seller_id=user_id, buyer_id=bid).order_by(StoreChatMessage.created_at.desc()).first()
-            unread = StoreChatMessage.query.filter_by(seller_id=user_id, buyer_id=bid, sender_role='buyer', is_read=False).count()
-            convos.append(type('Obj', (), {'buyer_id': bid, 'last_message': getattr(last,'message',''), 'unread_count': unread}))
+        
+        for peer_id in peer_ids:
+            # Get last message
+            last = ChatMessage.query.filter(
+                or_(
+                    and_(ChatMessage.sender_id == user_id, ChatMessage.receiver_id == peer_id),
+                    and_(ChatMessage.sender_id == peer_id, ChatMessage.receiver_id == user_id)
+                )
+            ).order_by(ChatMessage.created_at.desc()).first()
+            
+            # Count unread messages from this peer
+            unread = ChatMessage.query.filter_by(sender_id=peer_id, receiver_id=user_id, is_read=False).count()
+            
+            # Create conversation object (use seller_id for backward compatibility with template)
+            convos.append(type('Obj', (), {
+                'seller_id': peer_id,
+                'buyer_id': peer_id,
+                'last_message': getattr(last, 'message', ''),
+                'unread_count': unread
+            }))
+        
+        # Sort by last message time
+        convos.sort(key=lambda c: getattr(ChatMessage.query.filter(
+            or_(
+                and_(ChatMessage.sender_id == user_id, ChatMessage.receiver_id == c.seller_id),
+                and_(ChatMessage.sender_id == c.seller_id, ChatMessage.receiver_id == user_id)
+            )
+        ).order_by(ChatMessage.created_at.desc()).first(), 'created_at', datetime.min), reverse=True)
+    
     return render_template('store_chat.html', chats=convos, users_by_id=users_by_id, chat_messages=[], selected_chat=None)
 
 @app.route('/chat/<int:seller_id>', methods=['GET', 'POST'])
@@ -12943,9 +12973,25 @@ def chat_window(seller_id):
     buyer_id = session['user_id']
     product_id = request.args.get('product_id', type=int)
     seller = User.query.get_or_404(seller_id)
-    chat_messages = StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=seller_id).order_by(StoreChatMessage.created_at.asc()).all()
-    # Mark all as read
-    StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=seller_id, sender_role='seller').update({'is_read': True})
+    
+    # Get ChatMessage model from unified chat system
+    ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+    if not ChatMessage:
+        return render_template('store_chat.html', chats=[], users_by_id={}, chat_messages=[], selected_chat=seller)
+    
+    # Get all messages between buyer and seller
+    from sqlalchemy import or_, and_
+    chat_messages = ChatMessage.query.filter(
+        or_(
+            and_(ChatMessage.sender_id == buyer_id, ChatMessage.receiver_id == seller_id),
+            and_(ChatMessage.sender_id == seller_id, ChatMessage.receiver_id == buyer_id)
+        )
+    ).order_by(ChatMessage.created_at.asc()).all()
+    
+    # Mark all messages from seller as read
+    unread_msgs = ChatMessage.query.filter_by(sender_id=seller_id, receiver_id=buyer_id, is_read=False).all()
+    for msg in unread_msgs:
+        msg.is_read = True
     db.session.commit()
 
     # Get all seller products for attachment
@@ -12955,17 +13001,16 @@ def chat_window(seller_id):
     if product_id:
         prefill_product = db.session.get(Product, product_id)
         if prefill_product:
-            prefill_message = f"Hi, I am interested in the {prefill_product.name} (â‚±{prefill_product.price:,.2f}). Is this item still available?"
+            prefill_message = f"Hi, I am interested in the {prefill_product.name} (₱{prefill_product.price:,.2f}). Is this item still available?"
 
     # Handle POST (send message)
     if request.method == 'POST':
         message = request.form.get('message')
         attached_product_id = request.form.get('product_id') or None
-        chat = StoreChatMessage(
-            buyer_id=buyer_id,
-            seller_id=seller_id,
+        chat = ChatMessage(
+            sender_id=buyer_id,
+            receiver_id=seller_id,
             message=message,
-            sender_role='buyer',
             product_id=attached_product_id if attached_product_id else None,
             created_at=datetime.utcnow(),
             is_read=False
@@ -12999,11 +13044,24 @@ def seller_chat_with_buyer(buyer_id):
     seller_id = session['user_id']
     buyer = User.query.get_or_404(buyer_id)
     
+    # Get ChatMessage model from unified chat system
+    ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+    if not ChatMessage:
+        return render_template('seller_chat.html', chats=[], users_by_id={}, chat_messages=[], selected_chat=buyer)
+    
     # Get chat messages between this seller and buyer
-    chat_messages = StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=seller_id).order_by(StoreChatMessage.created_at.asc()).all()
+    from sqlalchemy import or_, and_
+    chat_messages = ChatMessage.query.filter(
+        or_(
+            and_(ChatMessage.sender_id == buyer_id, ChatMessage.receiver_id == seller_id),
+            and_(ChatMessage.sender_id == seller_id, ChatMessage.receiver_id == buyer_id)
+        )
+    ).order_by(ChatMessage.created_at.asc()).all()
     
     # Mark all messages from buyer as read
-    StoreChatMessage.query.filter_by(buyer_id=buyer_id, seller_id=seller_id, sender_role='buyer').update({'is_read': True})
+    unread_msgs = ChatMessage.query.filter_by(sender_id=buyer_id, receiver_id=seller_id, is_read=False).all()
+    for msg in unread_msgs:
+        msg.is_read = True
     db.session.commit()
     
     # Get seller products for attachment
@@ -13020,11 +13078,10 @@ def seller_chat_with_buyer(buyer_id):
         attached_product_id = request.form.get('product_id') or None
         
         if message:
-            chat = StoreChatMessage(
-                buyer_id=buyer_id,
-                seller_id=seller_id,
+            chat = ChatMessage(
+                sender_id=seller_id,
+                receiver_id=buyer_id,
                 message=message,
-                sender_role='seller',
                 product_id=attached_product_id if attached_product_id else None,
                 created_at=datetime.utcnow(),
                 is_read=False
@@ -13039,27 +13096,30 @@ def seller_chat_with_buyer(buyer_id):
         users_by_id[rider.id] = rider
     
     # Get all unique buyers who have chatted with this seller
-    all_chats = db.session.query(
-        StoreChatMessage.buyer_id,
-        db.func.max(StoreChatMessage.created_at).label('last_time')
-    ).filter(
-        StoreChatMessage.seller_id == seller_id
-    ).group_by(StoreChatMessage.buyer_id).all()
+    subq_sent = db.session.query(ChatMessage.receiver_id).filter(ChatMessage.sender_id == seller_id).distinct()
+    subq_received = db.session.query(ChatMessage.sender_id).filter(ChatMessage.receiver_id == seller_id).distinct()
+    
+    peer_ids = set()
+    for row in subq_sent.all():
+        peer_ids.add(row[0])
+    for row in subq_received.all():
+        peer_ids.add(row[0])
     
     chats = []
-    for chat_buyer_id, last_time in all_chats:
-        chat_buyer = User.query.get(chat_buyer_id)
+    for peer_id in peer_ids:
+        chat_buyer = User.query.get(peer_id)
         if chat_buyer:
             users_by_id[chat_buyer.id] = chat_buyer
-            last_msg_obj = StoreChatMessage.query.filter_by(
-                buyer_id=chat_buyer_id,
-                seller_id=seller_id
-            ).order_by(StoreChatMessage.created_at.desc()).first()
+            last_msg_obj = ChatMessage.query.filter(
+                or_(
+                    and_(ChatMessage.sender_id == seller_id, ChatMessage.receiver_id == peer_id),
+                    and_(ChatMessage.sender_id == peer_id, ChatMessage.receiver_id == seller_id)
+                )
+            ).order_by(ChatMessage.created_at.desc()).first()
             
-            unread = StoreChatMessage.query.filter_by(
-                buyer_id=chat_buyer_id,
-                seller_id=seller_id,
-                sender_role='buyer',
+            unread = ChatMessage.query.filter_by(
+                sender_id=peer_id,
+                receiver_id=seller_id,
                 is_read=False
             ).count()
             
@@ -14821,10 +14881,18 @@ def seller_return_complete(return_id):
 @rider_required
 def rider_chat_thread(buyer_id):
     rider_id = session['user_id']
+    
+    # Get ChatMessage model from unified chat system
+    ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+    if not ChatMessage:
+        buyer = db.session.get(User, buyer_id)
+        return render_template('rider/chat.html', thread=[], buyer=buyer, buyer_avatar_url=None)
+    
     if request.method == 'POST':
         msg = (request.form.get('message') or '').strip()
         if msg:
-            db.session.add(RiderChatMessage(buyer_id=buyer_id, rider_id=rider_id, message=msg, sender_role='rider'))
+            chat_msg = ChatMessage(sender_id=rider_id, receiver_id=buyer_id, message=msg, is_read=False)
+            db.session.add(chat_msg)
             db.session.commit()
             try:
                 rider_user = db.session.get(User, rider_id)
@@ -14844,9 +14912,19 @@ def rider_chat_thread(buyer_id):
         return redirect(url_for('rider_chat_thread', buyer_id=buyer_id))
 
     # Load thread and mark buyer messages as read
-    RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=rider_id, sender_role='buyer', is_read=False).update({RiderChatMessage.is_read: True})
+    from sqlalchemy import or_, and_
+    unread_msgs = ChatMessage.query.filter_by(sender_id=buyer_id, receiver_id=rider_id, is_read=False).all()
+    for msg in unread_msgs:
+        msg.is_read = True
     db.session.commit()
-    thread = RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=rider_id).order_by(RiderChatMessage.created_at.asc()).all()
+    
+    thread = ChatMessage.query.filter(
+        or_(
+            and_(ChatMessage.sender_id == buyer_id, ChatMessage.receiver_id == rider_id),
+            and_(ChatMessage.sender_id == rider_id, ChatMessage.receiver_id == buyer_id)
+        )
+    ).order_by(ChatMessage.created_at.asc()).all()
+    
     buyer = db.session.get(User, buyer_id)
     # Use helper function to get buyer avatar URL
     buyer_avatar_url = get_user_avatar_url(buyer_id, buyer.role if buyer else None)
@@ -14856,11 +14934,20 @@ def rider_chat_thread(buyer_id):
 @login_required
 def buyer_rider_chat(rider_id):
     buyer_id = session['user_id']
+    
+    # Get ChatMessage model from unified chat system
+    ChatMessage = db.Model.registry._class_registry.get('ChatMessage')
+    if not ChatMessage:
+        rider = db.session.get(User, rider_id)
+        rider_profile = DeliveryPersonnel.query.filter_by(user_id=rider_id).first()
+        return render_template('buyer/rider_chat.html', thread=[], rider=rider, rider_profile=rider_profile)
+    
     # Only buyers should initiate; admins/sellers/riders will still be allowed for simplicity
     if request.method == 'POST':
         msg = (request.form.get('message') or '').strip()
         if msg:
-            db.session.add(RiderChatMessage(buyer_id=buyer_id, rider_id=rider_id, message=msg, sender_role='buyer'))
+            chat_msg = ChatMessage(sender_id=buyer_id, receiver_id=rider_id, message=msg, is_read=False)
+            db.session.add(chat_msg)
             db.session.commit()
             try:
                 buyer_user = db.session.get(User, buyer_id)
@@ -14878,9 +14965,20 @@ def buyer_rider_chat(rider_id):
                 pass
         return redirect(url_for('buyer_rider_chat', rider_id=rider_id))
 
-    RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=rider_id, sender_role='rider', is_read=False).update({RiderChatMessage.is_read: True})
+    # Mark rider messages as read
+    from sqlalchemy import or_, and_
+    unread_msgs = ChatMessage.query.filter_by(sender_id=rider_id, receiver_id=buyer_id, is_read=False).all()
+    for msg in unread_msgs:
+        msg.is_read = True
     db.session.commit()
-    thread = RiderChatMessage.query.filter_by(buyer_id=buyer_id, rider_id=rider_id).order_by(RiderChatMessage.created_at.asc()).all()
+    
+    thread = ChatMessage.query.filter(
+        or_(
+            and_(ChatMessage.sender_id == buyer_id, ChatMessage.receiver_id == rider_id),
+            and_(ChatMessage.sender_id == rider_id, ChatMessage.receiver_id == buyer_id)
+        )
+    ).order_by(ChatMessage.created_at.asc()).all()
+    
     rider = db.session.get(User, rider_id)
     # Rider profile for avatar
     rider_profile = DeliveryPersonnel.query.filter_by(user_id=rider_id).first()
@@ -16205,8 +16303,6 @@ def api_register():
             app.logger.info(f'Registration confirmation email sent to {email}')
         except Exception as e:
             app.logger.exception(f'Failed to send registration confirmation email to {email}: {e}')
-        except Exception as e:
-            app.logger.error(f'Failed to send admin notification for new registration: {e}')
 
         return jsonify({
             'success': True,
@@ -17790,6 +17886,92 @@ def approve_user(user_id):
             rider_apps = get_data('rider_application', filters={'user_id': user_id})
             if rider_apps and len(rider_apps) > 0:
                 update_data_by_id('rider_application', rider_apps[0].get('id'), {'status': 'approved'})
+                
+                # Send rider approval email
+                try:
+                    user_name = f"{user_to_approve.get('first_name', '')} {user_to_approve.get('last_name', '')}".strip()
+                    send_rider_status_email(user_to_approve.get('email'), approved=True, user_name=user_name)
+                    app.logger.info(f'Rider approval email sent to {user_to_approve.get("email")}')
+                except Exception as email_error:
+                    app.logger.exception(f"Failed to send rider approval email: {email_error}")
+        else:
+            # Send buyer/seller approval email
+            try:
+                user_name = f"{user_to_approve.get('first_name', '')} {user_to_approve.get('last_name', '')}".strip()
+                user_email = user_to_approve.get('email')
+                user_role = user_to_approve.get('role', 'buyer').capitalize()
+                
+                subject = f'🎉 Your {user_role} Account is Approved!'
+                
+                html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }}
+        .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; }}
+        .content {{ padding: 30px; }}
+        .button {{ display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ background: #f8f9fa; padding: 20px; text-align: center; color: #6c757d; font-size: 14px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Account Approved!</h1>
+        </div>
+        <div class="content">
+            <p>Hi {user_name}!</p>
+            <p><strong>Great news!</strong> Your {user_role} account has been approved by our admin team.</p>
+            <p>You can now log in and start using Kids Kingdom!</p>
+            <p style="text-align: center;">
+                <a href="https://kids-kingdom.onrender.com/login" class="button">Login Now</a>
+            </p>
+            <p>Thank you for joining Kids Kingdom! 💙</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 Kids Kingdom. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+                """
+                
+                text_body = f"""
+🎉 Your {user_role} Account is Approved!
+
+Hi {user_name}!
+
+Great news! Your {user_role} account has been approved by our admin team.
+
+You can now log in and start using Kids Kingdom!
+
+Login at: https://kids-kingdom.onrender.com/login
+
+Thank you for joining Kids Kingdom! 💙
+
+---
+© 2026 Kids Kingdom. All rights reserved.
+                """
+                
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = app.config['MAIL_SENDER']
+                msg['To'] = user_email
+                
+                part1 = MIMEText(text_body, 'plain', 'utf-8')
+                part2 = MIMEText(html_body, 'html', 'utf-8')
+                msg.attach(part1)
+                msg.attach(part2)
+                
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                    smtp.login(app.config['MAIL_SENDER'], app.config['MAIL_APP_PASSWORD'])
+                    smtp.send_message(msg)
+                app.logger.info(f'Approval email sent to {user_email}')
+            except Exception as email_error:
+                app.logger.exception(f"Failed to send approval email: {email_error}")
 
         return jsonify({'success': True, 'message': f'User {user_to_approve.get("email")} approved.'}), 200
 
@@ -17877,9 +18059,26 @@ def approve_rider_application(app_id):
         }
         update_data_by_id('rider_application', app_id, update_data)
         
-        # Also update user status to active
+        # Also update user status to active and role to rider
         user_id = rider_app.get('user_id')
-        update_data_by_id('user', user_id, {'status': 'active'})
+        update_data_by_id('user', user_id, {
+            'status': 'active',
+            'role': 'rider',
+            'email_verified': True
+        })
+        
+        # Get user details for email
+        user = get_data_by_id('user', user_id)
+        
+        # Send approval email
+        try:
+            if user:
+                user_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+                send_rider_status_email(user.get('email'), approved=True, user_name=user_name)
+                app.logger.info(f'Approval email sent to rider {user.get("email")}')
+        except Exception as email_error:
+            app.logger.exception(f"Failed to send approval email to rider: {email_error}")
+            # Don't fail the approval if email fails
 
         return jsonify({'success': True, 'message': 'Rider application approved'}), 200
 
@@ -21219,7 +21418,7 @@ app.extensions['return_refund_deps'] = {
 register_return_refund_api(app, db, token_required)
 
 # Register unified chat (must run after get_user_avatar_url is defined)
-register_unified_chat_api(app, socketio, db, get_avatar_url=get_user_avatar_url)
+register_unified_chat_api(app, socketio, db, get_avatar_url=get_user_avatar_url, token_required=token_required)
 
 # Ensure notification table has all required columns for Shopee-style notifications
 ensure_notification_table_on_startup()
