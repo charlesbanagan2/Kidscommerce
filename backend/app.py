@@ -5442,17 +5442,9 @@ def register_start():
         flash('This email address is already registered. Please use a different email or try logging in.', 'danger')
         return render_template('register.html')
 
-    # Local disposable / invalid email checks
-    if is_disposable_or_invalid_email(email):
-        flash('Disposable or invalid email addresses are not allowed.', 'danger')
-        return render_template('register.html')
-
-    # External real-time validation via EmailListVerify
-    # Only runs when EMAILLISTVERIFY_API_KEY is configured in your .env.
-    api_key = os.getenv('EMAILLISTVERIFY_API_KEY') or os.getenv('EMAILLISTVERIFY_SECRET')
-    if api_key and not verify_email_with_emaillistverify(email):
-        flash('Please enter a valid email address. We could not verify this email.', 'danger')
-        return render_template('register.html')
+    # Email validation disabled - accept any email format
+    # Disposable email check disabled
+    # EmailListVerify API check disabled
 
     # Require ID for rider; leave buyer as-is if your current flow requires valid_id too
     if role == 'rider' and (not file or not file.filename):
