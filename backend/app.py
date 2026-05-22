@@ -3352,43 +3352,35 @@ def get_cart_count():
 
 def can_user_review_product(user_id, product_id):
     """
-    Check if a user can review a product based on purchase history (Supabase version).
+    Check if a user can review a product based on purchase history (SQLAlchemy version).
     Returns: (can_review: bool, order_id: int or None, message: str)
     """
     # Check if user already reviewed this product
-    existing_reviews = get_data('review', filters={'user_id': user_id, 'product_id': product_id})
-    if existing_reviews and len(existing_reviews) > 0:
+    existing_review = Review.query.filter_by(user_id=user_id, product_id=product_id).first()
+    if existing_review:
         return False, None, "You have already reviewed this product."
     
     # Find completed or delivered orders containing this product
-    completed_orders = get_data('order', filters={'buyer_id': user_id})
-    if not completed_orders:
-        completed_orders = []
-    
-    # Filter for completed/delivered orders
-    completed_orders = [o for o in completed_orders if o.get('status') in ['completed', 'delivered']]
+    completed_orders = Order.query.filter_by(buyer_id=user_id).filter(
+        Order.status.in_(['completed', 'delivered'])
+    ).all()
     
     for order in completed_orders:
-        order_items = get_data('order_item', filters={'order_id': order.get('id')})
-        if not order_items:
-            order_items = []
-        
-        for item in order_items:
-            if item.get('product_id') == product_id:
-                # Check if review is within 30 days of delivery (optional)
-                delivered_at = order.get('delivered_at')
-                if delivered_at:
-                    if isinstance(delivered_at, str):
-                        delivered_at = datetime.fromisoformat(delivered_at.replace('Z', '+00:00'))
-                    # Ensure both datetimes are timezone-aware for comparison
-                    if delivered_at.tzinfo is None:
-                        delivered_at = delivered_at.replace(tzinfo=timezone.utc)
-                    now_aware = datetime.now(timezone.utc)
-                    days_since_delivery = (now_aware - delivered_at).days
-                    if days_since_delivery > 30:
-                        return False, None, "Review period (30 days after delivery) has expired."
-                
-                return True, order.get('id'), "You can review this product."
+        # Check if this order contains the product
+        order_item = OrderItem.query.filter_by(order_id=order.id, product_id=product_id).first()
+        if order_item:
+            # Check if review is within 30 days of delivery (optional)
+            if order.delivered_at:
+                delivered_at = order.delivered_at
+                # Ensure both datetimes are timezone-aware for comparison
+                if delivered_at.tzinfo is None:
+                    delivered_at = delivered_at.replace(tzinfo=timezone.utc)
+                now_aware = datetime.now(timezone.utc)
+                days_since_delivery = (now_aware - delivered_at).days
+                if days_since_delivery > 30:
+                    return False, None, "Review period (30 days after delivery) has expired."
+            
+            return True, order.id, "You can review this product."
     
     return False, None, "You need to purchase this product to leave a review."
 
