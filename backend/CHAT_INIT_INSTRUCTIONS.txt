@@ -1,0 +1,9 @@
+# Add this code to app.py after the socketio initialization
+
+# Import unified chat system
+from unified_chat_api import register_unified_chat
+
+# Register unified chat (add this after socketio = SocketIO(...) line)
+register_unified_chat(app, db, socketio)
+
+print("✅ Unified chat system initialized")

@@ -1,0 +1,69 @@
+@app.route('/add-to-cart/<int:product_id>')
+def add_to_cart(product_id):
+    # Login check - redirect to login if not authenticated
+    if 'user_id' not in session:
+        flash('Please login to add items to cart.', 'info')
+        return redirect(url_for('login'))
+    
+    # Admin accounts are view-only; block shopping actions
+    try:
+        if is_admin():
+            msg = 'Admin accounts are view-only and cannot add items to cart.'
+            if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+                return jsonify({'success': False, 'message': msg}), 403
+            flash(msg, 'warning')
+            return redirect(request.referrer or url_for('product_detail', product_id=product_id))
+    except Exception:
+        pass
+    product = Product.query.get_or_404(product_id)
+    
+    # Check if product is approved
+    if product.status != 'approved':
+        flash('Product not available.', 'error')
+        return redirect(request.referrer or url_for('shop'))
+    
+    # Check if user is trying to buy their own product
+    if product.seller_id == session['user_id']:
+        flash('You cannot purchase your own products.', 'error')
+        return redirect(request.referrer or url_for('shop'))
+    
+    # Check available stock (considering reserved orders)
+    available_stock = get_available_stock(product_id)
+    # Fallback to product.stock if get_available_stock returns 0 but product has stock
+    if available_stock == 0 and product.stock and product.stock > 0:
+        available_stock = product.stock
+    
+    # Check if item already in cart
+    cart_item = Cart.query.filter_by(user_id=session['user_id'], product_id=product_id).first()
+    
+    if cart_item:
+        # Check available stock before increasing quantity
+        if cart_item.quantity >= available_stock:
+            flash(f'Cannot add more items. Only {available_stock} items available.', 'error')
+        else:
+            cart_item.quantity += 1
+            db.session.commit()
+            flash('Item quantity updated in cart.', 'success')
+    else:
+        # Check available stock before adding new item
+        if available_stock <= 0:
+            flash('Product is out of stock.', 'error')
+        elif available_stock <= 10:
+            flash('Product is low stock. Only a few items remaining!', 'warning')
+        else:
+            cart_item = Cart(user_id=session['user_id'], product_id=product_id, quantity=1)
+            db.session.add(cart_item)
+            db.session.commit()
+            flash('Product added to cart!', 'success')
+    
+    # Check if it's an AJAX request
+    if request.headers.get('Content-Type') == 'application/json' or request.is_json:
+        # Calculate new cart count
+        cart_count = Cart.query.filter_by(user_id=session['user_id']).count()
+        return jsonify({
+            'success': True,
+            'message': 'Product added to cart!',
+            'cart_count': cart_count
+        })
+    
+    return redirect(request.referrer or url_for('shop'))

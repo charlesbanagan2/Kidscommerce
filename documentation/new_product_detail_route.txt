@@ -1,0 +1,77 @@
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    """Product detail page with all required data"""
+    # Load product with all relationships
+    product = Product.query.options(
+        joinedload(Product.seller),
+        joinedload(Product.category),
+        joinedload(Product.reviews).joinedload(Review.user)
+    ).filter_by(id=product_id, status='active').first()
+    
+    if not product:
+        flash('Product not found or unavailable', 'error')
+        return redirect(url_for('index'))
+    
+    # Calculate available stock
+    available_stock = get_available_stock(product.id)
+    
+    # Get product images (main + gallery)
+    product_images = [product.image_filename] if product.image_filename else []
+    if product.gallery:
+        try:
+            import json
+            gallery = json.loads(product.gallery) if isinstance(product.gallery, str) else product.gallery
+            if isinstance(gallery, list):
+                product_images.extend(gallery)
+        except:
+            pass
+    
+    # Media items for template
+    media_items = []
+    for img in product_images:
+        media_items.append({
+            'type': 'image',
+            'url': url_for('static', filename=f'uploads/{img}')
+        })
+    
+    # Get related products
+    related_products = Product.query.options(
+        joinedload(Product.seller),
+        joinedload(Product.category)
+    ).filter(
+        Product.category_id == product.category_id,
+        Product.id != product_id,
+        Product.status == 'active'
+    ).limit(4).all()
+    
+    # Check wishlist
+    in_wishlist = False
+    can_review = False
+    
+    if 'user_id' in session:
+        in_wishlist = Wishlist.query.filter_by(
+            user_id=session['user_id'],
+            product_id=product_id
+        ).first() is not None
+        
+        # Check if user purchased and can review
+        purchased = OrderItem.query.join(Order).filter(
+            Order.buyer_id == session['user_id'],
+            OrderItem.product_id == product_id,
+            Order.status.in_(['delivered', 'completed'])
+        ).first()
+        
+        existing_review = Review.query.filter_by(
+            user_id=session['user_id'],
+            product_id=product_id
+        ).first()
+        
+        can_review = purchased is not None and existing_review is None
+    
+    return render_template('product_detail.html',
+                         product=product,
+                         available_stock=available_stock,
+                         media_items=media_items,
+                         related_products=related_products,
+                         in_wishlist=in_wishlist,
+                         can_review=can_review)

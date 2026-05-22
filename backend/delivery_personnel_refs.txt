@@ -1,0 +1,143 @@
+Found 14 references to delivery_personnel
+
+================================================================================
+
+Line 1547:
+--------------------------------------------------------------------------------
+     1545:         pass
+     1546: 
+>>>  1547: # Ensure DeliveryPersonnel has extended profile fields (address/id)
+     1548: def ensure_delivery_personnel_extra_columns():
+     1549:     try:
+     1550:         inspector = sa_inspect(db.engine)
+--------------------------------------------------------------------------------
+
+Line 1548:
+--------------------------------------------------------------------------------
+     1546: 
+     1547: # Ensure DeliveryPersonnel has extended profile fields (address/id)
+>>>  1548: def ensure_delivery_personnel_extra_columns():
+     1549:     try:
+     1550:         inspector = sa_inspect(db.engine)
+     1551:         try:
+--------------------------------------------------------------------------------
+
+Line 1552:
+--------------------------------------------------------------------------------
+     1550:         inspector = sa_inspect(db.engine)
+     1551:         try:
+>>>  1552:             cols = {c['name'] for c in inspector.get_columns('delivery_personnel')}
+     1553:         except Exception:
+     1554:             return
+     1555:         to_add = []
+--------------------------------------------------------------------------------
+
+Line 1557:
+--------------------------------------------------------------------------------
+     1555:         to_add = []
+     1556:         if 'address' not in cols:
+>>>  1557:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN address TEXT")
+     1558:         if 'id_type' not in cols:
+     1559:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_type VARCHAR(40)")
+     1560:         if 'id_number' not in cols:
+--------------------------------------------------------------------------------
+
+Line 1559:
+--------------------------------------------------------------------------------
+     1557:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN address TEXT")
+     1558:         if 'id_type' not in cols:
+>>>  1559:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_type VARCHAR(40)")
+     1560:         if 'id_number' not in cols:
+     1561:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_number VARCHAR(60)")
+     1562:         if 'id_document' not in cols:
+--------------------------------------------------------------------------------
+
+Line 1561:
+--------------------------------------------------------------------------------
+     1559:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_type VARCHAR(40)")
+     1560:         if 'id_number' not in cols:
+>>>  1561:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_number VARCHAR(60)")
+     1562:         if 'id_document' not in cols:
+     1563:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_document VARCHAR(255)")
+     1564:         if 'photo_path' not in cols:
+--------------------------------------------------------------------------------
+
+Line 1563:
+--------------------------------------------------------------------------------
+     1561:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_number VARCHAR(60)")
+     1562:         if 'id_document' not in cols:
+>>>  1563:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_document VARCHAR(255)")
+     1564:         if 'photo_path' not in cols:
+     1565:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN photo_path VARCHAR(255)")
+     1566:         for stmt in to_add:
+--------------------------------------------------------------------------------
+
+Line 1565:
+--------------------------------------------------------------------------------
+     1563:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN id_document VARCHAR(255)")
+     1564:         if 'photo_path' not in cols:
+>>>  1565:             to_add.append("ALTER TABLE delivery_personnel ADD COLUMN photo_path VARCHAR(255)")
+     1566:         for stmt in to_add:
+     1567:             db.session.execute(_sa_text(stmt))
+     1568:         if to_add:
+--------------------------------------------------------------------------------
+
+Line 1613:
+--------------------------------------------------------------------------------
+     1611:         ensure_review_extra_columns()
+     1612:         ensure_product_gallery_column()
+>>>  1613:         ensure_delivery_personnel_extra_columns()
+     1614:         ensure_order_api_columns()
+     1615:         ensure_notification_extra_columns()
+     1616:         ensure_seller_application_background_column()
+--------------------------------------------------------------------------------
+
+Line 2071:
+--------------------------------------------------------------------------------
+     2069:     scanned_by_user = db.relationship('User', backref='qr_scans')
+     2070: 
+>>>  2071: class DeliveryPersonnel(db.Model):
+     2072:     id = db.Column(db.Integer, primary_key=True)
+     2073:     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+     2074:     employee_id = db.Column(db.String(50), unique=True, nullable=False)
+--------------------------------------------------------------------------------
+
+Line 2083:
+--------------------------------------------------------------------------------
+     2081:     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+     2082:     
+>>>  2083:     user = db.relationship('User', backref='delivery_personnel')
+     2084: 
+     2085: # Temporarily commented out to allow server startup
+     2086: # class ProductQR(db.Model):
+--------------------------------------------------------------------------------
+
+Line 11847:
+--------------------------------------------------------------------------------
+    11845: def rider_toggle_availability():
+    11846:     user_id = session['user_id']
+>>> 11847:     rp = DeliveryPersonnel.query.filter_by(user_id=user_id).first()
+    11848:     if not rp:
+    11849:         return jsonify({'success': False, 'message': 'No rider profile found.'}), 400
+    11850:     # Toggle between on_duty and off_duty
+--------------------------------------------------------------------------------
+
+Line 12812:
+--------------------------------------------------------------------------------
+    12810:             try:
+    12811:                 rider_user = db.session.get(User, rider_id)
+>>> 12812:                 rp = DeliveryPersonnel.query.filter_by(user_id=rider_id).first()
+    12813:                 img = getattr(rp, 'photo_path', None) or url_for('static', filename='user_avatar.png')
+    12814:                 push_notification(
+    12815:                     buyer_id,
+--------------------------------------------------------------------------------
+
+Line 12867:
+--------------------------------------------------------------------------------
+    12865:     rider = db.session.get(User, rider_id)
+    12866:     # Rider profile for avatar
+>>> 12867:     rider_profile = DeliveryPersonnel.query.filter_by(user_id=rider_id).first()
+    12868:     return render_template('buyer/rider_chat.html', thread=thread, rider=rider, rider_profile=rider_profile)
+    12869: 
+    12870: # Rider flows for return pickups
+--------------------------------------------------------------------------------

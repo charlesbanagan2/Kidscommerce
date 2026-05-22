@@ -1,0 +1,42 @@
+================================================================================
+COPYRIGHT YEAR UPDATE - 2026
+================================================================================
+
+UPDATED: All email templates from 2025 to 2026
+
+FILES MODIFIED:
+---------------
+c:\Users\mnban\OneDrive\Desktop\kids\backend\app.py
+
+EMAIL TEMPLATES UPDATED:
+------------------------
+1. ✅ Registration Email (Pending Approval)
+   - HTML version: © 2026 Kids Kingdom. All rights reserved.
+   - Text version: © 2026 Kids Kingdom. All rights reserved.
+
+2. ✅ Approval Email (Account Approved)
+   - HTML version: © 2026 Kids Kingdom. All rights reserved.
+   - Text version: © 2026 Kids Kingdom. All rights reserved.
+
+3. ✅ Rejection Email (Account Rejected)
+   - HTML version: © 2026 Kids Kingdom. All rights reserved.
+   - Text version: © 2026 Kids Kingdom. All rights reserved.
+
+CHANGES:
+--------
+Before: © 2025 Kids Kingdom. All rights reserved.
+After:  © 2026 Kids Kingdom. All rights reserved.
+
+LOCATIONS:
+----------
+- Line ~3969: Approval email HTML footer
+- Line ~4000: Approval email text footer
+- Line ~4074: Rejection email HTML footer
+- Line ~4106: Rejection email text footer
+- Line ~15950: Registration email HTML footer
+- Line ~15975: Registration email text footer
+
+STATUS: ✅ COMPLETED
+DATE: January 2026
+
+================================================================================

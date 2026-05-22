@@ -1,0 +1,89 @@
+﻿@app.route('/api/v1/rider/available-orders', methods=['GET'])
+@token_required
+@role_required('rider')
+def api_rider_available_orders():
+    """Get available orders for rider (FCFS - orders not yet accepted)"""
+    try:
+        # Get orders that are ready for pickup and not yet assigned to a rider
+        orders = db.session.query(Order).filter(
+            Order.status.in_(['ready_for_pickup', 'to_ship', 'pending']),
+            Order.rider_id.is_(None)
+        ).all()
+        
+        orders_data = []
+        for order in orders:
+            # Get buyer info
+            buyer = db.session.get(User, order.buyer_id)
+            buyer_name = f"{buyer.first_name} {buyer.last_name}" if buyer else 'Unknown Buyer'
+            buyer_phone = buyer.phone if buyer else ''
+            buyer_email = buyer.email if buyer else ''
+            
+            # Get seller info from order items' products
+            seller_names = set()
+            seller_addresses = set()
+            if hasattr(order, 'items') and order.items:
+                for item in order.items:
+                    if hasattr(item, 'product') and item.product:
+                        if hasattr(item.product, 'seller_id') and item.product.seller_id:
+                            seller = db.session.get(User, item.product.seller_id)
+                            if seller:
+                                seller_names.add(f"{seller.first_name} {seller.last_name}")
+                                if seller.address:
+                                    seller_addresses.add(seller.address)
+            
+            seller_name = ', '.join(seller_names) if seller_names else 'Unknown Seller'
+            seller_address = ', '.join(seller_addresses) if seller_addresses else ''
+            
+            order_dict = {
+                'id': order.id,
+                'status': order.status,
+                'total_amount': float(order.total_amount) if order.total_amount else 0,
+                'created_at': order.created_at.isoformat() if order.created_at else None,
+                'order_date': order.created_at.isoformat() if order.created_at else None,
+                'buyer_id': order.buyer_id,
+                'buyer_name': buyer_name,
+                'buyer_phone': buyer_phone,
+                'buyer_email': buyer_email,
+                'seller_name': seller_name,
+                'seller_address': seller_address,
+                'shipping_address': order.shipping_address or '',
+                'delivery_address': order.delivery_address or '',
+                'recipient_name': order.recipient_name or '',
+                'recipient_phone': order.recipient_phone or '',
+                'payment_method': order.payment_method or 'cod',
+                'payment_status': order.payment_status or 'pending',
+                'delivery_fee': float(order.delivery_fee) if order.delivery_fee else 36.0,  # Return pre-calculated delivery fee from database
+                'items': []
+            }
+            
+            # Add order items if available
+            if hasattr(order, 'items') and order.items:
+                for item in order.items:
+                    item_dict = {
+                        'id': item.id if hasattr(item, 'id') else None,
+                        'product_id': item.product_id if hasattr(item, 'product_id') else None,
+                        'quantity': item.quantity if hasattr(item, 'quantity') else 1,
+                        'price': float(item.price) if hasattr(item, 'price') and item.price else 0,
+                    }
+                    if hasattr(item, 'product') and item.product:
+                        item_dict['product_name'] = item.product.name or ''
+                        product_image = item.product.image_filename or ''
+                        item_dict['product_image'] = f'/static/uploads/{product_image}' if product_image else ''
+                    order_dict['items'].append(item_dict)
+            
+            orders_data.append(order_dict)
+        
+        return jsonify({
+            'success': True,
+            'orders': orders_data
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching available orders: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch available orders'
+        }), 500
+
+
+@app.route('/api/v1/rider/my-deliveries'

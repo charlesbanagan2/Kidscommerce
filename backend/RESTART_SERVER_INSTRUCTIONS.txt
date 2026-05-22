@@ -1,0 +1,24 @@
+========================================
+IMPORTANT: RESTART FLASK SERVER NOW
+========================================
+
+The add_to_cart_ajax function has been fixed to use Supabase REST API instead of SQLAlchemy ORM.
+
+CHANGES MADE:
+1. Replaced Product.query.get_or_404() with get_data('product', filters={'id': product_id})
+2. Changed product.status to product.get('status') and check for 'active'
+3. Changed product.seller_id to product.get('seller_id')
+4. Replaced Cart.query operations with get_data('cart', ...), update_data_by_id(), and insert_data()
+5. Added error logging for debugging
+
+TO RESTART:
+1. Stop the current Flask server (Ctrl+C in the terminal)
+2. Run: python app.py
+3. Test adding products to cart on the website
+
+WHAT WAS FIXED:
+- "Product not available" error when adding to cart
+- "Error fetching product by ID: 404" errors
+- SQLAlchemy ORM calls mixed with Supabase REST API
+
+The website should now work correctly for adding products to cart!

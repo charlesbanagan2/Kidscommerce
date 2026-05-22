@@ -1,0 +1,64 @@
+================================================================================
+                    ERROR HANDLING FIX - RESET PASSWORD
+================================================================================
+
+PROBLEM:
+--------
+When entering an invalid reset code, the mobile app was showing:
+"Connection error. Please check your internet and try again."
+
+Instead of the actual error message from backend:
+"Invalid verification code. Please check your email and try again."
+
+ROOT CAUSE:
+-----------
+The ApiService.request() method throws an ApiException when status code >= 400.
+The reset_password_screen.dart was catching ALL exceptions in a single catch block,
+which treated ApiException (400 Bad Request) the same as network errors.
+
+SOLUTION:
+---------
+Added separate exception handling in reset_password_screen.dart:
+
+1. First catch block: on ApiException catch (e)
+   - Handles HTTP errors (400, 404, etc.)
+   - Extracts the actual error message from the exception
+   - Properly identifies code-related errors
+   - Shows the correct error message to user
+
+2. Second catch block: catch (e)
+   - Handles actual network/connection errors
+   - Shows "Connection error" message
+
+CHANGES MADE:
+-------------
+File: mobile_app/lib/screens/auth/reset_password_screen.dart
+- Added ApiException catch block before generic catch block
+- Properly handles 400 (invalid code) errors
+- Properly handles 404 (user not found) errors
+- Shows correct error messages based on error type
+
+TESTING:
+--------
+Test these scenarios:
+1. Invalid code -> Should show "Invalid verification code..."
+2. Network error -> Should show "Connection error..."
+3. Valid code -> Should reset password successfully
+
+BACKEND STATUS:
+---------------
+Backend is already working correctly:
+- Returns proper error_type: 'invalid_code'
+- Returns proper error message
+- Returns status code 400
+
+The issue was only in the mobile app error handling.
+
+================================================================================
+                            FIX COMPLETE!
+================================================================================
+
+Next steps:
+1. Hot reload the mobile app (press 'r' in terminal)
+2. Test with invalid code
+3. Should now see correct error message

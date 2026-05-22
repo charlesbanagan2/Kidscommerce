@@ -1,0 +1,148 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║           📧 GMAIL SMTP QUICK SETUP - KIDS KINGDOM               ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────┐
+│ ❌ CURRENT ERROR:                                                │
+│                                                                  │
+│ SMTPAuthenticationError: Username and Password not accepted      │
+│                                                                  │
+│ 💡 REASON: Gmail requires App Password, not regular password    │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│ ✅ SOLUTION (3 SIMPLE STEPS):                                    │
+└──────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════╗
+║ STEP 1: Enable 2-Factor Authentication                          ║
+╚══════════════════════════════════════════════════════════════════╝
+
+   🔗 https://myaccount.google.com/security
+   
+   1. Click "2-Step Verification"
+   2. Click "Get Started"
+   3. Add phone number
+   4. Verify with SMS code
+   5. Turn ON 2-Step Verification
+
+╔══════════════════════════════════════════════════════════════════╗
+║ STEP 2: Generate App Password                                   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+   🔗 https://myaccount.google.com/apppasswords
+   
+   1. Select app: "Mail"
+   2. Select device: "Other (Custom name)"
+   3. Type: "Kids Kingdom App"
+   4. Click "Generate"
+   5. COPY the 16-character password
+   
+   Example: abcd efgh ijkl mnop
+   
+   ⚠️  IMPORTANT: Remove spaces when copying!
+   Use: abcdefghijklmnop
+
+╔══════════════════════════════════════════════════════════════════╗
+║ STEP 3: Update Configuration                                    ║
+╚══════════════════════════════════════════════════════════════════╝
+
+   📁 File: mobile_app/lib/kids_commercedb/supabase.env
+   
+   Add these lines at the bottom:
+   
+   ┌────────────────────────────────────────────────────────────┐
+   │ MAIL_SENDER=gbanagan33@gmail.com                          │
+   │ MAIL_APP_PASSWORD=abcdefghijklmnop                        │
+   │ MAIL_SENDER_NAME=Kids Kingdom                             │
+   └────────────────────────────────────────────────────────────┘
+   
+   Replace "abcdefghijklmnop" with YOUR App Password
+
+╔══════════════════════════════════════════════════════════════════╗
+║ STEP 4: Test Configuration                                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+   Open terminal and run:
+   
+   cd C:\Users\mnban\OneDrive\Desktop\kids\backend
+   python test_email.py
+   
+   ✅ If successful, you'll see:
+   "SUCCESS! Test email sent successfully!"
+
+╔══════════════════════════════════════════════════════════════════╗
+║ STEP 5: Restart Application                                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+   1. Stop Flask server (Ctrl+C)
+   2. Start again: python app.py
+   3. Test forgot password feature
+
+┌──────────────────────────────────────────────────────────────────┐
+│ 📧 PROFESSIONAL EMAILS NOW AVAILABLE:                            │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ 🔐 Password Reset Code                                          │
+│    - Beautiful gradient design                                  │
+│    - Large verification code                                    │
+│    - Security tips                                              │
+│                                                                  │
+│ 🎉 Account Approved                                             │
+│    - Congratulations message                                    │
+│    - Feature list                                               │
+│    - Login button                                               │
+│                                                                  │
+│ 📋 Account Rejected                                             │
+│    - Professional notice                                        │
+│    - Clear reason                                               │
+│    - Next steps guidance                                        │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│ 🔧 TROUBLESHOOTING:                                              │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ ❌ "App Passwords not showing"                                  │
+│    → Enable 2FA first, wait 5-10 minutes                        │
+│                                                                  │
+│ ❌ "Still authentication error"                                 │
+│    → Check App Password (no spaces)                             │
+│    → Restart Flask application                                  │
+│                                                                  │
+│ ❌ "Test email not received"                                    │
+│    → Check spam folder                                          │
+│    → Wait 1-2 minutes                                           │
+│    → Try different email                                        │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│ ✅ CHECKLIST:                                                    │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ [ ] Enable 2-Factor Authentication                              │
+│ [ ] Generate App Password                                       │
+│ [ ] Copy password (remove spaces)                               │
+│ [ ] Update supabase.env file                                    │
+│ [ ] Run test_email.py                                           │
+│ [ ] Verify test email received                                  │
+│ [ ] Restart Flask app                                           │
+│ [ ] Test forgot password                                        │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║  📞 NEED HELP?                                                   ║
+║                                                                  ║
+║  1. Read GMAIL_SETUP_GUIDE.md for detailed instructions         ║
+║  2. Run python test_email.py to diagnose issues                 ║
+║  3. Check Flask logs for error messages                         ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Last Updated: May 14, 2026

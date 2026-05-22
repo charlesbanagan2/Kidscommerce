@@ -1,0 +1,135 @@
+# ============================================
+# FIX ORDERS ENDPOINT - COPY THIS TO app.py
+# ============================================
+# Replace the existing @app.route('/api/v1/orders/user') function with this
+
+@app.route('/api/v1/orders/user', methods=['GET'])
+@token_required
+def api_v1_orders_user():
+    """
+    FIXED & OPTIMIZED: Get all orders for current user
+    - Uses service key to bypass RLS
+    - Returns all orders regardless of status
+    """
+    try:
+        user_id = request.current_user_id
+        
+        print(f"DEBUG: Fetching orders for user_id: {user_id}")
+        
+        # Use Supabase REST API with service key to bypass RLS
+        headers = {
+            'apikey': app.config['SUPABASE_SERVICE_KEY'],
+            'Authorization': f"Bearer {app.config['SUPABASE_SERVICE_KEY']}",
+            'Content-Type': 'application/json'
+        }
+        
+        # Fetch orders
+        orders_url = f"{app.config['SUPABASE_REST_URL']}/order"
+        orders_params = {
+            'buyer_id': f'eq.{user_id}',
+            'select': '*',
+            'order': 'created_at.desc'
+        }
+        
+        print(f"DEBUG: Fetching from: {orders_url}")
+        
+        orders_response = requests.get(orders_url, headers=headers, params=orders_params, timeout=30)
+        
+        print(f"DEBUG: Response status: {orders_response.status_code}")
+        
+        if orders_response.status_code != 200:
+            print(f"ERROR: {orders_response.text}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch orders',
+                'details': orders_response.text
+            }), orders_response.status_code
+        
+        orders = orders_response.json()
+        print(f"DEBUG: Found {len(orders)} orders")
+        
+        # Fetch order items for all orders
+        result = []
+        for order in orders:
+            order_id = order['id']
+            
+            # Fetch order items
+            items_url = f"{app.config['SUPABASE_REST_URL']}/order_item"
+            items_params = {
+                'order_id': f'eq.{order_id}',
+                'select': '*'
+            }
+            
+            items_response = requests.get(items_url, headers=headers, params=items_params, timeout=30)
+            items = items_response.json() if items_response.status_code == 200 else []
+            
+            # Fetch product details for each item
+            items_with_products = []
+            for item in items:
+                product_id = item.get('product_id')
+                if product_id:
+                    product_url = f"{app.config['SUPABASE_REST_URL']}/product"
+                    product_params = {
+                        'id': f'eq.{product_id}',
+                        'select': 'id,name,image_filename,seller_id'
+                    }
+                    product_response = requests.get(product_url, headers=headers, params=product_params, timeout=30)
+                    products = product_response.json() if product_response.status_code == 200 else []
+                    product = products[0] if products else None
+                    
+                    # Get seller info
+                    seller_name = None
+                    if product and product.get('seller_id'):
+                        seller_url = f"{app.config['SUPABASE_REST_URL']}/user"
+                        seller_params = {
+                            'id': f'eq.{product["seller_id"]}',
+                            'select': 'first_name,last_name'
+                        }
+                        seller_response = requests.get(seller_url, headers=headers, params=seller_params, timeout=30)
+                        sellers = seller_response.json() if seller_response.status_code == 200 else []
+                        if sellers:
+                            seller = sellers[0]
+                            seller_name = f"{seller.get('first_name', '')} {seller.get('last_name', '')}".strip()
+                    
+                    items_with_products.append({
+                        'id': item.get('id'),
+                        'product_id': product_id,
+                        'product_name': product.get('name') if product else 'Unknown Product',
+                        'product_image': product.get('image_filename') if product else None,
+                        'seller_name': seller_name,
+                        'quantity': item.get('quantity', 0),
+                        'price': float(item.get('price_at_time', 0))
+                    })
+            
+            # Build order response
+            result.append({
+                'id': order['id'],
+                'total_amount': float(order.get('total_amount', 0)),
+                'status': order.get('status', 'pending'),
+                'payment_method': order.get('payment_method', ''),
+                'payment_status': order.get('payment_status', 'pending'),
+                'shipping_address': order.get('shipping_address', ''),
+                'recipient_name': order.get('recipient_name', ''),
+                'recipient_phone': order.get('recipient_phone', ''),
+                'notes': order.get('notes', ''),
+                'created_at': order.get('created_at', ''),
+                'updated_at': order.get('updated_at', ''),
+                'items': items_with_products
+            })
+        
+        print(f"DEBUG: Returning {len(result)} orders with items")
+        
+        return jsonify({
+            'success': True,
+            'orders': result,
+            'count': len(result)
+        })
+        
+    except Exception as e:
+        print(f"ERROR in api_v1_orders_user: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

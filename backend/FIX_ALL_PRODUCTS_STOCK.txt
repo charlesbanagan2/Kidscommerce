@@ -1,0 +1,68 @@
+================================================================================
+FIX SUMMARY: All Products Showing "Not Available" / 0 Stock Issue
+================================================================================
+
+PROBLEM:
+--------
+All products were showing as "not available" or "0 stock" when trying to add to 
+cart or checkout, even though they had stock in the database.
+
+ROOT CAUSE:
+-----------
+The get_available_stock() function was recently fixed to use SQLAlchemy ORM 
+instead of Supabase REST API (which was returning empty results). However, the 
+add_to_cart_ajax() function was still trying to use Supabase REST API results 
+as a fallback, causing a mismatch.
+
+WHAT WAS FIXED:
+---------------
+1. Fixed add_to_cart_ajax() function (line ~8090):
+   - Changed from: product.stock (trying to access dict as object)
+   - Changed to: product.get('stock') (proper dict access)
+   - This ensures the fallback logic works correctly when get_available_stock() 
+     returns 0 but the product actually has stock
+
+2. Fixed buy_now() function (line ~8093):
+   - Kept using product.stock since it uses Product.query.get_or_404() which 
+     returns an ORM object, not a dict
+
+VERIFICATION:
+-------------
+Tested with multiple products:
+- Product 17: 50 stock → Shows 50 available ✓
+- Product 24: 20 stock → Shows 10 available (10 reserved) ✓
+- Product 15: 50 stock → Shows 50 available ✓
+- Product 1: 95 stock → Shows 89 available (6 reserved) ✓
+- Product 2: 99 stock → Shows 98 available (1 reserved) ✓
+- Product 3: 94 stock → Shows 88 available (6 reserved) ✓
+
+All products now correctly show their available stock!
+
+NEXT STEPS:
+-----------
+1. Restart the Flask server for changes to take effect:
+   - Stop the current server (Ctrl+C)
+   - Run: python app.py
+
+2. Test on the website:
+   - Try adding products to cart
+   - Try "Buy Now" button
+   - Verify stock shows correctly on product pages
+
+FILES MODIFIED:
+---------------
+- c:\Users\mnban\Documents\kids\backend\app.py
+  - Line ~8090: Fixed add_to_cart_ajax() fallback logic
+  - Line ~8093: Verified buy_now() uses correct approach
+
+TECHNICAL DETAILS:
+------------------
+The get_available_stock() function now uses SQLAlchemy ORM exclusively:
+- db.session.get(Product, product_id) - Direct database access
+- OrderItem.query - Direct database access  
+- RestockRequest.query - Direct database access
+
+This bypasses the Supabase REST API Row Level Security issues that were 
+causing empty results.
+
+================================================================================

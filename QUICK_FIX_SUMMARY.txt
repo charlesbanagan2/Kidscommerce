@@ -1,0 +1,64 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                  PRODUCT 32 CART FIX SUMMARY                     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📦 PRODUCT: Play-Doh Classic 4 Pack (ID: 32)
+💰 PRICE: ₱150.00
+📊 STOCK: 50 units
+
+❌ PROBLEMA:
+   POST /api/v1/buyer/cart → 404 Error
+   Hindi ma-add to cart kahit existing ang product
+
+🔍 ROOT CAUSE:
+   Database: status = 'approved' ✓
+   Code Check: status = 'active' ✗
+   MISMATCH! Kaya 404 error
+
+✅ SOLUSYON:
+   Changed all product status checks:
+   'active' → 'approved'
+   
+   Fixed 7 locations in app.py:
+   • Add to cart endpoint
+   • View cart endpoint
+   • Update cart endpoint
+   • Checkout validation
+   • Cart calculations
+   • Buy now endpoint
+   • Product availability checks
+
+🔧 FILES MODIFIED:
+   ✓ backend/app.py (7 fixes applied)
+
+📝 DOCUMENTATION CREATED:
+   ✓ AYOS_NA_PRODUCT_32.md (Tagalog summary)
+   ✓ CART_PRODUCT_32_FIX.md (Technical details)
+   ✓ STATUS_VALUES_REFERENCE.md (Reference guide)
+   ✓ CHECKLIST_PRODUCT_32_FIX.md (Action items)
+   ✓ test_cart_fix.py (Test script)
+   ✓ check_product_32.py (Verification script)
+
+⚠️  IMPORTANT - NEXT STEP:
+   ╔════════════════════════════════════════════════════════╗
+   ║  RESTART THE FLASK SERVER PARA MAG-TAKE EFFECT!       ║
+   ║                                                        ║
+   ║  1. Stop server: Ctrl+C                               ║
+   ║  2. Start again: python app.py                        ║
+   ║  3. Test: Add product 32 to cart                      ║
+   ╚════════════════════════════════════════════════════════╝
+
+🧪 TESTING:
+   Option 1: Test from mobile app
+   Option 2: Run test script
+             cd backend
+             python test_cart_fix.py
+
+✅ EXPECTED RESULT:
+   Status: 201 Created (not 404)
+   Response: {"success": true, "message": "Item added to cart"}
+
+═══════════════════════════════════════════════════════════════════
+
+STATUS: ✅ FIX APPLIED - WAITING FOR SERVER RESTART
+DATE: May 20, 2026, 11:35 PM

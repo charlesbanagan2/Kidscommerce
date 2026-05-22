@@ -1,0 +1,52 @@
+@app.route('/buy-now/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def buy_now(product_id):
+    """Create a separate cart line for this product (ignoring any existing one) and checkout ONLY that line with the selected qty."""
+    # Block admin users
+    try:
+        if is_admin():
+            flash('Admin accounts are view-only and cannot purchase items.', 'warning')
+            return redirect(url_for('product_detail', product_id=product_id))
+    except Exception:
+        pass
+    product = Product.query.get_or_404(product_id)
+
+    # Must be active and not buyer's own product
+    if product.status != 'active':
+        flash('Product not available.', 'error')
+        return redirect(url_for('product_detail', product_id=product_id))
+    if product.seller_id == session['user_id']:
+        flash('You cannot purchase your own products.', 'error')
+        return redirect(url_for('product_detail', product_id=product_id))
+
+    # Desired quantity from query string (default 1)
+    try:
+        req_qty = int(request.args.get('qty', '1'))
+    except Exception:
+        req_qty = 1
+    if req_qty < 1:
+        req_qty = 1
+
+    # Stock guard (uses order reservations, not cart contents)
+    available_stock = get_available_stock(product_id)
+    # Fallback to product.stock if get_available_stock returns 0 but product has stock
+    if available_stock == 0 and product.stock and product.stock > 0:
+        available_stock = product.stock
+    if available_stock <= 0:
+        flash('Product is out of stock.', 'error')
+        return redirect(url_for('product_detail', product_id=product_id))
+    elif available_stock <= 10:
+        flash('Product is low stock. Only a few items remaining!', 'warning')
+
+    add_qty = min(req_qty, max(available_stock, 0))
+    if add_qty <= 0:
+        flash('Cannot purchase the requested quantity due to stock limits.', 'warning')
+        return redirect(url_for('product_detail', product_id=product_id))
+
+    # IMPORTANT: always create a new cart row (do NOT merge with any existing row for same product)
+    new_item = Cart(user_id=session['user_id'], product_id=product_id, quantity=add_qty)
+    db.session.add(new_item)
+    db.session.commit()
+
+    # Redirect to checkout with only this new cart item selected
+    return redirect(url_for('checkout', ids=str(new_item.id)))

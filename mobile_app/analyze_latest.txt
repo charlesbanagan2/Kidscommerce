@@ -1,0 +1,81 @@
+﻿Analyzing mobile_app...                                         
+
+   info - Statement should be on a separate line - lib\models\product.dart:93:20 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\providers\buyer_provider.dart:172:43 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\providers\buyer_provider.dart:181:43 - always_put_control_body_on_new_line
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:191:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:268:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:270:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:271:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:384:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:416:35 - deprecated_member_use
+   info - Statement should be on a separate line - lib\screens\auth\forgot_password_screen.dart:26:45 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\login_screen.dart:59:25 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\login_screen.dart:82:28 - always_put_control_body_on_new_line
+   info - Don't invoke 'print' in production code - lib\screens\auth\login_screen.dart:158:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\auth\login_screen.dart:168:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\auth\login_screen.dart:179:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\auth\login_screen.dart:191:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\screens\auth\login_screen.dart:206:9 - avoid_print
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:88:27 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:91:32 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:92:46 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:93:46 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:94:46 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:166:24 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:169:38 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:175:24 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:176:29 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:177:34 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:184:27 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:185:30 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:186:31 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:192:23 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:193:26 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\register_screen.dart:194:27 - always_put_control_body_on_new_line
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:402:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:411:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:462:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:463:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:608:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:646:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:761:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:863:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:973:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\auth\register_screen.dart:975:58 - deprecated_member_use
+   info - Statement should be on a separate line - lib\screens\auth\reset_password_screen.dart:34:45 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\auth\verify_email_screen.dart:33:45 - always_put_control_body_on_new_line
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:145:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:163:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:242:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:281:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:288:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:304:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:316:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:329:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:360:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:578:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\buyer_home_screen.dart:669:49 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\buyer_app\checkout_screen.dart:286:11 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\buyer_app\checkout_screen.dart:287:11 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\buyer_app\checkout_screen.dart:292:11 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\buyer_app\checkout_screen.dart:293:11 - deprecated_member_use
+   info - Statement should be on a separate line - lib\screens\buyer_app\messages_screen.dart:211:23 - always_put_control_body_on_new_line
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\buyer_app\order_detail.dart:334:62 - deprecated_member_use
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:38:19 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:162:19 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:171:21 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:199:19 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:204:21 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:224:19 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:232:21 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:251:19 - always_put_control_body_on_new_line
+   info - Statement should be on a separate line - lib\screens\rider\rider_dashboard_screen.dart:259:21 - always_put_control_body_on_new_line
+
+flutter.bat : 71 issues found. (ran in 4.0s)
+At line:1 char:58
++ ... kids\mobile_app"; & "C:\flutter\bin\flutter.bat" analyze 2>&1 | Out-F ...
++                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (71 issues found. (ran in 4.0s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

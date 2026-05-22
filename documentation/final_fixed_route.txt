@@ -1,0 +1,101 @@
+@app.route('/product/<int:product_id>')
+def product_detail(product_id):
+    """Product detail page with all required data"""
+    # Load product
+    product = Product.query.filter_by(id=product_id, status='active').first()
+    
+    if not product:
+        flash('Product not found or unavailable', 'error')
+        return redirect(url_for('index'))
+    
+    # Calculate available stock - use product.stock if get_available_stock returns 0
+    try:
+        available_stock = get_available_stock(product.id)
+        # If function returns 0 but product has stock, use product.stock instead
+        if available_stock == 0 and product.stock and product.stock > 0:
+            available_stock = product.stock
+    except:
+        # Fallback to product stock if function fails
+        available_stock = product.stock if product.stock else 0
+    
+    # Get product images (main + gallery)
+    product_images = []
+    
+    # Add main image
+    if product.image_filename:
+        product_images.append(product.image_filename)
+    
+    # Add gallery images
+    if product.gallery:
+        try:
+            import json
+            gallery = json.loads(product.gallery) if isinstance(product.gallery, str) else product.gallery
+            if isinstance(gallery, list):
+                product_images.extend(gallery)
+        except:
+            pass
+    
+    # Build media items with proper URLs
+    media_items = []
+    for img in product_images:
+        if img:  # Make sure image filename is not empty
+            # Clean the filename - remove any 'uploads/' prefix if present
+            clean_img = img.replace('uploads/', '').replace('uploads\\', '')
+            media_items.append({
+                'type': 'image',
+                'url': url_for('static', filename=f'uploads/{clean_img}')
+            })
+    
+    # If no images, add a placeholder
+    if not media_items:
+        media_items.append({
+            'type': 'image',
+            'url': url_for('static', filename='placeholder.png')
+        })
+    
+    # Calculate average rating
+    reviews = Review.query.filter_by(product_id=product_id).all()
+    avg_rating = 0
+    if reviews:
+        avg_rating = sum(r.rating for r in reviews) / len(reviews)
+    
+    # Get related products
+    related_products = Product.query.filter(
+        Product.category_id == product.category_id,
+        Product.id != product_id,
+        Product.status == 'active'
+    ).limit(4).all()
+    
+    # Check wishlist
+    in_wishlist = False
+    can_review = False
+    
+    if 'user_id' in session:
+        in_wishlist = Wishlist.query.filter_by(
+            user_id=session['user_id'],
+            product_id=product_id
+        ).first() is not None
+        
+        # Check if user purchased and can review
+        purchased = OrderItem.query.join(Order).filter(
+            Order.buyer_id == session['user_id'],
+            OrderItem.product_id == product_id,
+            Order.status.in_(['delivered', 'completed'])
+        ).first()
+        
+        existing_review = Review.query.filter_by(
+            user_id=session['user_id'],
+            product_id=product_id
+        ).first()
+        
+        can_review = purchased is not None and existing_review is None
+    
+    return render_template('product_detail.html',
+                         product=product,
+                         available_stock=available_stock,
+                         media_items=media_items,
+                         avg_rating=avg_rating,
+                         reviews=reviews,
+                         related_products=related_products,
+                         in_wishlist=in_wishlist,
+                         can_review=can_review)

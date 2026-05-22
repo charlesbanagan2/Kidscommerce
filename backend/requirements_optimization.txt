@@ -1,0 +1,5 @@
+# Redis caching for notification optimization
+# Install with: pip install -r requirements_optimization.txt
+
+redis>=4.5.0
+hiredis>=2.2.0  # Optional: faster Redis protocol parser

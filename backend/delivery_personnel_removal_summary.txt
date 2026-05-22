@@ -1,0 +1,19 @@
+# Summary of changes needed in app.py to remove delivery_personnel references:
+
+# 1. Lines 1547-1571: Remove ensure_delivery_personnel_extra_columns() function
+# 2. Line 1613: Remove call to ensure_delivery_personnel_extra_columns()
+# 3. Lines 2071-2083: Remove DeliveryPersonnel model class
+# 4. Line 11847: Remove DeliveryPersonnel query in rider_toggle_availability()
+# 5. Line 12812: Remove DeliveryPersonnel query for rider profile
+# 6. Line 12867: Remove DeliveryPersonnel query for rider chat
+
+# The delivery_personnel table has been dropped from the database.
+# All rider information is now stored in the user table with:
+# - role: 'rider'
+# - status: 'active', 'pending', or 'rejected'
+
+# Riders are identified by:
+# - User.role == 'rider'
+# - User.status == 'active' (for active riders)
+
+# No separate DeliveryPersonnel table or model is needed.

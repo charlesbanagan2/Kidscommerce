@@ -1,0 +1,21 @@
+# Copy these environment variables to Render Dashboard
+# Go to: https://dashboard.render.com → Your Service → Environment Tab
+# Click "Add from .env" and paste this entire content
+
+    GOOGLE_CLIENT_ID=43948051603-4urea9cbk1n1ppbk8ehnkepssi2vkmfv.apps.googleusercontent.com
+    GOOGLE_CLIENT_SECRET=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
+    SUPABASE_URL=https://qkdacoawexaxejljfihh.supabase.co
+    SUPABASE_KEY=sb_publishable_PcSjw7T6f7D4tj3s8SxZKg_IqTuUhWM
+    SUPABASE_SERVICE_KEY=sb_secret_Kxo54KzgPd8haK3Za_-VkQ_AoTWJUhX
+    SUPABASE_DB_URL=postgresql+psycopg2://postgres.qkdacoawexaxejljfihh:Kidscommerce%401234@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+    MAIL_SENDER=charlesgabrielle.banagan@lspu.edu.ph
+    MAIL_APP_PASSWORD=uadirdemyawgaemu
+    MAIL_SENDER_NAME=Kids Kingdom
+    EMAILLISTVERIFY_API_KEY=WCoX3dgyRS7WsEVopg7afzNIfsQAfXVH
+    SECRET_KEY=KidsKingdom_SuperSecure_FlaskSession_Key_2026!#
+    JWT_SECRET_KEY=KidsKingdom_Mobile_Authentication_JWT_Secret_Token_072223
+    FLASK_ENV=production
+    DEBUG=False
+    HOST=0.0.0.0
+    PORT=10000
+    ALLOWED_ORIGINS=https://kids-kingdom.onrender.com,http://localhost:3000

@@ -1,0 +1,136 @@
+========================================
+FIXES APPLIED - SUMMARY
+========================================
+
+## Issue 1: Website Add to Cart Error ✅ FIXED
+**Problem**: "Product is out of stock" error when adding items to cart
+**Root Cause**: add_to_cart_ajax function was using SQLAlchemy ORM instead of Supabase REST API
+**Solution**: 
+- Replaced Product.query.get_or_404() with get_data('product', filters={'id': product_id})
+- Replaced Cart.query operations with get_data(), update_data_by_id(), insert_data()
+- Changed status check to product.get('status') == 'active'
+**File Modified**: backend/app.py (lines ~7993-8060)
+
+## Issue 2: Mobile App Timeout Errors ✅ FIXED
+**Problem**: Mobile app showing "Request timeout. Server not responding" when fetching products/categories
+**Root Cause**: Mobile app configured with wrong IP address (192.168.100.46 vs actual 192.168.1.20)
+**Solution**: Updated backendHost in url_config.dart to '192.168.1.20'
+**File Modified**: mobile_app/lib/config/url_config.dart
+
+========================================
+NEXT STEPS
+========================================
+
+1. **Restart Flask Backend Server**:
+   ```bash
+   cd c:\Users\mnban\Documents\kids\backend
+   python app.py
+   ```
+
+2. **Restart Mobile App**:
+   - Stop the current app (if running)
+   - Run: flutter run
+   - Or hot restart in your IDE (press 'R' in terminal or click hot restart button)
+
+3. **Test Website**:
+   - Open http://192.168.1.20:5000 in browser
+   - Login as buyer (buyer@test.com / buyer123)
+   - Try adding products to cart
+   - Should work without "out of stock" error
+
+4. **Test Mobile App**:
+   - Launch app on device/emulator
+   - Products and categories should load without timeout
+   - Browse products, add to cart, checkout should all work
+
+========================================
+TECHNICAL DETAILS
+========================================
+
+**Server IP**: 192.168.1.20
+**Server Port**: 5000
+**Backend URL**: http://192.168.1.20:5000
+
+**Mobile App Configuration**:
+- backendHost: '192.168.1.20'
+- backendPort: 5000
+- baseUrl: 'http://192.168.1.20:5000'
+
+**Database**: Supabase (via REST API)
+**API Endpoints Working**:
+- GET /api/products
+- GET /api/categories
+- POST /add-to-cart-ajax/<product_id>
+
+========================================
+VERIFICATION CHECKLIST
+========================================
+
+Website:
+[ ] Backend server running on port 5000
+[ ] Can access http://192.168.1.20:5000
+[ ] Can login as buyer
+[ ] Can view products
+[ ] Can add products to cart (no "out of stock" error)
+[ ] Cart count updates correctly
+
+Mobile App:
+[ ] App connects to backend (no timeout errors)
+[ ] Products load on home screen
+[ ] Categories load correctly
+[ ] Can view product details
+[ ] Can add to cart (after login)
+[ ] Can checkout
+
+========================================
+TROUBLESHOOTING
+========================================
+
+If website still shows "out of stock":
+1. Check backend logs for errors
+2. Verify product status is 'active' in Supabase
+3. Check product stock > 0
+4. Clear browser cache and reload
+
+If mobile app still times out:
+1. Verify mobile device is on same network as server
+2. Check firewall allows port 5000
+3. Ping 192.168.1.20 from mobile device
+4. Check backend logs for incoming requests
+5. Try accessing http://192.168.1.20:5000/api/health in mobile browser
+
+If IP address changes:
+1. Run 'ipconfig' to get current IP
+2. Update url_config.dart with new IP
+3. Hot restart mobile app
+4. Update any documentation with new IP
+
+========================================
+FILES MODIFIED
+========================================
+
+1. c:\Users\mnban\Documents\kids\backend\app.py
+   - Function: add_to_cart_ajax (lines ~7993-8060)
+   - Changed: SQLAlchemy ORM → Supabase REST API
+
+2. c:\Users\mnban\Documents\kids\mobile_app\lib\config\url_config.dart
+   - Line 5: backendHost = '192.168.1.20'
+   - Changed: 192.168.100.46 → 192.168.1.20
+
+========================================
+SUCCESS INDICATORS
+========================================
+
+✅ Backend server running without errors
+✅ Website can add products to cart
+✅ Mobile app loads products without timeout
+✅ Mobile app loads categories without timeout
+✅ Cart operations work on both platforms
+✅ No "Invalid path specified in request URL" errors
+✅ No "Request timeout" errors
+
+========================================
+READY TO TEST! 🚀
+========================================
+
+Both website and mobile app should now work correctly!

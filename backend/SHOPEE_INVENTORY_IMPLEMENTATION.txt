@@ -1,0 +1,238 @@
+# SHOPEE-STYLE INVENTORY IMPLEMENTATION GUIDE
+# ============================================
+# This file contains all the changes needed for app.py
+
+# STEP 1: Replace the stock validation in process_order (around line 9034-9040)
+# OLD CODE:
+"""
+    for cart_item in cart_items:
+        if getattr(cart_item.product, 'status', 'active') != 'active':
+            flash(f'{cart_item.product.name} is inactive and cannot be purchased.', 'error')
+            return redirect(url_for('cart'))
+        available_stock = get_available_stock(cart_item.product_id)
+        if cart_item.quantity > available_stock:
+            flash(f'Insufficient stock for {cart_item.product.name}. Only {available_stock} items available.', 'error')
+            return redirect(url_for('cart'))
+"""
+
+# NEW CODE:
+"""
+    for cart_item in cart_items:
+        if getattr(cart_item.product, 'status', 'active') != 'active':
+            flash(f'{cart_item.product.name} is inactive and cannot be purchased.', 'error')
+            return redirect(url_for('cart'))
+        # SHOPEE-STYLE: Check actual stock (not reserved)
+        if cart_item.product.stock < cart_item.quantity:
+            flash(f'Insufficient stock for {cart_item.product.name}. Only {cart_item.product.stock} items available.', 'error')
+            return redirect(url_for('cart'))
+"""
+
+# STEP 2: Replace the stock deduction logic in process_order (around line 9077-9091)
+# OLD CODE:
+"""
+    try:
+        for cart_item in cart_items:
+            if not reserve_stock(new_order.id, cart_item.product_id, cart_item.quantity):
+                db.session.rollback()
+                flash(f'Insufficient stock to reserve {cart_item.quantity} x {cart_item.product.name}', 'error')
+                return redirect(url_for('cart'))
+
+            db.session.add(OrderItem(
+                order_id=new_order.id,
+                product_id=cart_item.product_id,
+                quantity=cart_item.quantity,
+                price_at_time=cart_item.product.price
+            ))
+
+        new_order.stock_deducted = False
+"""
+
+# NEW CODE:
+"""
+    try:
+        # SHOPEE-STYLE: Immediately deduct stock from Product.stock
+        for cart_item in cart_items:
+            product = cart_item.product
+            
+            # Double-check stock availability with row-level locking
+            product = db.session.query(Product).filter_by(id=product.id).with_for_update().first()
+            
+            if product.stock < cart_item.quantity:
+                db.session.rollback()
+                flash(f'Insufficient stock for {product.name}. Only {product.stock} items available.', 'error')
+                return redirect(url_for('cart'))
+            
+            # Immediately deduct stock (Shopee-style)
+            product.stock = product.stock - cart_item.quantity
+            
+            db.session.add(OrderItem(
+                order_id=new_order.id,
+                product_id=cart_item.product_id,
+                quantity=cart_item.quantity,
+                price_at_time=cart_item.product.price
+            ))
+            
+            # Broadcast stock update to all clients
+            try:
+                broadcast_stock_update(product.id)
+            except Exception:
+                pass
+
+        new_order.stock_deducted = True
+"""
+
+# STEP 3: Update cancel_order function (around line 9205-9215)
+# OLD CODE:
+"""
+    # Store original status before changing it
+    original_status = order.status
+    
+    # RULE 2: RETURN STOCK ONLY IF BUYER CANCELS BEFORE SELLER PROCESSES
+    # Stock should only return if order was still pending/to_pay (not processed by seller yet)
+    if original_status in ['pending', 'to_pay']:
+        released_products = release_stock(order.id)
+        app.logger.info(f'Order {order.id} cancelled: released stock for {len(released_products)} product(s)')
+
+    else:
+        # Order was already processed by seller, do NOT return stock
+        app.logger.info(f'Order {order.id} cancelled: No stock returned (order was already processed by seller)')
+"""
+
+# NEW CODE:
+"""
+    # Store original status before changing it
+    original_status = order.status
+    
+    # SHOPEE-STYLE: Restore stock only if order was in early stages
+    if original_status in ['pending', 'to_pay', 'processing']:
+        # Restore stock for each item
+        for item in order.items:
+            product = db.session.query(Product).filter_by(id=item.product_id).with_for_update().first()
+            if product:
+                product.stock = product.stock + item.quantity
+                try:
+                    broadcast_stock_update(product.id)
+                except Exception:
+                    pass
+        app.logger.info(f'Order {order.id} cancelled: restored stock for {len(order.items)} product(s)')
+    else:
+        # Order was already shipped/completed, do NOT return stock
+        app.logger.info(f'Order {order.id} cancelled: No stock returned (order was already {original_status})')
+"""
+
+# STEP 4: Update mobile API checkout (around line 16630-16650)
+# OLD CODE:
+"""
+        try:
+            # Immediately deduct stock for each item with transaction rollback on failure
+            for cart_item in cart_items:
+                product_id = cart_item.get('product_id')
+                quantity = cart_item.get('quantity')
+                
+                # Get product and check stock
+                product = db.session.get(Product, product_id)
+                if not product:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'error': 'Product not found'}), 400
+                
+                # Check available stock
+                if product.stock < quantity:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'error': f'Insufficient stock for {product.name}. Only {product.stock} available'}), 400
+                
+                # Immediately deduct stock
+                product.stock = product.stock - quantity
+"""
+
+# NEW CODE (already correct, but ensure with_for_update):
+"""
+        try:
+            # SHOPEE-STYLE: Immediately deduct stock with row-level locking
+            for cart_item in cart_items:
+                product_id = cart_item.get('product_id')
+                quantity = cart_item.get('quantity')
+                
+                # Get product with row-level lock to prevent race conditions
+                product = db.session.query(Product).filter_by(id=product_id).with_for_update().first()
+                if not product:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'error': 'Product not found'}), 400
+                
+                # Check available stock
+                if product.stock < quantity:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'error': f'Insufficient stock for {product.name}. Only {product.stock} available'}), 400
+                
+                # Immediately deduct stock (Shopee-style)
+                product.stock = product.stock - quantity
+"""
+
+# STEP 5: Update mobile cancel order (around line 16800-16820)
+# OLD CODE:
+"""
+def buyer_cancel_order(order_id):
+    \"\"\"Cancel an order - for mobile app (Supabase version).\"\"\"
+    try:
+        orders = get_data('order', filters={'id': order_id, 'buyer_id': request.current_user_id})
+        if not orders or len(orders) == 0:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        
+        order = orders[0]
+
+        
+        # Only allow cancellation for certain statuses
+        if order.get('status') not in ['pending', 'to_pay', 'processing']:
+            return jsonify({'success': False, 'error': 'Order cannot be cancelled in current status'}), 400
+        
+        # Update order status
+        update_data_by_id('order', order_id, {'status': 'cancelled'})
+        
+        return jsonify({'success': True, 'message': 'Order cancelled successfully'})
+"""
+
+# NEW CODE:
+"""
+def buyer_cancel_order(order_id):
+    \"\"\"Cancel an order - for mobile app with Shopee-style stock restoration.\"\"\"
+    try:
+        # Get order using ORM for proper relationship access
+        order = db.session.get(Order, order_id)
+        if not order or order.buyer_id != request.current_user_id:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        
+        # Only allow cancellation for certain statuses
+        if order.status not in ['pending', 'to_pay', 'processing']:
+            return jsonify({'success': False, 'error': 'Order cannot be cancelled in current status'}), 400
+        
+        # SHOPEE-STYLE: Restore stock for each item
+        for item in order.items:
+            product = db.session.query(Product).filter_by(id=item.product_id).with_for_update().first()
+            if product:
+                product.stock = product.stock + item.quantity
+                try:
+                    broadcast_stock_update(product.id)
+                except Exception:
+                    pass
+        
+        # Update order status
+        order.status = 'cancelled'
+        order.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Order cancelled successfully'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'buyer_cancel_order error: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 400
+"""
+
+# SUMMARY OF CHANGES:
+# ===================
+# 1. Web checkout (process_order): Immediately deduct from Product.stock with row-level locking
+# 2. Web cancel (cancel_order): Restore stock to Product.stock for pending/to_pay/processing orders
+# 3. Mobile checkout (api_buyer_checkout): Already deducts immediately, add row-level locking
+# 4. Mobile cancel (buyer_cancel_order): Add stock restoration logic
+# 5. Remove all references to reserved_stock and reserve_stock() function
+# 6. Use Product.stock directly for all stock checks and updates
+# 7. Always use with_for_update() for row-level locking to prevent race conditions
+# 8. Broadcast stock updates after every change for real-time UI updates

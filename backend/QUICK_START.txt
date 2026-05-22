@@ -1,0 +1,82 @@
+================================================================================
+                    QUICK START GUIDE - RESET PASSWORD
+================================================================================
+
+STEP 1: RESTART BACKEND
+------------------------
+cd c:\Users\mnban\OneDrive\Desktop\kids\backend
+python app.py
+
+Wait for: "Running on http://..."
+
+
+STEP 2: TEST WITH MOBILE APP
+-----------------------------
+The mobile app is already configured. Just test these flows:
+
+A. FORGOT PASSWORD:
+   1. Open mobile app
+   2. Go to Login screen
+   3. Tap "Forgot Password?"
+   4. Enter email address
+   5. Tap "Send Reset Code"
+   6. Check email for 6-digit code
+
+B. RESET PASSWORD:
+   1. Enter the 6-digit code from email
+   2. Enter new password (8-12 chars, uppercase, lowercase, number, special char)
+   3. Confirm password
+   4. Tap "Reset Password"
+   5. Should see success message
+   6. Redirected to login screen
+
+
+EXPECTED BACKEND LOGS:
+-----------------------
+When testing, you should see:
+- "Reset code generated for {email}: {code}"
+- "Password reset code sent to {email}"
+- "Password reset successful for {email}"
+
+
+ERROR SCENARIOS TO TEST:
+------------------------
+1. Invalid email -> "No account found with this email address"
+2. Wrong code -> "Invalid verification code"
+3. Weak password -> Password validation error
+4. Password mismatch -> "Passwords do not match"
+
+
+WHAT'S NEW IN THIS FIX:
+-----------------------
+- Uses ORM (User.query) instead of get_data/update_data
+- Better error handling with error_type field
+- Improved logging for debugging
+- Proper database transaction management (commit/rollback)
+- Enhanced error messages for mobile app
+- No more duplicate endpoints
+
+
+IF SOMETHING GOES WRONG:
+------------------------
+1. Check backend console for errors
+2. Verify email settings in app.py
+3. Check database connection
+4. Restore backup if needed:
+   copy app.py.backup_*.txt app.py
+
+
+BACKUP LOCATION:
+----------------
+c:\Users\mnban\OneDrive\Desktop\kids\backend\app.py.backup_*.txt
+
+
+VERIFICATION:
+-------------
+Run this to verify implementation:
+python verify_implementation.py
+
+
+================================================================================
+                            READY TO TEST!
+================================================================================

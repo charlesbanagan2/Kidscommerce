@@ -1,0 +1,43 @@
+# Add this to your app.py to see query counts
+
+# Add after: app = Flask(__name__)
+
+# Enable query recording
+app.config['SQLALCHEMY_RECORD_QUERIES'] = True
+
+# Add query counter
+@app.before_request
+def before_request():
+    from flask import g
+    import time
+    g.start_time = time.time()
+    g.query_count = 0
+
+@app.after_request
+def after_request(response):
+    from flask import g
+    from flask_sqlalchemy import get_debug_queries
+    
+    if hasattr(g, 'start_time'):
+        elapsed = time.time() - g.start_time
+        queries = get_debug_queries()
+        query_count = len(queries)
+        
+        # Log slow requests or requests with many queries
+        if elapsed > 1.0 or query_count > 10:
+            print(f"\n⚠️  SLOW REQUEST: {request.path}")
+            print(f"   Time: {elapsed:.2f}s")
+            print(f"   Queries: {query_count}")
+            
+            if query_count > 10:
+                print(f"   ⚠️  N+1 PROBLEM DETECTED! ({query_count} queries)")
+                print(f"   → Add joinedload() to eager load relationships")
+            
+            # Show slowest queries
+            slow_queries = [q for q in queries if q.duration > 0.01]
+            if slow_queries:
+                print(f"   Slow queries ({len(slow_queries)}):")
+                for q in slow_queries[:3]:  # Show top 3
+                    print(f"      {q.duration:.3f}s - {q.statement[:80]}...")
+    
+    return response
