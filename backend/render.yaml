@@ -3,7 +3,7 @@ services:
     name: kids-ecommerce-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn --bind 0.0.0.0:10000 app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
