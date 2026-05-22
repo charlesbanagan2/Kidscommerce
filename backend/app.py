@@ -6228,61 +6228,73 @@ def admin_pending_registrations():
 @app.route('/admin/approve-registration/<int:user_id>', methods=['POST','GET'])
 @admin_required
 def admin_approve_registration(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.status != 'pending':
-        flash('User is not pending.', 'info')
-        return redirect(url_for('admin_pending_registrations'))
-
-    user.status = 'active'
-    user.email_verified = True  # optional: treat admin approval as verification
-    db.session.commit()
-
-    # In-app notification
     try:
-        db.session.add(Notification(user_id=user.id, message='Your account registration has been approved. You can now log in.'))
+        user = User.query.get_or_404(user_id)
+        if user.status != 'pending':
+            flash('User is not pending.', 'info')
+            return redirect(url_for('admin_pending_registrations'))
+
+        user.status = 'active'
+        user.email_verified = True  # optional: treat admin approval as verification
         db.session.commit()
-    except Exception:
-        db.session.rollback()
 
-    # Send approval email (skip if SMTP not configured)
-    try:
-        send_account_status_email(user.email, approved=True)
+        # In-app notification
+        try:
+            db.session.add(Notification(user_id=user.id, message='Your account registration has been approved. You can now log in.'))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Failed to create notification: {e}")
+
+        # Send approval email (skip if SMTP not configured)
+        try:
+            send_account_status_email(user.email, approved=True)
+        except Exception as e:
+            app.logger.warning(f"Failed to send approval email to {user.email}: {e}")
+            # Continue anyway - approval still succeeded
+
+        flash(f'User {user.first_name} {user.last_name} approved.', 'success')
+        return redirect(url_for('admin_pending_registrations'))
     except Exception as e:
-        app.logger.warning(f"Failed to send approval email to {user.email}: {e}")
-        # Continue anyway - approval still succeeded
-
-    flash(f'User {user.first_name} {user.last_name} approved.', 'success')
-    return redirect(url_for('admin_pending_registrations'))
+        app.logger.error(f"Error in admin_approve_registration: {e}")
+        flash('An error occurred while approving the user. Please try again.', 'danger')
+        return redirect(url_for('admin_pending_registrations'))
 
 @app.route('/admin/reject-registration/<int:user_id>', methods=['POST','GET'])
 @admin_required
 def admin_reject_registration(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.status != 'pending':
-        flash('User is not pending.', 'info')
-        return redirect(url_for('admin_pending_registrations'))
-
-    # Option 1: mark rejected, keep record
-    user.status = 'rejected'
-    db.session.commit()
-
-    # In-app notification
     try:
-        db.session.add(Notification(user_id=user.id, message='Your account registration was not approved.'))
+        user = User.query.get_or_404(user_id)
+        if user.status != 'pending':
+            flash('User is not pending.', 'info')
+            return redirect(url_for('admin_pending_registrations'))
+
+        # Option 1: mark rejected, keep record
+        user.status = 'rejected'
         db.session.commit()
-    except Exception:
-        db.session.rollback()
 
-    # Send rejection email (optional reason) - skip if SMTP not configured
-    reason = request.args.get('reason') or request.form.get('reason') or None
-    try:
-        send_account_status_email(user.email, approved=False, reason=reason)
+        # In-app notification
+        try:
+            db.session.add(Notification(user_id=user.id, message='Your account registration was not approved.'))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.warning(f"Failed to create notification: {e}")
+
+        # Send rejection email (optional reason) - skip if SMTP not configured
+        reason = request.args.get('reason') or request.form.get('reason') or None
+        try:
+            send_account_status_email(user.email, approved=False, reason=reason)
+        except Exception as e:
+            app.logger.warning(f"Failed to send rejection email to {user.email}: {e}")
+            # Continue anyway - rejection still succeeded
+
+        flash(f'User {user.first_name} {user.last_name} rejected.', 'info')
+        return redirect(url_for('admin_pending_registrations'))
     except Exception as e:
-        app.logger.warning(f"Failed to send rejection email to {user.email}: {e}")
-        # Continue anyway - rejection still succeeded
-
-    flash(f'User {user.first_name} {user.last_name} rejected.', 'info')
-    return redirect(url_for('admin_pending_registrations'))
+        app.logger.error(f"Error in admin_reject_registration: {e}")
+        flash('An error occurred while rejecting the user. Please try again.', 'danger')
+        return redirect(url_for('admin_pending_registrations'))
 
 
 
