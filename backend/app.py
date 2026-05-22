@@ -5433,10 +5433,6 @@ def register_start():
     if len(phone_digits) != 11:
         flash('Phone number must be exactly 11 digits.', 'danger'); return render_template('register.html')
 
-    # Maintain your Gmail-only policy
-    if not email.endswith('@gmail.com'):
-        flash('Please register using a Gmail address.', 'danger'); return render_template('register.html')
-
     if not terms_accepted:
         flash('You must accept the terms and conditions to register.', 'danger'); return render_template('register.html')
 
