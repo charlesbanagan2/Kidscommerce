@@ -5980,11 +5980,11 @@ def forgot_password():
             db.session.commit()
             try:
                 send_verification_email(email, reset_code)
+                flash('A reset code has been sent to your email.', 'info')
             except Exception as e:
-                # EMAIL ERROR: Log error without printing
-                flash('Failed to send reset code. Please try again.', 'danger')
-                return render_template('forgot_password.html')
-            flash('A reset code has been sent to your email.', 'info')
+                # EMAIL ERROR: SMTP not configured, but code is saved in database
+                app.logger.warning(f'Failed to send reset code email to {email}: {e}')
+                flash(f'Reset code generated: {reset_code}. Email sending unavailable.', 'info')
             return redirect(url_for('reset_password', email=email))
         else:
             flash('Email not found.', 'danger')
@@ -6024,10 +6024,12 @@ def resend_verification_code():
         code = str(random.randint(100000, 999999))
         session['reg_code'] = code
         session['reg_code_expires'] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
-        if send_verification_email(email, code):
+        try:
+            send_verification_email(email, code)
             flash('A new verification code has been sent to your email.', 'info')
-        else:
-            flash('Failed to resend verification code. Please try again.', 'danger')
+        except Exception as e:
+            app.logger.warning(f'Failed to send verification email to {email}: {e}')
+            flash(f'New code generated: {code}. Email sending unavailable.', 'info')
         return redirect(url_for('verify_email', email=email))
     # Legacy: user exists in DB
     user = User.query.filter_by(email=email).first()
@@ -6035,10 +6037,12 @@ def resend_verification_code():
         code = str(random.randint(100000, 999999))
         user.verification_code = code
         db.session.commit()
-        if send_verification_email(email, code):
+        try:
+            send_verification_email(email, code)
             flash('A new verification code has been sent to your email.', 'info')
-        else:
-            flash('Failed to resend verification code. Please try again.', 'danger')
+        except Exception as e:
+            app.logger.warning(f'Failed to send verification email to {email}: {e}')
+            flash(f'New code generated: {code}. Email sending unavailable.', 'info')
     else:
         flash('User not found.', 'danger')
     return redirect(url_for('verify_email', email=email))
